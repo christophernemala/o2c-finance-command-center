@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+reports/
+local-data/
+*.log
+.DS_Store
+*.tsbuildinfo
