@@ -137,7 +137,7 @@ function LoginScreen({ onEnter }: { onEnter: () => void }) {
       </div>
       <section className="login-console">
         <div className="console-copy">
-          <p className="eyebrow">DHCM receivables intelligence</p>
+          <p className="eyebrow">O2C receivables intelligence</p>
           <h1>Finance command center for AR, IFRS 9 ECL, SOA, bank proof, and executive review.</h1>
           <div className="login-stats">
             <span><strong>7</strong>ECL buckets</span>

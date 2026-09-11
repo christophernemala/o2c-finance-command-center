@@ -1,6 +1,6 @@
 # SKILLS.md — Platform Technical Capabilities
 
-This document describes the technical skills and algorithms embedded in the DHCM Finance Command Center.
+This document describes the technical skills and algorithms embedded in the O2C Finance Command Center.
 
 ---
 

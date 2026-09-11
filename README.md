@@ -1,4 +1,4 @@
-# DHCM Finance Command Center
+# O2C Finance Command Center
 
 > **Enterprise O2C Receivables Intelligence Platform** — IFRS 9 ECL provisioning, bank reconciliation, customer risk analytics, Excel upload & reconciliation, and executive KPI dashboards.
 
@@ -75,7 +75,7 @@ Open `http://127.0.0.1:5174` in your browser.
 ## 📁 Project Structure
 
 ```
-dhcm-finance-command-center/
+o2c-finance-command-center/
 ├── src/
 │   ├── App.tsx                    # Main application (16 routes, all components)
 │   ├── main.tsx                   # React entry point

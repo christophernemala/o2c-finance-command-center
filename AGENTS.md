@@ -1,4 +1,4 @@
-# AGENTS.md — AI Agent Configuration for DHCM Finance Command Center
+# AGENTS.md — AI Agent Configuration for O2C Finance Command Center
 
 ## Purpose
 
