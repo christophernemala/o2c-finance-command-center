@@ -1,0 +1,22 @@
+{
+  "plugins": {
+    "shadcn": {
+      "enabled": true
+    },
+    "notion-workspace": {
+      "enabled": true
+    },
+    "snowflake-cursor-plugin": {
+      "enabled": true
+    },
+    "snyk-secure-development": {
+      "enabled": true
+    },
+    "antimetal": {
+      "enabled": true
+    },
+    "cockroachdb": {
+      "enabled": true
+    }
+  }
+}
