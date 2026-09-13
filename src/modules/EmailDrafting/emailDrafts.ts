@@ -19,7 +19,7 @@ export function draftSoaEmail(customerRows: FinanceRow[]): EmailDraft {
       "Kindly review the attached SOA and share payment status, remittance advice, or dispute details where applicable.",
       "",
       "Regards,",
-      "O2C Finance Command Center"
+      "Aurion Stride"
     ].join("\n")
   };
 }

@@ -12,6 +12,7 @@ import {
   KeyRound,
   Lock,
   Mail,
+  Menu,
   AlertTriangle,
   PlugZap,
   RefreshCw,
@@ -29,12 +30,14 @@ import { draftSoaEmail } from "./modules/EmailDrafting/emailDrafts";
 import { findSlaProfile } from "./modules/SlaDirectory/slaDirectory";
 import { convertUpload, type ParsedUpload } from "./modules/ExcelUpload/excelParser";
 import { reconcileUpload, type ReconciliationSummary } from "./modules/ExcelUpload/reconciliationEngine";
+import { WalkingRobot } from "./WalkingRobot";
+import { PRODUCT } from "./config/brand";
 import "./styles.css";
 
 type Route = "powerbi" | "matrix" | "aging" | "risk" | "unapplied" | "ecl" | "email" | "export" | "sla" | "integrations" | "invoices" | "audit" | "recon" | "reminders" | "review" | "upload";
 
 const navItems: { id: Route; label: string; icon: React.ReactNode }[] = [
-  { id: "powerbi", label: "Power BI Dashboard", icon: <Gauge size={18} /> },
+  { id: "powerbi", label: "Command Center", icon: <Gauge size={18} /> },
   { id: "upload", label: "Upload & Reconcile", icon: <Upload size={18} /> },
   { id: "matrix", label: "Total Data Matrix", icon: <FileSpreadsheet size={18} /> },
   { id: "aging", label: "Aging Analysis", icon: <TableProperties size={18} /> },
@@ -54,6 +57,7 @@ const navItems: { id: Route; label: string; icon: React.ReactNode }[] = [
 
 export default function App() {
   const [entered, setEntered] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [active, setActive] = useState<Route>("powerbi");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
@@ -83,15 +87,17 @@ export default function App() {
 
   return (
     <main className="saas-shell">
-      <Sidebar active={active} setActive={(route) => {
+      <div className={`sidebar-backdrop${navOpen ? " visible" : ""}`} onClick={() => setNavOpen(false)} />
+      <Sidebar open={navOpen} active={active} setActive={(route) => {
         setActive(route);
+        setNavOpen(false);
         const label = navItems.find((item) => item.id === route)?.label ?? "Section";
         setNotice(`${label} opened`);
         window.setTimeout(() => setNotice(""), 1800);
       }} />
       <section className="app-main">
         {notice && <div className="option-popup">{notice}</div>}
-        <Topbar active={active} search={search} setSearch={setSearch} rowCount={model.rows.length} onExport={() => exportDailyPack(model)} onLogout={() => setEntered(false)} />
+        <Topbar active={active} search={search} setSearch={setSearch} rowCount={model.rows.length} onMenu={() => setNavOpen(true)} onExport={() => exportDailyPack(model)} onLogout={() => setEntered(false)} />
         {active === "powerbi" && <PowerBiDashboard model={model} />}
         {active === "upload" && <ExcelUploadCenter model={model} />}
         {active === "matrix" && <DataMatrix rows={filteredMatrix} allRows={matrixRows} />}
@@ -132,35 +138,37 @@ function LoginScreen({ onEnter }: { onEnter: () => void }) {
 
   return (
     <main className="login-screen">
-      <div className="login-motion" aria-hidden="true">
-        <MotionScene compact={false} />
-      </div>
-      <section className="login-console">
-        <div className="console-copy">
-          <p className="eyebrow">O2C receivables intelligence</p>
-          <h1>Finance command center for AR, IFRS 9 ECL, SOA, bank proof, and executive review.</h1>
+      <section className="login-art">
+        <WalkingRobot />
+        <div className="login-art-copy">
+          <p className="eyebrow">{PRODUCT.tagline}</p>
+          <h1>See every receivable. Act before it ages.</h1>
           <div className="login-stats">
             <span><strong>7</strong>ECL buckets</span>
             <span><strong>100%</strong>180+ provision</span>
             <span><strong>XLSX</strong>Styled exports</span>
           </div>
         </div>
+      </section>
       <form className="login-card" onSubmit={submit}>
-        <div className="brand-row"><span className="brand-dot"><Lock size={18} /></span> O2C Finance Cloud</div>
-        <p className="eyebrow">Secure demo workspace</p>
-        <h2>Sign in to the order-to-cash command center.</h2>
-        <p className="muted">Use the prefilled demo credentials. This prototype validates the sign-in screen locally and does not store passwords.</p>
+        <div className="brand-row"><span className="brand-dot"><Lock size={18} /></span> {PRODUCT.name}</div>
+        <p className="eyebrow">{PRODUCT.workspace}</p>
+        <h2>Welcome back</h2>
+        <p className="muted">Sign in to the {PRODUCT.tagline} hub.</p>
         <label className="login-field">Work email<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
         <label className="login-field">Password<span className="password-wrap"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="primary-action wide" type="submit"><KeyRound size={18} /> Sign in to dashboard</button>
+        <button className="primary-action wide" type="submit"><KeyRound size={18} /> Enter intelligence hub</button>
+        <div className="sso-row">
+          <button type="button" className="sso-button" disabled>Google</button>
+          <button type="button" className="sso-button" disabled>Microsoft</button>
+        </div>
       </form>
-      </section>
     </main>
   );
 }
 
-function Sidebar({ active, setActive }: { active: Route; setActive: (route: Route) => void }) {
+function Sidebar({ open, active, setActive }: { open: boolean; active: Route; setActive: (route: Route) => void }) {
   const [cardTop, setCardTop] = useState(0);
   const dragRef = useRef<{ startY: number; startTop: number } | null>(null);
 
@@ -185,8 +193,8 @@ function Sidebar({ active, setActive }: { active: Route; setActive: (route: Rout
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand"><span>O2C</span><strong>Finance SaaS</strong></div>
+    <aside className={`sidebar${open ? " open" : ""}`}>
+      <div className="sidebar-brand"><span>AS</span><strong>{PRODUCT.name}</strong></div>
       <nav>
         {navItems.map((item) => (
           <button key={item.id} className={active === item.id ? "active" : ""} onClick={() => setActive(item.id)}>
@@ -205,11 +213,12 @@ function Sidebar({ active, setActive }: { active: Route; setActive: (route: Rout
   );
 }
 
-function Topbar({ active, search, setSearch, rowCount, onExport, onLogout }: { active: Route; search: string; setSearch: (value: string) => void; rowCount: number; onExport: () => void; onLogout: () => void }) {
+function Topbar({ active, search, setSearch, rowCount, onMenu, onExport, onLogout }: { active: Route; search: string; setSearch: (value: string) => void; rowCount: number; onMenu: () => void; onExport: () => void; onLogout: () => void }) {
   return (
     <header className="topbar">
       <div>
-        <p className="breadcrumb">Dashboards / {navItems.find((item) => item.id === active)?.label}</p>
+        <button type="button" className="nav-toggle" aria-label="Open navigation" onClick={onMenu}><Menu size={18} /></button>
+        <p className="breadcrumb">{PRODUCT.tagline} / {navItems.find((item) => item.id === active)?.label}</p>
         <h1>{navItems.find((item) => item.id === active)?.label}</h1>
       </div>
       <div className="topbar-actions">
@@ -526,11 +535,11 @@ function HeroPanel({ title, copy }: { title: string; copy: string }) {
   return (
     <section className="hero-panel">
       <div>
-        <p className="eyebrow">Executive O2C dashboard</p>
+        <p className="eyebrow">Morning brief</p>
         <h2>{title}</h2>
         <p>{copy}</p>
       </div>
-      <MotionScene compact={false} />
+      <WalkingRobot compact />
     </section>
   );
 }
@@ -538,8 +547,8 @@ function HeroPanel({ title, copy }: { title: string; copy: string }) {
 function MiniMotionHeader({ title, copy, action }: { title: string; copy: string; action: () => void }) {
   return (
     <section className="mini-motion-header">
-      <div><p className="eyebrow">Motion analytics surface</p><h2>{title}</h2><p>{copy}</p></div>
-      <MotionScene compact />
+      <div><p className="eyebrow">{PRODUCT.tagline}</p><h2>{title}</h2><p>{copy}</p></div>
+      <WalkingRobot compact />
       <button className="primary-action" onClick={action}><Download size={17} /> Export Excel</button>
     </section>
   );
