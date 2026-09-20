@@ -1,0 +1,47 @@
+{
+  "_comment": "Cloudflare WAF & Security rules for O2C Finance Command Center",
+  "_apply": "Terraform or Cloudflare dashboard > Security > WAF",
+  "zone_settings": {
+    "ssl": "strict",
+    "min_tls_version": "1.2",
+    "opportunistic_encryption": "on",
+    "automatic_https_rewrites": "on",
+    "security_level": "medium",
+    "browser_integrity_check": true,
+    "hotlink_protection": true
+  },
+  "firewall_rules": [
+    {
+      "description": "Block non-GET/POST/OPTIONS to /api/*",
+      "expression": "(http.request.uri.path matches \"^/api/\") and not (http.request.method in {\"GET\" \"POST\" \"OPTIONS\"})",
+      "action": "block"
+    },
+    {
+      "description": "Rate limit /api/* — 60 req/min per IP",
+      "expression": "(http.request.uri.path matches \"^/api/\")",
+      "action": "challenge",
+      "ratelimit": { "requests_per_period": 60, "period": 60, "mitigation_timeout": 600 }
+    },
+    {
+      "description": "Block known bad bots",
+      "expression": "(cf.client.bot) and not (cf.verified_bot_category in {\"Search Engine Crawler\"})",
+      "action": "block"
+    },
+    {
+      "description": "Allow Vercel health checks",
+      "expression": "(http.request.uri.path eq \"/_vercel/health\") or (http.request.uri.path eq \"/api/health\")",
+      "action": "allow"
+    }
+  ],
+  "page_rules": [
+    {
+      "description": "Cache static assets at edge",
+      "url_pattern": "*/_next/static/*",
+      "actions": { "cache_level": "cache_everything", "edge_cache_ttl": 2592000 }
+    }
+  ],
+  "security_headers": {
+    "_note": "These are set in vercel.json headers config — Cloudflare transforms only add HSTS",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+  }
+}
