@@ -1,7 +1,6 @@
 import type { Config } from 'tailwindcss'
 
-const config: Config = {
-  darkMode: ['class'],
+export default {
   content: [
     './index.html',
     './src/**/*.{ts,tsx}',
@@ -9,81 +8,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-        },
-        secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
-        },
-        destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
-        },
-        muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
-        },
-        accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
-        },
-        card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-        },
-        // O2C brand
-        f9: {
-          blue: '#1A56DB',
-          teal: '#0E9F6E',
-          amber: '#F59E0B',
-          red: '#E02424',
-          slate: '#1E293B',
-        },
+        'f9-blue': '#2563eb',
+        'f9-blue-hover': '#1d4ed8',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Satoshi', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+      },
+      boxShadow: {
+        sm: '0 1px 2px rgba(15,23,42,0.06)',
+        md: '0 4px 12px rgba(15,23,42,0.08)',
+        lg: '0 12px 32px rgba(15,23,42,0.12)',
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
-      },
-      keyframes: {
-        'accordion-down': {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' },
-        },
-        'accordion-up': {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' },
-        },
-        'fade-in': {
-          from: { opacity: '0', transform: 'translateY(8px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
-        },
-        'number-pop': {
-          '0%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.08)' },
-          '100%': { transform: 'scale(1)' },
-        },
-      },
-      animation: {
-        'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out',
-        'fade-in': 'fade-in 0.3s ease-out',
-        'number-pop': 'number-pop 0.4s ease-in-out',
+        sm: '0.375rem',
+        md: '0.5rem',
+        lg: '0.75rem',
+        xl: '1rem',
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
-}
-
-export default config
+  plugins: [],
+} satisfies Config
