@@ -1,4 +1,3 @@
-# DHCM Finance Command Center
 
 > **Enterprise O2C Receivables Intelligence Platform** — IFRS 9 ECL provisioning, bank reconciliation, customer risk analytics, Excel upload & reconciliation, and executive KPI dashboards.
 
