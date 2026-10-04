@@ -6,7 +6,9 @@ External galleries are references; they do not override finance controls.
 | Workspace | Required behavior | Acceptance criterion |
 |---|---|---|
 | Overview | Tenant/entity, AED, retrieval time, KPI definitions and source | All totals come from one database snapshot and cover the full entity; missing ECL stays unavailable |
+| Customers | Source-system account name and reference within the selected entity | Never generate company names, TRNs, credit data, or account records |
 | Receivables | Separate lifecycle, settlement, dispute and collections | Only posted allocations change displayed settlement; no direct close/paid action |
+| 13-week cashflow | Approved direct-method forecast, source version, assumptions and confidence lineage | Invoice due dates alone never become a forecast; missing forecast inputs stay unavailable |
 | Cash application | Bank direction, receipt, invoice, residual and evidence | Debit bank lines cannot become receipts; conflicting allocations cannot overconsume balances |
 | ECL review | Preserved model, exposure, date, scenarios and overlays | Display supplied runs; no invented rates or silently mutable inputs |
 | Approval inbox | Maker, checker, exact amount, records and accounting impact | Maker cannot approve; execution requires the same approved version and current authority |

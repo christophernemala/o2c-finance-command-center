@@ -27,8 +27,10 @@ export function validateSnapshot(value: unknown, tenant: string, entity: string)
   data.receipts.forEach(row => { amount(row.amount); amount(row.residual); });
   data.bank_lines.forEach(row => amount(row.amount)); data.approvals.forEach(row => amount(row.amount));
   data.ecl_runs.forEach(row => amount(row.allowance));
-  for (const key of ["gross", "open", "unapplied"] as const) aggregateAmount(data.totals[key]);
+  for (const key of ["gross", "open", "overdue", "unapplied"] as const) aggregateAmount(data.totals[key]);
   if (data.totals.allowance !== null) amount(data.totals.allowance);
+  if (data.totals.dso_days !== null && !/^\d+(\.\d{1,2})?$/.test(data.totals.dso_days)) throw new Error("Invalid DSO");
+  if (data.totals.cei_percent !== null && !/^(100(\.0{1,2})?|\d{1,2}(\.\d{1,2})?)$/.test(data.totals.cei_percent)) throw new Error("Invalid CEI");
   return data;
 }
 export async function snapshot(tenant: string, entity: string, asOf: string, page: number) {

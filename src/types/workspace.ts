@@ -1,4 +1,4 @@
-export const workspaces = ["overview", "receivables", "reconciliation", "ecl", "approvals", "agents", "imports", "audit"] as const;
+export const workspaces = ["overview", "customers", "receivables", "cashflow", "reconciliation", "ecl", "approvals", "agents", "imports", "audit"] as const;
 export type Workspace = typeof workspaces[number];
 export type Role = "viewer" | "maker" | "approver" | "admin";
 export interface Membership { tenant_id: string; tenant_name: string; role: Role }
@@ -24,6 +24,10 @@ export interface Snapshot {
   agent_runs: { id: string; name: string; status: string; operation_id: string | null; updated_at: string }[];
   imports: { id: string; file_name: string; status: string; rows: number; total: string; digest: string; created_at: string }[];
   audit: { id: string; actor: string; operation: string; record_id: string; at: string; detail: Record<string, unknown> }[];
-  totals: { gross: string; open: string; unapplied: string; allowance: string | null; invoice_count: number; pending_count: number };
+  totals: {
+    gross: string; open: string; overdue: string; unapplied: string;
+    allowance: string | null; dso_days: string | null; cei_percent: string | null;
+    invoice_count: number; pending_count: number;
+  };
   page: number; has_more: boolean;
 }

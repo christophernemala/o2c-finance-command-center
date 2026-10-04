@@ -4,13 +4,18 @@ Reference: https://stripe.com/en-nl (user-selected visual direction).
 Original O2C product implementation; do not copy Stripe branding or assets.
 
 - Semantic CSS variables in `src/app/globals.css` map into Tailwind utilities.
-- Light: canvas #F6F8FB, white surfaces, ink #0A2540, muted #52667A,
-  primary #5841D8, border #DCE3ED. The darker violet supports readable button text.
-- Dark: canvas #0C1626, surface #132338, ink #EDF3FC, muted #B1BFD3,
-  primary #B2A3FF, border #334960. Dark buttons use navy text.
+- Locked brand palette from the approved login reference: navy `#0B1224`, violet
+  `#8B7CF8`, teal `#6DD3C5`, light canvas `#F6F5F8`, button `#A89CFF`, and
+  light violet `#E9E5FF`.
+- Light: `#F6F5F8` canvas, white surfaces, `#0B1224` ink, `#A89CFF`
+  controls with navy text, and `#E9E5FF` supporting surfaces.
+- Dark: `#0B1224` canvas, `#151E34` surfaces, light ink, and the same violet/teal
+  accents. Keep finance evidence on opaque surfaces.
 - Use navy navigation, violet active accents, and a restrained gradient on sign-in.
   Financial evidence stays on opaque surfaces.
-- System font stack; no third-party font requests. Tabular financial numerals.
+- Prefer Inter for body text, Sora for headings, and JetBrains Mono for financial
+  numerals when those fonts are locally available. The system fallbacks make no
+  third-party font request and preserve tabular financial numerals.
 - Page headings 30px, body 14px, metadata 12px. Consistent Tailwind spacing.
 - Controls and navigation targets at least 44px. Rounded controls 8px; panels 12px.
 - Never truncate monetary values. Use horizontal scrolling for long amount columns.

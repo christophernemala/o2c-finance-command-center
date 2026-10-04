@@ -2,17 +2,17 @@
 
 :root {
   color-scheme: light;
-  --canvas: #f6f8fb; --surface: #ffffff; --surface-muted: #eef2f7;
-  --ink: #0a2540; --muted: #52667a; --border: #dce3ed;
-  --primary: #5841d8; --primary-hover: #4732b7; --primary-soft: #eeeafd;
+  --canvas: #f6f5f8; --surface: #ffffff; --surface-muted: #e9e5ff;
+  --ink: #0b1224; --muted: #59647a; --border: #ddd9ea;
+  --primary: #a89cff; --primary-hover: #8b7cf8; --primary-soft: #e9e5ff; --accent-teal: #6dd3c5;
   --success: #146b50; --success-soft: #e8f6ef; --warning: #865410; --warning-soft: #fff4dc;
-  --danger: #b12e47; --danger-soft: #fdebf0; --rail: #0a2540; --rail-text: #d4e0ef;
+  --danger: #b12e47; --danger-soft: #fdebf0; --rail: #0b1224; --rail-text: #e9e5ff;
 }
 [data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #0c1626; --surface: #132338; --surface-muted: #1c3048;
+  --canvas: #0b1224; --surface: #151e34; --surface-muted: #212b45;
   --ink: #edf3fc; --muted: #b1bfd3; --border: #334960;
-  --primary: #b2a3ff; --primary-hover: #c5baff; --primary-soft: #302853;
+  --primary: #a89cff; --primary-hover: #b8afff; --primary-soft: #302b55; --accent-teal: #6dd3c5;
   --success: #8cddbc; --success-soft: #173e33; --warning: #f5ce85; --warning-soft: #453722;
   --danger: #ffa3b7; --danger-soft: #482536; --rail: #091525;
 }
@@ -22,10 +22,12 @@
   --color-primary: var(--primary); --color-primary-hover: var(--primary-hover); --color-primary-soft: var(--primary-soft);
   --color-success: var(--success); --color-success-soft: var(--success-soft);
   --color-warning: var(--warning); --color-warning-soft: var(--warning-soft);
-  --color-danger: var(--danger); --color-danger-soft: var(--danger-soft);
+  --color-danger: var(--danger); --color-danger-soft: var(--danger-soft); --color-accent-teal: var(--accent-teal);
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
+h1, h2, h3 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; }
+.money, .tabular-nums { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
@@ -42,8 +44,7 @@ tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--surface-muted); }
 td.money, th.money { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 summary { cursor: pointer; }
-.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid transparent; border-radius: 8px; text-decoration: none; font-weight: 600; background: var(--primary); color: white; }
-[data-theme="dark"] .button { color: #0a2540; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid transparent; border-radius: 8px; text-decoration: none; font-weight: 600; background: var(--primary); color: #0b1224; }
 .button:hover { background: var(--primary-hover); }
 .button.secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
 .button.secondary:hover { background: var(--surface-muted); }
@@ -51,8 +52,8 @@ summary { cursor: pointer; }
 .rail a { min-height: 44px; display: flex; align-items: center; gap: 12px; border-radius: 8px; padding: 10px 12px; color: var(--rail-text); text-decoration: none; }
 .rail a[aria-current="page"] { background: #334569; color: #ffffff; box-shadow: inset 3px 0 #ad9dff; }
 .rail a:hover { background: #243b56; color: white; }
-.login-art { background: linear-gradient(145deg, #0a2540 12%, #252550 75%, #433292); color: #fff; }
-.login-art::before { content: ""; position: absolute; width: 650px; height: 240px; background: linear-gradient(90deg, #635bff, #b896fa, #79dfed); transform: rotate(-14deg); top: -130px; left: -180px; opacity: .8; }
+.login-art { background: linear-gradient(145deg, #0b1224 12%, #191d3d 72%, #2f2a67); color: #fff; }
+.login-art::before { content: ""; position: absolute; width: 650px; height: 240px; background: linear-gradient(90deg, #8b7cf8, #a89cff, #6dd3c5); transform: rotate(-14deg); top: -130px; left: -180px; opacity: .92; }
 .skip { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-160%); }
 .skip:focus { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

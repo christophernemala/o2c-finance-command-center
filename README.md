@@ -6,8 +6,10 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 
 ## Implemented
 
-- Eight workspaces: overview, receivables, cash application, ECL review, approval
-  inbox, agent activity, import review, and audit explorer.
+- Ten workspaces: overview, customers, receivables, 13-week cashflow, cash
+  application, ECL review, approval inbox, agent activity, import review, and audit explorer.
+- Stable product routes for `/dashboard`, `/customers`, `/invoices`, `/cashflow`,
+  and `/reconciliation`; each route uses the same authenticated server snapshot.
 - Invited-account password authentication validated by Supabase on the server.
   No arbitrary local login, generated balances, default accounts, or seeded business data.
 - Tenant membership and entity context on every protected request. PostgreSQL RLS
@@ -75,6 +77,9 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
 
 - ECL workspaces display externally supplied preserved measurement runs. There is
   no calibrated ECL engine, automatic allowance posting, or default loss-rate matrix.
+- DSO and CEI remain unavailable until governed sales and collection-period inputs
+  are connected. The 13-week cashflow workspace requires an approved source model;
+  the application does not use invoice due dates to fabricate a forecast.
 - Agent workspaces display recorded runs. No model provider, worker runtime,
   customer-message sender, or ERP/bank adapter is connected by this change.
 - The cash-control journal records equal debit/credit amounts per posting. It is
