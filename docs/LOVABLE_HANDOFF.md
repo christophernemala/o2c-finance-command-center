@@ -1,48 +1,87 @@
-# Lovable handoff
+# Lovable production handoff
 
 Target repository: `christophernemala/o2c-finance-command-center`.
-Review branch: `codex/feat/production-workspaces`.
+Review branch: `codex/feat/production-workspaces` (draft PR #1).
 
-First verify the Lovable project's GitHub connection points to this exact repository.
-Do not edit a similarly named Finance Control Hub project or create a separate copy.
-Synchronize the reviewed branch using the project's supported GitHub workflow.
+## Verify the target before editing
 
-Preserve Next.js App Router, Supabase SSR, strict TypeScript, decimal-string financial
-contracts, and the approved database command boundaries. Confirm the actual Lovable
-runtime supports this stack before attempting a build or rewriting configuration.
+The connected Lovable workspace currently contains nine projects, but none is named
+for this repository and no project has been proven to use its GitHub branch. Do not
+edit a similarly named Finance Control Hub, AR Flow Insights, Accounts Command Center,
+or Finance Hub Pro project. First verify the exact GitHub repository and branch in
+Lovable. If that evidence is unavailable, stop without creating a duplicate project.
 
-Apply the user-selected https://stripe.com/en-nl visual direction through existing
-`DESIGN.md`, `STYLEGUIDE.md`, semantic tokens, and shared components. The locked
-tokens are `#0B1224`, `#8B7CF8`, `#6DD3C5`, `#F6F5F8`, `#A89CFF`, and `#E9E5FF`.
-Do not copy Stripe branding or invent financial results to populate the interface.
+Figma access is available, but no Figma file or node was supplied for this handoff.
+Use the checked-in `DESIGN.md` and `STYLEGUIDE.md` as the reviewed design source until
+the product owner identifies a specific Figma file.
 
-Use the existing stack in this repository. It is Next.js 16 App Router, React 19,
-strict TypeScript, Tailwind 4, Supabase SSR/PostgreSQL, and Decimal.js. Do not
-downgrade to Next.js 14 or introduce Clerk, Prisma, Framer Motion, shadcn, Radix,
-21st.dev, or UIverse unless a separate reviewed change demonstrates a concrete need.
-Supabase Auth is the current identity authority; do not add a second auth system.
+## Preserve the implemented architecture
 
-The supported product URLs are `/login`, `/dashboard`, `/customers`, `/invoices`,
-`/cashflow`, and `/reconciliation`. Additional controlled workspaces remain available
-through the existing navigation. DSO, CEI, and the 13-week cash forecast must stay
-unavailable until their governed inputs are connected. Never hard-code `42 days`,
-`87.3%`, forecast values, customer names, TRNs, invoice references, PDC dates, or
-1,250 generated rows.
+- Next.js 16 App Router, React 19, strict TypeScript, Tailwind 4.
+- Supabase SSR/Auth and PostgreSQL. The browser app uses only the public project URL
+  and publishable key. Never add a service-role key to Vercel application variables.
+- Decimal.js and decimal-string transport for AED. Database amounts are numeric.
+- Tenant/entity scope, PostgreSQL RLS, security-definer command boundaries,
+  independent maker/checker approval, version checks, idempotency, and audit evidence.
+- Server Components by default. Local storage is limited to the non-sensitive theme.
 
-No demo accounts, seeded finance rows, fabricated agent runs, generated payment
-proof, optimistic ledger posting, default ECL rates, or fake connection indicators.
-When a real integration is absent, retain the explicit unavailable state.
+Do not introduce Clerk, Prisma, a second auth system, an SPA catch-all rewrite, or a
+`dist` output directory. Do not downgrade Next.js. Add a dependency only for a
+concrete reviewed feature that the existing stack cannot provide.
 
-Rejected configuration from the supplied draft prompt:
+## Product and visual contract
 
-- Never use localStorage for authentication; it stores only the non-sensitive theme preference.
-- Never disable robots rules or mirror third-party websites into this repository.
-- Do not add an SPA catch-all rewrite or `dist` output. Vercel uses the checked-in
-  Next.js configuration, `npm ci`, `npm run build`, and framework-managed output.
-- Do not implement per-instance in-memory login throttling or application bcrypt.
-  Configure Supabase Auth rate limits, password policy, MFA, and abuse protections
-  in the selected live project, then verify them end to end.
+Supported routes are `/login`, `/dashboard`, `/customers`, `/invoices`, `/cashflow`,
+and `/reconciliation`. The locked palette is `#0B1224`, `#8B7CF8`, `#6DD3C5`,
+`#F6F5F8`, `#A89CFF`, and `#E9E5FF`. Apply it through existing semantic tokens and
+shared components. Do not copy third-party branding or assets.
 
-Do not bypass maker/checker approval, execute real financial transactions, apply
-production migrations, install paid integrations, or publish automatically. Report
-changed files, build/test evidence, preview URL, and actual connection limitations.
+No demo accounts, seeded finance rows, generated companies, TRNs, invoices, balances,
+PDC dates, agent runs, payment proof, ECL rates, or fake connection status. Missing
+integrations and governed inputs remain explicitly unavailable.
+
+Total AR and overdue AR come from the authenticated full-entity database snapshot.
+DSO, CEI, and the 13-week direct-method forecast remain unavailable until the schema
+contains their approved source periods, opening balances, sales/collection history,
+expected receipt dates, committed disbursements, scenarios, confidence lineage, and
+approval evidence. Invoice due dates alone are not a cash forecast.
+
+## Production login contract
+
+Password login uses `supabase.auth.signInWithPassword` on the server. A successful
+credential check is followed by `workspace_access`. If the user has no real membership,
+the session is signed out and the same generic `Incorrect email or password.` message
+is shown. A valid member is redirected to `/dashboard` with the first authorized
+tenant selected. The application never creates a tenant or membership during login.
+
+The actual schema uses `public.memberships` and roles `viewer`, `maker`, `approver`,
+and `admin`. It does not contain `tenant_memberships`, tenant slugs, or an `owner` role.
+The migration already enables RLS and includes `member_read` with
+`user_id = auth.uid()`. Do not add a recursive membership-management policy.
+
+Create the first real tenant, AED entity, Auth user, and `admin` membership through a
+trusted database administrator after selecting an active Supabase project. Use
+`docs/PRODUCTION_PROVISIONING.md`; never put credentials or real user passwords in Git.
+
+## Provider status observed on 2026-10-05
+
+- Supabase exposes one project, `vaxsnungigkeqxaolqvo`, and it is `INACTIVE`. No live
+  migration, user, tenant, or membership was created.
+- Vercel builds pass, but the connector returns 403 for team scope
+  `christophers-projects-896fb086`. Deployment protection cannot be changed or verified
+  through the current connection.
+- Lovable has no verified project connected to this repository.
+
+These facts block live authentication and production qualification. They are not
+reasons to add fallback authentication or sample records.
+
+## Validation before any push or promotion
+
+Run `npm run typecheck`, `npm test`, and `npm run build`. Verify all six product routes,
+live Supabase JWT/RLS behavior with at least two tenants, maker/checker separation,
+revoked-role behavior, retry/idempotency, live security headers, and the protected or
+public status intended for that environment. Report local, provider, and browser
+evidence separately. Do not merge or promote because a build alone succeeds.
+
+The reusable review specifications are in `docs/INVOICE_ARITHMETIC_AUDITOR.md` and
+`docs/ACCESSIBILITY_AUDIT.md`.
