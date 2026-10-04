@@ -40,8 +40,15 @@ editing instructions; a similarly named finance project is not sufficient eviden
 ## Current provider verification
 
 The initial branch commit passed both GitHub verification runs, but both connected
-Vercel projects reported failed previews. The Vercel connector returned 403 for
-`christophers-projects-896fb086`, and the browser required sign-in, so the build
-errors could not be inspected. The repository now declares Next.js build settings
-explicitly; this is not evidence that those preview failures are resolved. Inspect
-the latest deployment logs and verify a ready preview before promotion.
+Vercel projects reported failed previews. After explicit Next.js build settings
+were added in commit `59e40f0`, both projects reported Ready and both GitHub
+verification runs passed. The original build errors were not accessible: the
+connector returned 403 for `christophers-projects-896fb086`.
+
+The `o2c-finance-command-center-app` branch preview is
+https://o2c-finance-command-c-git-82dad6-christophers-projects-896fb086.vercel.app.
+Its browser check reached Vercel deployment protection, then two-factor sign-in.
+Deployment readiness is confirmed; hosted application behavior and live financial
+workflows are still unverified. Local sign-in light/dark/mobile and HTTP security
+checks passed. Complete the protected browser check and live database gates before
+promotion; a Ready deployment status alone is insufficient.
