@@ -6,3 +6,8 @@ local-data/
 *.log
 .DS_Store
 *.tsbuildinfo
+.next/
+out/
+.env*
+!.env.example
+test-results/

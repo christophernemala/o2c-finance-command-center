@@ -1,171 +1,98 @@
+# O2C Finance Command Center
 
-> **Enterprise O2C Receivables Intelligence Platform** — IFRS 9 ECL provisioning, bank reconciliation, customer risk analytics, Excel upload & reconciliation, and executive KPI dashboards.
+Authenticated finance operations using Next.js App Router, strict TypeScript,
+Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The visual system follows the
+user's Stripe reference: navy, violet, restrained gradients, and light/dark surfaces.
 
----
+## Implemented
 
-## ✨ Features
+- Eight workspaces: overview, receivables, cash application, ECL review, approval
+  inbox, agent activity, import review, and audit explorer.
+- Invited-account password authentication validated by Supabase on the server.
+  No arbitrary local login, generated balances, default accounts, or seeded business data.
+- Tenant membership and entity context on every protected request. PostgreSQL RLS
+  protects direct reads; scoped RPCs are the only application write path.
+- AED `numeric(15,2)` records, exact decimal-string contracts, Decimal.js arithmetic,
+  and currency formatting without converting amounts to JavaScript Number.
+- Incoming receipt and cash-allocation proposals, independent approval, separate
+  posting, row/version locks, revoked-approver checks, idempotent retries, and audit evidence.
+- UTF-8 CSV imports with explicit column mapping, 1 MB / 2,000-row limits, rejected-row
+  details, control totals, preserved payload digests, independent review, and atomic commits.
+- XLSX export reuses the existing workbook writer. It explicitly exports the first
+  50 invoice records, with scope metadata and full-entity totals in a separate sheet.
+- Server-rendered scoped navigation, pagination, explicit empty/unavailable states,
+  accessible tables, visible focus, reduced motion, and theme preferences only in local storage.
 
-### Core Finance Operations
-- **1,250-row deterministic O2C finance dataset** with customer accounts, invoices, GL dates, bank references, and payment audit trails
-- **Normal aging analysis** — Current, 1-30, 31-60, 61-90, 91-180, 181-360, 361+ aging buckets
-- **IFRS 9 ECL provisioning** — Current, 1-30, 31-60, 61-90, 91-120, 121-180, 180+ buckets with 100% provision logic for 180+ day exposures
-- **IFRS 7 disclosure cues** — BU/DSO analysis, CEO control index, and credit-risk concentration
-- **Risk account flagging** — Customer-level risk scoring (Critical / High / Watch / Normal) based on overdue exposure, provision, and disputed invoice metrics
+## Local setup
 
-### Excel Upload & Reconciliation (New)
-- **Drag-and-drop `.xlsx` upload** — Auto-detects bank statement vs. invoice formats using column alias matching
-- **Multi-criteria reconciliation engine** — Matches on invoice number, bank reference, amount tolerance, customer name, and customer number with weighted confidence scoring (0–100%)
-- **Reconciliation categories** — Matched (≥80%), Suggested (50–79%), Exception (<50%), Unmatched
-- **Export reconciliation results** to styled Excel workbooks
+1. Run `npm ci`.
+2. Copy `.env.example` to `.env.local`. Set the project URL and **publishable** key
+   from the intended active Supabase project. Never use a service-role key in this app.
+3. Apply `supabase/migrations/202610040001_workspaces.sql` to a dedicated database
+   after reviewing conflicts with any existing schema. It creates no business records.
+4. Invite at least two real users through Supabase Auth. A trusted database
+   administrator provisions the tenant, legal entity, and memberships. A maker
+   and independent approver are required for imports and financial posting.
+5. Disable public signup in Supabase; configure invited-user redirects, password
+   policies, abuse protections, and recovery delivery for the actual deployment.
+6. Run `npm run dev` and open http://127.0.0.1:5174.
 
-### Visual Analytics & KPIs
-- **Power BI-style dashboard** — SparklineKpi cards with animated count-up effects and trend indicators (↑ ↓ →)
-- **Line Chart** — Collection trend visualization with SVG gradient rendering
-- **Stacked Bar Chart** — Aging breakdown by business unit with color-coded buckets
-- **Gauge Chart** — Collection efficiency with dynamic SVG arc fill
-- **Heatmap Table** — Color-coded customer × aging bucket risk matrix (Top 10)
-- **Donut Chart** — Bank match control breakdown with percentage display
+Missing credentials produce a connection-unavailable screen with sign-in disabled.
+An authenticated account without membership cannot enter any financial workspace.
 
-### Operations
-- **Morning bank reconciliation** with match confidence and exception tracking
-- **SOA email draft generation** — Humanized statement-of-account email drafting with SLA/contract email ID lookup
-- **SLA account lookup** — Customer account number search for payment terms, collector owner, escalation, and contract preferences
-- **Oracle Fusion / SAP S/4HANA integration mapping** — AR invoice workbench, receipt matching, and provision posting handoff
-- **Invoice PDF export/import queue** and payment-proof audit dataset
-- **Cheque, trade license, and document resubmission reminders**
-- **Management review** — Business unit control dashboard with open operational exception tracking
-
-### Excel Export
-- **14-sheet daily finance pack** — Total Data Matrix, Aging, Risk Accounts, Unapplied Amounts, IFRS 9 ECL, ECL Policy Matrix, Email Drafts, ECL Summary, SLA Directory, Invoice PDF Queue, Payment Proof Audit, Bank Reconciliation, Reminders, Management Review
-- **Individual report downloads** — Each view exports its own styled `.xlsx` workbook
-- **Upload reconciliation export** — Reconciliation results from customer-uploaded bank statements
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Framework** | React 19 + TypeScript 5 |
-| **Build** | Vite 8 |
-| **Icons** | Lucide React |
-| **Excel** | Custom XLSX writer + `fflate` (ZIP compression/decompression) |
-| **Styling** | Vanilla CSS with glassmorphism, gradients, and CSS animations |
-| **Charts** | Custom SVG components (Line, Donut, Gauge, Heatmap, Sparkline, Stacked Bar) |
-| **Data** | Deterministic local mock generator — no external API dependencies |
-
----
-
-## 🚀 Local Setup
+## Checks
 
 ```powershell
-npm install
-npm run generate:data
-npm run workflow:daily
-npm run dev
-```
-
-Open `http://127.0.0.1:5174` in your browser.
-
-**Demo credentials** (prefilled): `finance.controller@o2c.local` / `demo123`
-
----
-
-## 📁 Project Structure
-
-```
-dhcm-finance-command-center/
-├── src/
-│   ├── App.tsx                    # Main application (16 routes, all components)
-│   ├── main.tsx                   # React entry point
-│   ├── styles.css                 # Full design system (glassmorphism, charts, upload zone)
-│   ├── data/
-│   │   └── financeModel.ts        # Central model builder
-│   ├── shared/
-│   │   └── types.ts               # TypeScript interfaces and type aliases
-│   └── modules/
-│       ├── AgingAnalytics/        # Normal AR aging analysis
-│       ├── ARModule/              # Oracle-style invoice status transitions
-│       ├── BankReconciliation/    # Bank statement matching engine
-│       ├── DashboardRenderer/     # Excel workbook export (browser + Node)
-│       ├── DataIngestion/         # Deterministic mock data generator
-│       ├── ECLProvision/          # IFRS 9 ECL bucket provisioning
-│       ├── EmailDrafting/         # SOA email draft generation
-│       ├── ExcelUpload/           # ← NEW: Excel upload parser + reconciliation
-│       │   ├── excelParser.ts     # .xlsx binary parser with column alias matching
-│       │   └── reconciliationEngine.ts  # Multi-criteria matching with confidence scoring
-│       ├── IFRSReporting/         # IFRS 7 disclosure cues
-│       ├── InvoiceDocuments/      # Invoice PDF queue and payment proof audit
-│       ├── Reminders/             # Cheque, trade license, document reminders
-│       └── SlaDirectory/          # SLA account lookup
-├── scripts/
-│   ├── generate-data.ts           # Data generation script
-│   └── run-daily-workflow.ts      # Daily workflow automation
-├── docs/
-│   └── ARCHITECTURE.md            # Architecture and module documentation
-├── reports/                       # Generated Excel packs (gitignored)
-├── AGENTS.md                      # AI agent configuration
-├── SKILLS.md                      # Platform capabilities documentation
-├── README.md                      # This file
-└── package.json
-```
-
----
-
-## 📊 Navigation Routes
-
-| # | Route | View | Description |
-|---|---|---|---|
-| 1 | `powerbi` | Power BI Dashboard | Executive KPIs, charts, heatmap, gauge |
-| 2 | `upload` | Upload & Reconcile | Drag-and-drop Excel upload + reconciliation |
-| 3 | `matrix` | Total Data Matrix | Full transaction matrix (all fields) |
-| 4 | `aging` | Aging Analysis | Standard aging register with customer details |
-| 5 | `risk` | Risk Accounts | Customer risk flagging with scoring |
-| 6 | `unapplied` | Unapplied Amounts | Unallocated invoice and receipt balances |
-| 7 | `ecl` | IFRS 9 ECL | ECL provision dashboard with policy matrix |
-| 8 | `email` | Email Center | SOA email drafting by customer account |
-| 9 | `export` | Export Center | Download individual Excel reports |
-| 10 | `sla` | SLA Lookup | Customer SLA and contract profile lookup |
-| 11 | `integrations` | Oracle / SAP Center | ERP integration mapping and audit controls |
-| 12 | `invoices` | Invoice & Proof Audit | Dummy invoice PDF queue and payment proof |
-| 13 | `audit` | Payment Audit | Payment proof audit register |
-| 14 | `recon` | Bank Reconciliation | Morning bank statement reconciliation |
-| 15 | `reminders` | Reminders | Security cheque and trade license reminders |
-| 16 | `review` | Management Review | Executive review with operational exceptions |
-
----
-
-## 📤 Excel Upload & Reconciliation Flow
-
-1. Navigate to **Upload & Reconcile**
-2. **Drag and drop** `.xlsx` bank statement and invoice files into the upload zone
-3. The parser auto-detects whether each sheet contains bank statements or invoices using flexible column alias matching
-4. Click **Run Reconciliation** to match bank lines against invoices (uploaded + in-memory)
-5. View KPI summary (Match Rate, Matched, Suggested, Exceptions)
-6. Review the reconciliation detail table with confidence percentages and exception reasons
-7. **Export** the reconciliation results to a styled `.xlsx` workbook
-
-### Supported Column Aliases
-
-The parser recognises common column header variations:
-
-- **Bank Statements**: Date, Bank Account, Bank Reference, Invoice Number, Customer Name, Amount, Description, Narration, Narrative, Particulars
-- **Invoices**: Invoice Number, Customer Name, Customer Account, Invoice Date, Due Date, Amount, Paid Amount, Outstanding, Balance, Status
-
----
-
-## 🏗 Deployment
-
-The dashboard shell can deploy to **Vercel** as a static preview:
-
-```powershell
+npm run typecheck
+npm test
 npm run build
+npm run start
 ```
 
-Excel generation and daily workflows are **local/offline Node processes** by design.
+Tests use disposable fixtures exclusively in an embedded PostgreSQL runtime,
+including RLS, direct-write denial, self-approval rejection, debit rejection,
+idempotency, stale allocations, revoked authority, atomic imports, and append-only
+records. They do not establish live Supabase, Vercel, email, or ERP connectivity.
 
----
+## Source files
 
-## 📜 License
+Invoice CSV headers:
+`number,account,customer,issued_at,due_date,amount,currency`
 
-MIT
+Bank CSV headers:
+`reference,booked_at,direction,amount,currency`
+
+Use exact positive decimals, ISO dates, and currency `AED`. Bank direction is
+`credit` or `debit`; debits can never create incoming receipts. Import only
+**entirely unpaid** source-system invoices. Partially paid opening balances,
+credit notes, reversals, closed periods, and historical allocation migration
+require a separately reviewed migration rather than fabricated settlement.
+
+## Deployment and material limitations
+
+This is a tested production foundation, not a claim that a live enterprise SaaS
+deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
+
+- ECL workspaces display externally supplied preserved measurement runs. There is
+  no calibrated ECL engine, automatic allowance posting, or default loss-rate matrix.
+- Agent workspaces display recorded runs. No model provider, worker runtime,
+  customer-message sender, or ERP/bank adapter is connected by this change.
+- The cash-control journal records equal debit/credit amounts per posting. It is
+  not a full statutory GL: period locks, tax, FX, write-offs, refunds, credit-limit
+  amendments, reversals, and ERP journal export remain outside supported commands.
+- Invoice imports register source-system receivables; they do not recognize revenue.
+- Audit records resist application updates/deletes. Database administrators can
+  still alter the database; an external immutable archive and recovery controls
+  are required before making a tamper-proof audit claim.
+- Input is controlled CSV. The unsafe permissive XLSX upload parser and fabricated
+  PDF/proof/SLA generators were removed. XLSX **export** remains available.
+- MFA/SSO, billing, multi-currency, retention policies, performance qualification,
+  and disaster recovery require deployment-specific implementation and evidence.
+
+The deployment framework changes from Vite to Next.js. Vercel must use the Next.js
+preset and the two public Supabase environment variables. Do not promote the branch
+while the database connection, migration, onboarding, and live checks are incomplete.
+
+## Maintainer
+
+Christopher Nemala · Dubai, UAE
