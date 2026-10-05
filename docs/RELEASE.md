@@ -19,6 +19,12 @@ the finance backend and durable limiter are configured.
 
 ## Required before live promotion
 
+The infrastructure audit package additionally passed skill validation, read-only
+catalog tests, strict TypeScript, all 30 tests and the production build. The named
+Supabase project still reports INACTIVE; live RLS/cron/index/Realtime/webhook evidence
+is unavailable. See `audit_report.md`; no optimization DDL or integration deployment
+has been applied.
+
 1. Select the correct active Supabase project; review schema compatibility and backup.
 2. Apply the migration in an isolated staging database, then verify it with real
    Supabase JWTs and at least two tenants. Embedded auth stubs are not live auth proof.

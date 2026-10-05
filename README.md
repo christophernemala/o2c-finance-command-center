@@ -115,6 +115,15 @@ Inter, Sora, and JetBrains Mono are bundled through Next.js font handling.
 Do not promote the branch
 while the database connection, migration, onboarding, and live checks are incomplete.
 
+## Supabase infrastructure audit
+
+Use the repository skill at
+`.agents/skills/supabase-principal-architect-infrastructure-optimization/SKILL.md`
+for audit-first RLS/index/cron/Realtime/webhook work. Its packaged SQL reads catalog
+metadata without financial records or DDL. See [audit_report.md](audit_report.md)
+for current source findings and live-provider blockers; no index change or speculative
+integration migration is included without actual deployed workload evidence.
+
 ## Maintainer
 
 Christopher Nemala · Dubai, UAE
