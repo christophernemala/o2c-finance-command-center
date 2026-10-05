@@ -10,6 +10,15 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
   application, ECL review, approval inbox, agent activity, import review, and audit explorer.
 - Stable product routes for `/dashboard`, `/customers`, `/invoices`, `/cashflow`,
   and `/reconciliation`; each route uses the same authenticated server snapshot.
+- Six custom SVG charts show full-entity aging, settlement, disputes, collections,
+  statement direction, and approval states, with exact values available as text.
+- Thirteen-week direct-method cash forecasts calculate exact weekly opening,
+  incoming, outgoing, operating/investing/financing net, and closing cash from
+  preserved independently reviewed source records. Forecasts never post journals.
+- Zod validates credentials and command envelopes on the server. Durable Redis
+  protection allows at most five failed/in-flight account attempts in a sliding
+  15-minute window and 30 total attempts per trusted Vercel IP. Successful membership
+  verification releases only that attempt's account slot; outages fail closed.
 - Invited-account password authentication validated by Supabase on the server.
   No arbitrary local login, generated balances, default accounts, or seeded business data.
 - Tenant membership and entity context on every protected request. PostgreSQL RLS
@@ -30,14 +39,16 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 1. Run `npm ci`.
 2. Copy `.env.example` to `.env.local`. Set the project URL and **publishable** key
    from the intended active Supabase project. Never use a service-role key in this app.
-3. Apply `supabase/migrations/202610040001_workspaces.sql` to a dedicated database
-   after reviewing conflicts with any existing schema. It creates no business records.
+3. Apply all SQL files in `supabase/migrations/` in filename order to a dedicated
+   staging database after reviewing schema conflicts. They create no business records.
 4. Invite at least two real users through Supabase Auth. A trusted database
    administrator provisions the tenant, legal entity, and memberships. A maker
    and independent approver are required for imports and financial posting.
 5. Disable public signup in Supabase; configure invited-user redirects, password
    policies, abuse protections, and recovery delivery for the actual deployment.
-6. Run `npm run dev` and open http://127.0.0.1:5174.
+6. Configure the server-only Redis URL, token, and HMAC secret in `.env.example`.
+   See `docs/SECURITY.md`; production client-IP handling currently targets Vercel.
+7. Run `npm run dev` and open http://127.0.0.1:5174.
 
 Missing credentials produce a connection-unavailable screen with sign-in disabled.
 An authenticated account without membership cannot enter any financial workspace.
@@ -55,6 +66,9 @@ Tests use disposable fixtures exclusively in an embedded PostgreSQL runtime,
 including RLS, direct-write denial, self-approval rejection, debit rejection,
 idempotency, stale allocations, revoked authority, atomic imports, and append-only
 records. They do not establish live Supabase, Vercel, email, or ERP connectivity.
+Redis transport/denial/outage tests use a controlled HTTP test double; Redis Lua
+execution, distributed concurrency, expiry, and the live provider still require
+staging verification.
 
 ## Source files
 
@@ -78,8 +92,9 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
 - ECL workspaces display externally supplied preserved measurement runs. There is
   no calibrated ECL engine, automatic allowance posting, or default loss-rate matrix.
 - DSO and CEI remain unavailable until governed sales and collection-period inputs
-  are connected. The 13-week cashflow workspace requires an approved source model;
-  the application does not use invoice due dates to fabricate a forecast.
+  are connected. Cashflow reads approved `cashflow_runs` supplied by a trusted source
+  integration; see `docs/CASHFLOW_INPUTS.md`. Confidence is displayed only with an
+  approved percentage and methodology, never inferred from a mixed-unit delay/score.
 - Agent workspaces display recorded runs. No model provider, worker runtime,
   customer-message sender, or ERP/bank adapter is connected by this change.
 - The cash-control journal records equal debit/credit amounts per posting. It is
@@ -95,7 +110,9 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
   and disaster recovery require deployment-specific implementation and evidence.
 
 The deployment framework changes from Vite to Next.js. Vercel must use the Next.js
-preset and the two public Supabase environment variables. Do not promote the branch
+preset, the two public Supabase variables, and three server-only Redis/HMAC variables.
+Inter, Sora, and JetBrains Mono are bundled through Next.js font handling.
+Do not promote the branch
 while the database connection, migration, onboarding, and live checks are incomplete.
 
 ## Maintainer

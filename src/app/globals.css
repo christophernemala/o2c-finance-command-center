@@ -5,6 +5,7 @@
   --canvas: #f6f5f8; --surface: #ffffff; --surface-muted: #e9e5ff;
   --ink: #0b1224; --muted: #59647a; --border: #ddd9ea;
   --primary: #a89cff; --primary-hover: #8b7cf8; --primary-soft: #e9e5ff; --accent-teal: #6dd3c5;
+  --link: #51479f; --focus: #0b1224;
   --success: #146b50; --success-soft: #e8f6ef; --warning: #865410; --warning-soft: #fff4dc;
   --danger: #b12e47; --danger-soft: #fdebf0; --rail: #0b1224; --rail-text: #e9e5ff;
 }
@@ -13,6 +14,7 @@
   --canvas: #0b1224; --surface: #151e34; --surface-muted: #212b45;
   --ink: #edf3fc; --muted: #b1bfd3; --border: #334960;
   --primary: #a89cff; --primary-hover: #b8afff; --primary-soft: #302b55; --accent-teal: #6dd3c5;
+  --link: #a89cff; --focus: #a89cff;
   --success: #8cddbc; --success-soft: #173e33; --warning: #f5ce85; --warning-soft: #453722;
   --danger: #ffa3b7; --danger-soft: #482536; --rail: #091525;
 }
@@ -23,16 +25,17 @@
   --color-success: var(--success); --color-success-soft: var(--success-soft);
   --color-warning: var(--warning); --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger); --color-danger-soft: var(--danger-soft); --color-accent-teal: var(--accent-teal);
+  --color-link: var(--link);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
-h1, h2, h3 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; }
-.money, .tabular-nums { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
+h1, h2, h3 { font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+.money, .tabular-nums { font-family: var(--font-money), ui-monospace, SFMono-Regular, Consolas, monospace; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
-:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 input, select, textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--muted); border-radius: 8px; background: var(--surface); color: var(--ink); }
 textarea { min-height: 88px; resize: vertical; }
 input[type="checkbox"] { width: 18px; min-height: 18px; margin: 2px 0 0; accent-color: var(--primary); }
@@ -46,11 +49,12 @@ td.money, th.money { text-align: right; white-space: nowrap; font-variant-numeri
 summary { cursor: pointer; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid transparent; border-radius: 8px; text-decoration: none; font-weight: 600; background: var(--primary); color: #0b1224; }
 .button:hover { background: var(--primary-hover); }
+.button { transition: background-color 160ms ease, box-shadow 160ms ease; }
 .button.secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
 .button.secondary:hover { background: var(--surface-muted); }
 .rail { background: var(--rail); color: var(--rail-text); }
 .rail a { min-height: 44px; display: flex; align-items: center; gap: 12px; border-radius: 8px; padding: 10px 12px; color: var(--rail-text); text-decoration: none; }
-.rail a[aria-current="page"] { background: #334569; color: #ffffff; box-shadow: inset 3px 0 #ad9dff; }
+.rail a[aria-current="page"] { background: #302b55; color: #e9e5ff; box-shadow: inset 3px 0 #8b7cf8; }
 .rail a:hover { background: #243b56; color: white; }
 .login-art { background: linear-gradient(145deg, #0b1224 12%, #191d3d 72%, #2f2a67); color: #fff; }
 .login-art::before { content: ""; position: absolute; width: 650px; height: 240px; background: linear-gradient(90deg, #8b7cf8, #a89cff, #6dd3c5); transform: rotate(-14deg); top: -130px; left: -180px; opacity: .92; }

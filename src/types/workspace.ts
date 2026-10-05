@@ -17,6 +17,7 @@ export interface Approval {
   customer_id: string | null; evidence: string; created_at: string; version: number;
 }
 export interface Snapshot {
+  insights: { charts: MetricChart[]; forecast: CashflowRun | null };
   tenant_id: string; entity_id: string; as_of: string; fetched_at: string; role: Role;
   invoices: Invoice[]; receipts: Receipt[]; bank_lines: BankLine[]; approvals: Approval[];
   customers: { id: string; name: string; account: string }[];
@@ -30,4 +31,9 @@ export interface Snapshot {
     invoice_count: number; pending_count: number;
   };
   page: number; has_more: boolean;
+}
+import type { CashflowRun } from "@/lib/cashflow";
+export interface MetricChart {
+  key: string; title: string; description: string; unit: "AED" | "records";
+  series: { label: string; value: string }[];
 }

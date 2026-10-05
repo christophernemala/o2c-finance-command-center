@@ -41,10 +41,11 @@ PDC dates, agent runs, payment proof, ECL rates, or fake connection status. Miss
 integrations and governed inputs remain explicitly unavailable.
 
 Total AR and overdue AR come from the authenticated full-entity database snapshot.
-DSO, CEI, and the 13-week direct-method forecast remain unavailable until the schema
-contains their approved source periods, opening balances, sales/collection history,
-expected receipt dates, committed disbursements, scenarios, confidence lineage, and
-approval evidence. Invoice due dates alone are not a cash forecast.
+The six custom SVG charts also use full-entity SQL aggregates, not paginated rows.
+DSO and CEI remain unavailable without governed sales/collection-period inputs.
+The 13-week direct-method forecast reads preserved independently approved
+`cashflow_runs`; follow `docs/CASHFLOW_INPUTS.md` for source ingestion. No adapter is
+connected by this change. Invoice due dates alone are not a cash forecast.
 
 ## Production login contract
 
@@ -53,6 +54,9 @@ credential check is followed by `workspace_access`. If the user has no real memb
 the session is signed out and the same generic `Incorrect email or password.` message
 is shown. A valid member is redirected to `/dashboard` with the first authorized
 tenant selected. The application never creates a tenant or membership during login.
+Zod validates server inputs. Configure the durable Redis limiter using the three
+server-only variables in `.env.example`; follow `docs/SECURITY.md`. Missing sign-in
+protection disables login. Do not replace it with an in-memory map or browser state.
 
 The actual schema uses `public.memberships` and roles `viewer`, `maker`, `approver`,
 and `admin`. It does not contain `tenant_memberships`, tenant slugs, or an `owner` role.

@@ -4,6 +4,7 @@ import { positiveAmount } from "@/lib/money";
 import { previewImport, type ImportKind } from "@/lib/imports";
 import { workspaces } from "@/types/workspace";
 import { sameOrigin } from "@/lib/request-security";
+import { commandSchema } from "@/lib/validation";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
   destination.searchParams.set("view", workspaces.includes(view as typeof workspaces[number]) ? view : "overview");
   let message = "failed";
   try {
+    commandSchema.parse(Object.fromEntries(form));
     if (!uuid.test(tenant) || !uuid.test(entity)) throw new Error("Invalid scope");
     const client = await createClient(); const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) return NextResponse.redirect(new URL("/login", request.headers.get("origin")!), 303);

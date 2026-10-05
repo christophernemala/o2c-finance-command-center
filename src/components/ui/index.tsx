@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { formatAed } from "@/lib/money";
 export function Panel({ title, subtitle, children, className }: { title: string; subtitle?: string; children: ReactNode; className?: string }) {
-  return <section className={cn("rounded-xl border border-line bg-surface shadow-xs", className)}>
+  return <section className={cn("rounded-2xl border border-line bg-surface shadow-xs backdrop-blur-xl", className)}>
     <div className="border-b border-line px-6 py-5"><h2 className="text-base font-semibold">{title}</h2>{subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}</div>{children}
   </section>;
 }

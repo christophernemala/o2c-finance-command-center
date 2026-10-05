@@ -5,6 +5,17 @@
 TypeScript strict check, Next.js production build, decimal/parser tests and embedded
 PostgreSQL migration/control tests. The browser can verify the sign-in theme and
 connection-unavailable behavior without creating fake data.
+The new insights migration and direct-method forecast are covered by embedded
+PostgreSQL and decimal tests, including full-entity totals beyond the first page,
+tenant isolation, immutable inputs, week boundaries, invalid dates and negative cash.
+Redis transport tests use an HTTP double; live Lua/concurrency/expiry remain unverified.
+The 2026-10-05 local revision passed strict TypeScript, all 29 tests, and a production
+build. Browser checks confirmed light/dark switching, bundled Inter/Sora styles,
+desktop and 390-pixel mobile layouts without horizontal overflow, unauthenticated
+dashboard redirection, and no captured browser errors. HTTP checks confirmed
+private/no-store responses, CSP nonces in rendered scripts, and cross-origin
+sign-in rejection. The local preview intentionally disables sign-in until both
+the finance backend and durable limiter are configured.
 
 ## Required before live promotion
 
@@ -13,6 +24,8 @@ connection-unavailable behavior without creating fake data.
    Supabase JWTs and at least two tenants. Embedded auth stubs are not live auth proof.
 3. Invite real maker/checker users and provision their tenant/entity memberships.
    Verify sign-in, refresh, recovery, logout and role revocation end-to-end.
+   Configure the three server-only Redis/HMAC variables from `.env.example` and
+   exercise the actual five-attempt policy across instances and during outages.
 4. Confirm Vercel builds from the repository root with `vercel.json` (Next.js,
    `npm ci`, `npm run build`, framework-default output), Node.js 22, and the public
    environment variables. Verify
@@ -23,6 +36,8 @@ connection-unavailable behavior without creating fake data.
    migrate credits, prior allocations and reversals through a reviewed separate process.
 7. Supply governed ECL runs and agent integrations if those workspaces are enabled.
    Add external audit archiving, monitoring, recovery tests and retention policies.
+   Supply approved cashflow source runs following `docs/CASHFLOW_INPUTS.md` and
+   reconcile opening/closing cash with the reviewed source model.
 8. Verify keyboard/screen-reader access, contrast, mobile tables, real workload latency
    and pagination using the authenticated staging deployment.
 

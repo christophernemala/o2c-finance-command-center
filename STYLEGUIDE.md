@@ -13,11 +13,13 @@ Original O2C product implementation; do not copy Stripe branding or assets.
   accents. Keep finance evidence on opaque surfaces.
 - Use navy navigation, violet active accents, and a restrained gradient on sign-in.
   Financial evidence stays on opaque surfaces.
-- Prefer Inter for body text, Sora for headings, and JetBrains Mono for financial
-  numerals when those fonts are locally available. The system fallbacks make no
-  third-party font request and preserve tabular financial numerals.
+- Inter for body text, Sora 600 for headings, and JetBrains Mono for financial
+  numerals are bundled by `next/font` at build time and served from this application.
+  Fonts make no third-party requests from the user's browser.
 - Page headings 30px, body 14px, metadata 12px. Consistent Tailwind spacing.
-- Controls and navigation targets at least 44px. Rounded controls 8px; panels 12px.
+- Controls and navigation targets at least 44px. Rounded controls 8px; panels 16px.
+- Keep the pale brand button fill with navy text. Text links use `--link` and focus
+  uses `--focus` so the pale button palette does not weaken reading/focus contrast.
 - Never truncate monetary values. Use horizontal scrolling for long amount columns.
 - Status text accompanies color; no color-only approvals. Focus is always visible.
 - Light/dark themes preserve semantic states. Respect reduced motion. No animated money.

@@ -11,6 +11,11 @@ and related entities use composite tenant/entity foreign keys.
 one SQL statement. Numeric amounts are explicitly converted to text before JSON
 serialization. Each list is capped at 50 records; no paginated list becomes a KPI total.
 The date is an aging date against current balances, not a historical-balance claim.
+The insights migration adds six full-entity chart series to that same statement.
+Approved `cashflow_runs` preserve source movements, opening cash, model lineage,
+and independent maker/checker evidence. Decimal arithmetic produces 13 direct-method
+weeks; invoice due dates never substitute for forecast inputs. A trusted source
+integration must verify the approval and source digest before inserting a run.
 
 Application mutations use same-origin POST handlers, validated UUID/decimal inputs,
 server user validation, and PostgreSQL role checks. RLS exposes no direct insert,
@@ -24,12 +29,17 @@ mapping. A different authorized user commits the exact batch. Conflicting refere
 roll back every row. Uploaded bank lines do not automatically become receipts.
 
 Tables: tenants, memberships, entities, customers, invoices, bank_lines, receipts,
-approvals, allocations, journals, import_batches, ecl_runs, agent_runs, audit_events.
+approvals, allocations, journals, import_batches, ecl_runs, agent_runs, audit_events,
+cashflow_runs.
 Trusted administrators provision memberships; the product cannot self-promote a user.
 
 All protected responses are dynamic/no-store. Client components own theme preference,
 file preview and pending submission state only. Tenant/entity changes remount forms.
 CSP uses per-request script nonces; other headers deny framing and content sniffing.
+Server ingress uses Zod schemas. Sign-in reserves atomic Redis slots before calling
+Supabase, keyed by HMAC email and trusted Vercel client address. Missing configuration
+or Redis errors deny sign-in; no memory/localStorage authentication fallback exists.
+Password storage and hashing remain the Supabase provider's responsibility.
 
 No synthetic financial records are included. External ECL/agent inputs are read-only
 review capabilities pending integration. Journals cover receipt/allocation controls,

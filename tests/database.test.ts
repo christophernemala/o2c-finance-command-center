@@ -10,6 +10,7 @@ test("PostgreSQL finance controls and tenant boundaries", async t => {
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
     await db.exec(await readFile(new URL("../supabase/migrations/202610040001_workspaces.sql",import.meta.url),"utf8"));
+    await db.exec(await readFile(new URL("../supabase/migrations/202610050001_insights.sql",import.meta.url),"utf8"));
     await db.query(`insert into auth.users values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);
     await db.query(`insert into public.tenants(id,name) values($1,'Tenant A'),($2,'Tenant B')`,[id(10),id(11)]);
     await db.query(`insert into public.memberships values($1,$2,'admin'),($1,$3,'approver'),($1,$4,'viewer'),($5,$6,'admin')`,[id(10),id(1),id(2),id(3),id(11),id(4)]);

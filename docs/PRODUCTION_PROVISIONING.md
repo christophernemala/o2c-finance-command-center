@@ -1,7 +1,7 @@
 # Production provisioning
 
 Use this only after selecting an active Supabase project, reviewing schema conflicts,
-backing up the database, and applying `202610040001_workspaces.sql` in staging first.
+backing up the database, and applying all migrations in filename order in staging first.
 The application must never receive a service-role key.
 
 Create the real user in Supabase Auth with the intended email verification or invite
@@ -44,4 +44,6 @@ bank lines, receipts, forecasts, ECL runs, or agent runs as part of account setu
 After provisioning, verify `workspace_access()` as the real user and verify that a
 different tenant cannot be read. Supabase Auth password policy, rate limiting, MFA,
 email delivery, recovery, and abuse protections are live project settings and require
-provider evidence. They are not implemented with application bcrypt or in-memory state.
+provider evidence. Configure the durable Redis limiter from `docs/SECURITY.md` before
+sign-in. Password hashing remains provider-managed; no application bcrypt or browser
+authentication state is introduced.

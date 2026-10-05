@@ -7,6 +7,7 @@ import { workspaces, type Snapshot } from "../src/types/workspace";
 // Disposable UI fixtures only: never exposed through production routes.
 const tenant="00000000-0000-4000-8000-000000000010"; const entity="00000000-0000-4000-8000-000000000020";
 const empty:Snapshot={tenant_id:tenant,entity_id:entity,as_of:"2026-10-04",fetched_at:"2026-10-04T12:00:00Z",role:"viewer",
+  insights: { charts: [], forecast: null },
   invoices:[],receipts:[],bank_lines:[],approvals:[],customers:[],ecl_runs:[],agent_runs:[],imports:[],audit:[],
   totals:{gross:"0.00",open:"0.00",overdue:"0.00",unapplied:"0.00",allowance:null,dso_days:null,cei_percent:null,invoice_count:0,pending_count:0},page:0,has_more:false};
 const props={memberships:[{tenant_id:tenant,tenant_name:"Test tenant",role:"viewer" as const}],entityOptions:[{id:entity,name:"Test entity",currency:"AED" as const}],userId:"viewer",email:"viewer@example.invalid"};
