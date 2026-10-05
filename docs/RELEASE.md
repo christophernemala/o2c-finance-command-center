@@ -62,8 +62,13 @@ connector returned 403 for `christophers-projects-896fb086`.
 
 The `o2c-finance-command-center-app` branch preview is
 https://o2c-finance-command-c-git-82dad6-christophers-projects-896fb086.vercel.app.
-Its browser check reached Vercel deployment protection, then two-factor sign-in.
-Deployment readiness is confirmed; hosted application behavior and live financial
-workflows are still unverified. Local sign-in light/dark/mobile and HTTP security
-checks passed. Complete the protected browser check and live database gates before
-promotion; a Ready deployment status alone is insufficient.
+The initial browser check reached deployment protection and two-factor sign-in.
+On 2026-10-05, commit `0e387d3` passed both GitHub verification runs and both Vercel
+previews reported Ready. The existing browser session opened the hosted application:
+login light/dark switching, Inter/Sora styles, 390-pixel mobile layout without
+horizontal overflow, and unauthenticated dashboard redirection passed with no
+captured browser errors. Sign-in remains disabled because required provider
+configuration is absent. Requests without that browser session still reach Vercel
+deployment protection, so unauthenticated HTTP probes did not verify application
+headers. Live Supabase/Redis and authenticated finance workflows remain unverified.
+Complete those gates before promotion; a Ready deployment status is insufficient.
