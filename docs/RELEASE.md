@@ -2,6 +2,11 @@
 
 ## Verified locally
 
+The receivables workbook now includes full-entity aging totals, the source customer
+directory, and first-page invoice details with aging/status and separate page control
+totals. Detail remains limited to 50 invoices. No customer balances, source invoices
+or invoice PDFs were generated. See `docs/SOURCE_DATA.md` for source requirements.
+
 TypeScript strict check, Next.js production build, decimal/parser tests and embedded
 PostgreSQL migration/control tests. The browser can verify the sign-in theme and
 connection-unavailable behavior without creating fake data.
