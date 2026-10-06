@@ -27,9 +27,10 @@ import { buildLocalFinanceModel } from "./data/financeModel";
 import { downloadWorkbook } from "./modules/DashboardRenderer/browserExcel";
 import { draftSoaEmail } from "./modules/EmailDrafting/emailDrafts";
 import { findSlaProfile } from "./modules/SlaDirectory/slaDirectory";
-import { convertUpload, type ParsedUpload } from "./modules/ExcelUpload/excelParser";
+import { convertUpload, MAX_WORKBOOK_BYTES, type ParsedUpload } from "./modules/ExcelUpload/excelParser";
 import { reconcileUpload, type ReconciliationSummary } from "./modules/ExcelUpload/reconciliationEngine";
 import "./styles.css";
+import { authRequest, type AuthSession } from "./auth";
 
 type Route = "powerbi" | "matrix" | "aging" | "risk" | "unapplied" | "ecl" | "email" | "export" | "sla" | "integrations" | "invoices" | "audit" | "recon" | "reminders" | "review" | "upload";
 
@@ -54,6 +55,8 @@ const navItems: { id: Route; label: string; icon: React.ReactNode }[] = [
 
 export default function App() {
   const [entered, setEntered] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [authError, setAuthError] = useState("");
   const [active, setActive] = useState<Route>("powerbi");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
@@ -69,6 +72,36 @@ export default function App() {
   const filteredRisk = useMemo(() => filterRows(riskRows, search), [riskRows, search]);
   const filteredUnapplied = useMemo(() => filterRows(unappliedRows, search), [unappliedRows, search]);
 
+  const refreshAuth = useCallback(async () => {
+    try {
+      const session = await authRequest<AuthSession>("auth/session");
+      setAuthSession(session);
+      setEntered(session.authenticated);
+      setAuthError("");
+    } catch {
+      setEntered(false);
+      setAuthError("Cannot connect to the authentication service. Please try again.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAuth();
+    const interval = window.setInterval(() => void refreshAuth(), 60_000);
+    return () => window.clearInterval(interval);
+  }, [refreshAuth]);
+
+  async function logout() {
+    try {
+      await authRequest("auth/logout", {});
+      setEntered(false);
+      setSearch("");
+      setActive("powerbi");
+      await refreshAuth();
+    } catch {
+      setNotice("Sign out failed. Please check your connection and try again.");
+    }
+  }
+
   useEffect(() => {
     const handleExport = (event: Event) => {
       const detail = (event as CustomEvent<{ fileName: string; rowCount: number; sheetCount: number }>).detail;
@@ -79,7 +112,7 @@ export default function App() {
     return () => window.removeEventListener("o2c-export-complete", handleExport);
   }, []);
 
-  if (!entered) return <LoginScreen onEnter={() => setEntered(true)} />;
+  if (!entered) return <LoginScreen session={authSession} connectionError={authError} onRefresh={refreshAuth} onEnter={refreshAuth} />;
 
   return (
     <main className="saas-shell">
@@ -91,7 +124,7 @@ export default function App() {
       }} />
       <section className="app-main">
         {notice && <div className="option-popup">{notice}</div>}
-        <Topbar active={active} search={search} setSearch={setSearch} rowCount={model.rows.length} onExport={() => exportDailyPack(model)} onLogout={() => setEntered(false)} />
+        <Topbar active={active} search={search} setSearch={setSearch} rowCount={model.rows.length} onExport={() => exportDailyPack(model)} onLogout={() => void logout()} />
         {active === "powerbi" && <PowerBiDashboard model={model} />}
         {active === "upload" && <ExcelUploadCenter model={model} />}
         {active === "matrix" && <DataMatrix rows={filteredMatrix} allRows={matrixRows} />}
@@ -113,21 +146,95 @@ export default function App() {
   );
 }
 
-function LoginScreen({ onEnter }: { onEnter: () => void }) {
-  const [email, setEmail] = useState("finance.controller@o2c.local");
-  const [password, setPassword] = useState("demo123");
+function LoginScreen({ session, connectionError, onRefresh, onEnter }: {
+  session: AuthSession | null; connectionError: string;
+  onRefresh: () => Promise<void>; onEnter: () => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const canEnter = email.trim().includes("@") && password.trim().length >= 6;
+  const [pending, setPending] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [resendAt, setResendAt] = useState(0);
+  const [tick, setTick] = useState(Date.now());
+  const [status, setStatus] = useState("");
+  const inFlight = useRef(false);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const cooldown = Math.max(0, Math.ceil((resendAt - tick) / 1000));
+
+  useEffect(() => {
+    if (session) {
+      setPending(session.pending);
+      if (session.pending) {
+        setEmail(session.email ?? "");
+        setResendAt(Date.now() + session.retryAfter * 1000);
+      }
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (pending) codeRef.current?.focus();
+  }, [pending]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setTick(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  async function run(action: () => Promise<void>) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError("");
+    setStatus("");
+    try { await action(); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : "Request failed. Please try again."); }
+    finally { inFlight.current = false; setBusy(false); }
+  }
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!canEnter) {
-      setError("Enter a valid work email and a password with at least 6 characters.");
-      return;
-    }
-    setError("");
-    onEnter();
+    if (!session || connectionError) return;
+    void run(async () => {
+      if (pending) {
+        if (!/^[0-9]{6}$/.test(code)) throw new Error("Enter the six-digit code from your email.");
+        await authRequest("auth/verify", { code });
+        setCode("");
+        await onEnter();
+      } else {
+        const result = await authRequest<{ retryAfter: number; email: string }>("auth/login", { email, password });
+        setPassword("");
+        setEmail(result.email);
+        setCode("");
+        setPending(true);
+        setTick(Date.now());
+        setResendAt(Date.now() + result.retryAfter * 1000);
+        setStatus("A verification code has been sent to your email.");
+      }
+    });
+  }
+
+  function resend() {
+    void run(async () => {
+      const result = await authRequest<{ retryAfter: number }>("auth/resend", {});
+      setCode("");
+      setTick(Date.now());
+      setResendAt(Date.now() + result.retryAfter * 1000);
+      setStatus("A new code has been sent. Use the latest email.");
+      codeRef.current?.focus();
+    });
+  }
+
+  function back() {
+    void run(async () => {
+      await authRequest("auth/logout", {});
+      setPending(false);
+      setCode("");
+      setPassword("");
+      await onRefresh();
+    });
   }
 
   return (
@@ -147,13 +254,24 @@ function LoginScreen({ onEnter }: { onEnter: () => void }) {
         </div>
       <form className="login-card" onSubmit={submit}>
         <div className="brand-row"><span className="brand-dot"><Lock size={18} /></span> O2C Finance Cloud</div>
-        <p className="eyebrow">Secure demo workspace</p>
-        <h2>Sign in to the order-to-cash command center.</h2>
-        <p className="muted">Use the prefilled demo credentials. This prototype validates the sign-in screen locally and does not store passwords.</p>
-        <label className="login-field">Work email<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-        <label className="login-field">Password<span className="password-wrap"><input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="primary-action wide" type="submit"><KeyRound size={18} /> Sign in to dashboard</button>
+        <p className="eyebrow">Secure workspace</p>
+        <h2>{pending ? "Verify your work email." : "Sign in to the order-to-cash command center."}</h2>
+        <p className="muted">{pending ? `Enter the six-digit code sent to ${email}. Your code expires in five minutes.` : "Sign in with your work account, then verify the code sent to your email."}</p>
+        {pending ? (
+          <label className="login-field">Verification code<input ref={codeRef} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} disabled={busy} onChange={(event) => { setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} /></label>
+        ) : <>
+          <label className="login-field">Work email<input type="email" autoComplete="username" maxLength={254} required disabled={busy} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+          <label className="login-field">Password<span className="password-wrap"><input type={showPassword ? "text" : "password"} autoComplete="current-password" maxLength={1024} required disabled={busy} value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+        </>}
+        {(error || connectionError) && <p className="form-error" role="alert">{error || connectionError}</p>}
+        {status && <p className="muted" role="status">{status}</p>}
+        <button className="primary-action wide" type="submit" disabled={busy || !session || !!connectionError || (pending && code.length !== 6)}><KeyRound size={18} /> {busy ? "Please wait…" : pending ? "Verify and open dashboard" : "Sign in to dashboard"}</button>
+        {pending && <>
+          <p className="muted" aria-live="polite">{cooldown > 0 ? `Resend available in ${cooldown}s.` : "You can request a new code."}</p>
+          <button className="ghost-button" type="button" onClick={resend} disabled={busy || cooldown > 0}>Resend code</button>{" "}
+          <button className="ghost-button" type="button" onClick={back} disabled={busy}>Back to sign in</button>
+        </>}
+        {connectionError && <button className="ghost-button" type="button" onClick={() => void onRefresh()}>Retry connection</button>}
       </form>
       </section>
     </main>
@@ -867,19 +985,24 @@ function ExcelUploadCenter({ model }: { model: ReturnType<typeof buildLocalFinan
   const [reconResult, setReconResult] = useState<ReconciliationSummary | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files?.length) return;
     setProcessing(true);
+    setUploadError("");
     const newUploads: ParsedUpload[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) continue;
-      const buffer = await file.arrayBuffer();
+    for (const file of Array.from(files).slice(0, 10)) {
       try {
+        if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("Please use an .xlsx workbook.");
+        if (file.size > MAX_WORKBOOK_BYTES) throw new Error("Workbook must be 10 MB or smaller.");
+        const buffer = await file.arrayBuffer();
         newUploads.push(convertUpload(file.name, buffer));
-      } catch { /* skip corrupt files */ }
+      } catch (failure) {
+        setUploadError(failure instanceof Error ? failure.message : "Unable to read this workbook.");
+      }
     }
-    setUploads((prev) => [...prev, ...newUploads]);
+    setUploads((prev) => [...prev, ...newUploads].slice(-10));
     setProcessing(false);
   }, []);
 
@@ -930,8 +1053,9 @@ function ExcelUploadCenter({ model }: { model: ReturnType<typeof buildLocalFinan
             <strong>{processing ? "Processing…" : "Drop .xlsx files here"}</strong>
             <p>Bank statements and invoice workbooks will be auto-detected</p>
             <span className="upload-hint">Supports multi-sheet workbooks</span>
-            <input type="file" accept=".xlsx,.xls" multiple onChange={(e) => handleFiles(e.target.files)} />
+            <input type="file" accept=".xlsx" multiple onChange={(e) => handleFiles(e.target.files)} />
           </div>
+          {uploadError && <p className="form-error" role="alert">{uploadError}</p>}
 
           {uploads.length > 0 && (
             <div className="file-list">

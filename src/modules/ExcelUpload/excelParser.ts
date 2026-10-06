@@ -22,6 +22,7 @@ interface RawSheet {
 }
 
 const decoder = new TextDecoder();
+export const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024;
 
 function xmlText(xml: string, tag: string): string[] {
   const results: string[] = [];
@@ -35,7 +36,17 @@ function xmlText(xml: string, tag: string): string[] {
  * Parse an xlsx ArrayBuffer into an array of RawSheet objects.
  */
 export function parseXlsx(buffer: ArrayBuffer): RawSheet[] {
-  const zip = unzipSync(new Uint8Array(buffer));
+  if (buffer.byteLength > MAX_WORKBOOK_BYTES) throw new Error("Workbook must be 10 MB or smaller.");
+  let expandedBytes = 0;
+  let entries = 0;
+  const zip = unzipSync(new Uint8Array(buffer), { filter(file) {
+    entries += 1;
+    expandedBytes += file.originalSize;
+    if (entries > 256 || file.originalSize > 16 * 1024 * 1024 || expandedBytes > 32 * 1024 * 1024) {
+      throw new Error("Workbook exceeds safe processing limits.");
+    }
+    return /^xl\/(workbook\.xml|sharedStrings\.xml|worksheets\/sheet[0-9]+\.xml)$/.test(file.name);
+  } });
   /* shared strings table */
   const sstBytes = zip["xl/sharedStrings.xml"];
   const sharedStrings: string[] = sstBytes
@@ -65,6 +76,7 @@ export function parseXlsx(buffer: ArrayBuffer): RawSheet[] {
     if (!sheetBytes) continue;
     const xml = decoder.decode(sheetBytes);
     const rowBlocks = xmlText(xml, "row");
+    if (rowBlocks.length > 20_000) throw new Error("A worksheet may contain at most 20,000 rows.");
     const grid: string[][] = [];
     for (const rowXml of rowBlocks) {
       const cellRegex = /<c\s+r="([A-Z]+)\d+"(?:\s+t="([^"]*)")?[^>]*>(?:<v>([^<]*)<\/v>)?/gi;
@@ -73,6 +85,9 @@ export function parseXlsx(buffer: ArrayBuffer): RawSheet[] {
       while ((cm = cellRegex.exec(rowXml)) !== null) {
         const colLetters = cm[1];
         const colIndex = colLetters.split("").reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+        if (!Number.isSafeInteger(colIndex) || colIndex < 0 || colIndex >= 256) {
+          throw new Error("A worksheet may contain at most 256 columns.");
+        }
         const type = cm[2] ?? "";
         const raw = cm[3] ?? "";
         const value = type === "s" ? (sharedStrings[parseInt(raw)] ?? raw) : raw;
@@ -87,7 +102,7 @@ export function parseXlsx(buffer: ArrayBuffer): RawSheet[] {
     if (grid.length < 2) continue;
     const headers = grid[0].map((h) => h.trim());
     const dataRows = grid.slice(1).map((r) => {
-      const obj: Record<string, string> = {};
+      const obj: Record<string, string> = Object.create(null);
       headers.forEach((h, idx) => { if (h) obj[h] = r[idx] ?? ""; });
       return obj;
     });

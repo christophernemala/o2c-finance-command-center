@@ -6,11 +6,12 @@ Make AI coding agents immediately productive in this O2C finance analytics repos
 
 ## Quick Start
 
-```powershell
-npm install
-npm run generate:data        # Generate 1,250-row deterministic dataset
-npm run workflow:daily       # Run daily workflow (Excel pack generation)
-npm run dev                  # Start dev server at http://127.0.0.1:5174
+```bash
+bash scripts/setup-cloud.sh  # Node 24 and Python 3.12; installs and validates
+# Configure SMTP and provision an account using docs/AUTHENTICATION.md first.
+.venv/bin/flask --app backend.app:create_app run --host 127.0.0.1 --port 5000
+# In a separate terminal:
+npm run dev -- --strictPort  # Vite proxies /api to Flask
 ```
 
 ## Build & Verify
@@ -18,6 +19,8 @@ npm run dev                  # Start dev server at http://127.0.0.1:5174
 ```powershell
 npx tsc --noEmit             # TypeScript type checking
 npm run build                # Production build (tsc + vite build)
+npm test                     # Workbook resource-limit regression tests
+.venv/bin/python -m pytest backend/tests -q  # Auth and Chromium/SMTP smoke tests
 ```
 
 ## Repository Layout
@@ -63,7 +66,8 @@ Each module under `src/modules/` is **self-contained** with its own business log
 ## Common Pitfalls
 
 - **Don't add charting libraries** (Chart.js, Recharts, etc.) — use the existing custom SVG components.
-- **Don't use `pip install`** — this is a Node.js project.
+- **Python is only for the Flask backend** — install hash-pinned dependencies from `backend/requirements*.txt` into `.venv`; keep finance report scripts in Node.
+- **Do not restore demo authentication** — login requires server-side password verification, SMTP OTP, and a revocable session. Preserve the existing logo, theme, and stylesheet.
 - **Don't modify `node_modules/`** or commit it.
 - **Excel generation scripts** (`scripts/`) run in Node, not the browser. Browser Excel export uses `src/modules/DashboardRenderer/browserExcel.ts`.
 - **The upload parser** relies on `fflate` for ZIP decompression — don't replace with a different library.

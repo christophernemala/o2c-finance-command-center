@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4174",
+    "test": "tsx --test scripts/test-upload-security.ts",
     "generate:data": "tsx scripts/generate-data.ts",
     "workflow:daily": "tsx scripts/run-daily-workflow.ts"
   },

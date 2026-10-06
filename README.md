@@ -48,6 +48,7 @@
 |---|---|
 | **Framework** | React 19 + TypeScript 5 |
 | **Build** | Vite 8 |
+| **Authentication backend** | Flask 3.1 + Python 3.12, SMTP verification, server-side SQLite sessions |
 | **Icons** | Lucide React |
 | **Excel** | Custom XLSX writer + `fflate` (ZIP compression/decompression) |
 | **Styling** | Vanilla CSS with glassmorphism, gradients, and CSS animations |
@@ -59,15 +60,15 @@
 ## 🚀 Local Setup
 
 ```powershell
-npm install
-npm run generate:data
-npm run workflow:daily
-npm run dev
+bash scripts/setup-cloud.sh
 ```
 
 Open `http://127.0.0.1:5174` in your browser.
 
-**Demo credentials** (prefilled): `finance.controller@o2c.local` / `demo123`
+Authentication uses a Flask backend, administrator-provisioned accounts, and SMTP
+email verification. Follow [authentication setup](docs/AUTHENTICATION.md) to
+configure SMTP, create an account, and start Flask plus Vite. The original login
+logo, colors, theme, and stylesheet are preserved. Demo credentials are removed.
 
 ---
 
@@ -156,13 +157,16 @@ The parser recognises common column header variations:
 
 ## 🏗 Deployment
 
-The dashboard shell can deploy to **Vercel** as a static preview:
+Build the frontend with:
 
 ```powershell
 npm run build
 ```
 
-Excel generation and daily workflows are **local/offline Node processes** by design.
+Deploy the frontend and Flask backend together behind HTTPS as described in
+[authentication setup](docs/AUTHENTICATION.md#production). A standalone static
+preview cannot provide the new authentication backend. Excel generation and
+daily workflows remain **local/offline Node processes** by design.
 
 ---
 
