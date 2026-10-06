@@ -1,6 +1,7 @@
 """Password + email OTP authentication. No demo login or client-side auth bypass."""
 import hashlib
 import hmac
+import json
 import os
 import re
 import secrets
@@ -14,11 +15,40 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import click
-from flask import Flask, abort, g, jsonify, request, send_from_directory
+from flask import Flask, abort, g, has_request_context, jsonify, request, send_from_directory
+from pydantic import ValidationError
 from werkzeug.security import check_password_hash, generate_password_hash
+from .validation import (
+    EmptySubmission, LoginSubmission, ProvisionSubmission, ResetSubmission,
+    REJECTION_MESSAGE, VerifySubmission,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 EMAIL = re.compile(r"^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$")
+
+
+class SubmissionRejected(Exception):
+    def __init__(self, status=400):
+        self.status = status
+
+
+def validation_fields(error):
+    known = {"email", "password", "username", "name", "code"}
+    return sorted({str(item["loc"][0]) if item["loc"] and item["loc"][0] in known else "extra_field"
+                   for item in error.errors(include_input=False, include_context=False, include_url=False)})
+
+
+def unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate property")
+        result[key] = value
+    return result
+
+
+def reject_json_constant(value):
+    raise ValueError("nonstandard JSON number")
 
 
 def send_code(config, email, code):
@@ -58,6 +88,8 @@ def create_app(overrides=None):
         MAX_CONTENT_LENGTH=4096,
         MAIL_SENDER=send_code,
         CLOCK=time.time,
+        SECURITY_EVENT_MAX_ROWS=10_000,
+        SECURITY_EVENT_RETENTION_DAYS=30,
     )
     app.config.update(overrides or {})
     if len(app.config["SECRET_KEY"]) < 32:
@@ -104,7 +136,19 @@ def create_app(overrides=None):
           expires REAL NOT NULL, sent REAL NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
           FOREIGN KEY(email) REFERENCES users(email));
         CREATE TABLE IF NOT EXISTS limits (key TEXT PRIMARY KEY, start REAL NOT NULL, count INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS security_events (
+          id INTEGER PRIMARY KEY, timestamp REAL NOT NULL, action TEXT NOT NULL,
+          category TEXT NOT NULL, status INTEGER NOT NULL, fields TEXT NOT NULL,
+          peer_hash TEXT NOT NULL, identifier_hash TEXT);
+        CREATE INDEX IF NOT EXISTS security_events_timestamp ON security_events(timestamp);
         """)
+        db.execute("BEGIN IMMEDIATE")
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(users)")}
+        # Additive migration: preserve existing accounts and their password hashes.
+        for column in ("username", "name"):
+            if column not in columns:
+                db.execute(f"ALTER TABLE users ADD COLUMN {column} TEXT")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_username ON users(username COLLATE NOCASE) WHERE username IS NOT NULL")
     os.chmod(db_path, 0o600)
     dummy_hash = generate_password_hash(secrets.token_urlsafe(32), method="scrypt")
 
@@ -152,13 +196,38 @@ def create_app(overrides=None):
             db.execute("DELETE FROM challenges WHERE session_hash=?", (g.auth["token_hash"],))
             db.execute("DELETE FROM sessions WHERE token_hash=?", (g.auth["token_hash"],))
 
-    def payload():
+    def audit_rejection(action, category, status, fields=(), identifier=None):
+        peer = (request.remote_addr or "unknown") if has_request_context() else "administrator-cli"
+        with transaction() as db:
+            db.execute("INSERT INTO security_events (timestamp, action, category, status, fields, peer_hash, identifier_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (now(), action, category, status, json.dumps(list(fields)), digest("peer:"+peer),
+                        digest("identity:"+identifier) if identifier else None))
+            db.execute("DELETE FROM security_events WHERE timestamp<?", (now()-app.config["SECURITY_EVENT_RETENTION_DAYS"]*86400,))
+            db.execute("DELETE FROM security_events WHERE id NOT IN (SELECT id FROM security_events ORDER BY id DESC LIMIT ?)",
+                       (app.config["SECURITY_EVENT_MAX_ROWS"],))
+
+    def payload(schema, status=400):
         if not request.is_json:
+            g.rejection_category = "invalid_json"
             abort(415)
-        body = request.get_json()
+        try:
+            body = json.loads(request.get_data().decode("utf-8"), object_pairs_hook=unique_json_object,
+                              parse_constant=reject_json_constant)
+        except (ValueError, UnicodeError, RecursionError):
+            g.rejection_category = "invalid_json"
+            raise SubmissionRejected()
         if not isinstance(body, dict):
-            abort(400)
-        return body
+            g.rejection_category = "invalid_json"
+            raise SubmissionRejected()
+        try:
+            result = schema.model_validate(body)
+        except ValidationError as error:
+            g.rejection_fields = validation_fields(error)
+            g.rejection_category = "schema"
+            raise SubmissionRejected(status) from None
+        if hasattr(result, "email"):
+            g.audit_identifier = result.email
+        return result
 
     def failure(message, status=400):
         return jsonify(error=message), status
@@ -173,14 +242,33 @@ def create_app(overrides=None):
                                 (digest(token), now())).fetchone() if token and len(token) <= 100 else None
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             if request.headers.get("Origin") != app.config["APP_ORIGIN"]:
+                g.rejection_category = "origin"
                 return failure("Request origin rejected.", 403)
             csrf = request.headers.get("X-CSRF-Token", "")
-            if not g.auth or not hmac.compare_digest(g.auth["csrf"], csrf):
+            if not g.auth or not csrf.isascii() or len(csrf)>100 or not hmac.compare_digest(g.auth["csrf"], csrf):
+                g.rejection_category = "csrf"
                 return failure("Session expired. Refresh and try again.", 403)
+            with transaction() as db:
+                if limited(db, "submission-ip:"+(request.remote_addr or "unknown"), 120):
+                    g.rejection_category = "throttle"
+                    return failure(REJECTION_MESSAGE, 429)
         return None
 
     @app.after_request
     def headers(response):
+        if request.path.startswith("/api/auth/") and response.status_code >= 400:
+            category = getattr(g, "rejection_category", {
+                400: "invalid_request", 401: "authentication", 403: "request_guard",
+                404: "unknown_route", 405: "method_not_allowed", 413: "request_size", 415: "invalid_json",
+                429: "throttle", 503: "delivery",
+            }.get(response.status_code, "server_error"))
+            # Fixed metadata only: no submitted values, password/code, cookies,
+            # raw validation errors, attacker-controlled field names, or headers.
+            action = request.endpoint if request.endpoint in {"login", "verify", "resend", "logout", "session_status"} else "unknown_auth_route"
+            audit_rejection(action, category, response.status_code,
+                            getattr(g, "rejection_fields", ()), getattr(g, "audit_identifier", None))
+            response.set_data(json.dumps({"error": REJECTION_MESSAGE}))
+            response.content_type = "application/json"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
@@ -201,6 +289,10 @@ def create_app(overrides=None):
     @app.errorhandler(415)
     def bad_request(error):
         return failure("Invalid request.", error.code)
+
+    @app.errorhandler(SubmissionRejected)
+    def invalid_submission(error):
+        return failure(REJECTION_MESSAGE, error.status)
 
     @app.get("/api/health")
     def health():
@@ -230,11 +322,8 @@ def create_app(overrides=None):
 
     @app.post("/api/auth/login")
     def login():
-        body = payload()
-        email, password = body.get("email"), body.get("password")
-        if not isinstance(email, str) or not isinstance(password, str) or len(email)>254 or len(password)>1024:
-            return failure("Invalid email or password.", 401)
-        email = email.strip().lower()
+        submission = payload(LoginSubmission, status=401)
+        email, password = submission.email, submission.password
         with transaction() as db:
             ip_limited = limited(db, "login-ip:"+(request.remote_addr or "unknown"), 30)
             account_limited = limited(db, "login-email:"+email, 10)
@@ -259,6 +348,7 @@ def create_app(overrides=None):
 
     @app.post("/api/auth/resend")
     def resend():
+        payload(EmptySubmission)
         with transaction() as db:
             # Read current state within the transaction, including session revocation.
             row = db.execute("SELECT * FROM sessions WHERE token_hash=? AND expires>?",
@@ -284,9 +374,7 @@ def create_app(overrides=None):
 
     @app.post("/api/auth/verify")
     def verify():
-        code = payload().get("code")
-        if not isinstance(code, str) or not re.fullmatch(r"[0-9]{6}", code):
-            return failure("Enter a six-digit code.")
+        code = payload(VerifySubmission).code
         with transaction() as db:
             if limited(db, "verify-ip:"+(request.remote_addr or "unknown"), 60):
                 return failure("Too many attempts. Try again later.", 429)
@@ -308,6 +396,7 @@ def create_app(overrides=None):
 
     @app.post("/api/auth/logout")
     def logout():
+        payload(EmptySubmission)
         with transaction() as db:
             revoke(db)
             fresh = new_session(db)
@@ -331,34 +420,57 @@ def create_app(overrides=None):
 
     @app.cli.command("create-user")
     @click.argument("email")
-    def create_user(email):
+    @click.option("--username", default=None)
+    @click.option("--name", default=None)
+    def create_user(email, username, name):
         """Provision an account; password is prompted without echo or argv exposure."""
-        email = email.strip().lower()
-        if len(email)>254 or not EMAIL.fullmatch(email):
-            raise click.ClickException("Enter a valid email address.")
         password = click.prompt("Password (at least 12 characters)", hide_input=True, confirmation_prompt=True)
-        if len(password)<12 or len(password)>1024:
-            raise click.ClickException("Use a password between 12 and 1024 characters.")
-        with transaction() as db:
-            if db.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-                raise click.ClickException("Account already exists.")
-            db.execute("INSERT INTO users VALUES (?, ?)", (email, generate_password_hash(password, method="scrypt")))
+        try:
+            submission = ProvisionSubmission.model_validate(dict(email=email, password=password, username=username, name=name))
+        except ValidationError as error:
+            audit_rejection("create_user", "schema", 400, validation_fields(error))
+            raise click.ClickException(REJECTION_MESSAGE) from None
+        try:
+            with transaction() as db:
+                db.execute("INSERT INTO users (email, password_hash, username, name) VALUES (?, ?, ?, ?)",
+                           (submission.email, generate_password_hash(submission.password, method="scrypt"), submission.username, submission.name))
+        except sqlite3.IntegrityError:
+            audit_rejection("create_user", "account_conflict", 400, identifier=submission.email)
+            raise click.ClickException(REJECTION_MESSAGE) from None
         click.echo("Account created.")
 
     @app.cli.command("reset-password")
     @click.argument("email")
     def reset_password(email):
         """Administrator-only recovery; revoke all sessions and pending codes."""
-        email = email.strip().lower()
         password = click.prompt("New password (at least 12 characters)", hide_input=True, confirmation_prompt=True)
-        if len(password)<12 or len(password)>1024:
-            raise click.ClickException("Use a password between 12 and 1024 characters.")
+        try:
+            submission = ResetSubmission.model_validate(dict(email=email, password=password))
+        except ValidationError as error:
+            audit_rejection("reset_password", "schema", 400, validation_fields(error))
+            raise click.ClickException(REJECTION_MESSAGE) from None
+        email, password = submission.email, submission.password
+        missing = False
         with transaction() as db:
             if not db.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-                raise click.ClickException("Account not found.")
-            db.execute("UPDATE users SET password_hash=? WHERE email=?", (generate_password_hash(password, method="scrypt"), email))
-            db.execute("DELETE FROM challenges WHERE email=?", (email,))
-            db.execute("DELETE FROM sessions WHERE email=?", (email,))
+                missing = True
+            else:
+                db.execute("UPDATE users SET password_hash=? WHERE email=?", (generate_password_hash(password, method="scrypt"), email))
+                db.execute("DELETE FROM challenges WHERE email=?", (email,))
+                db.execute("DELETE FROM sessions WHERE email=?", (email,))
+        if missing:
+            audit_rejection("reset_password", "account_missing", 400, identifier=email)
+            raise click.ClickException(REJECTION_MESSAGE)
         click.echo("Password reset. All sessions revoked.")
+
+    @app.cli.command("security-events")
+    @click.option("--limit", type=click.IntRange(1, 1000), default=100)
+    def security_events(limit):
+        """Read private rejection metadata. Never exposes rejected submission bodies."""
+        with connect() as db:
+            for row in db.execute("SELECT * FROM security_events ORDER BY id DESC LIMIT ?", (limit,)):
+                event = dict(row)
+                event["fields"] = json.loads(event["fields"])
+                click.echo(json.dumps(event))
 
     return app

@@ -258,10 +258,10 @@ function LoginScreen({ session, connectionError, onRefresh, onEnter }: {
         <h2>{pending ? "Verify your work email." : "Sign in to the order-to-cash command center."}</h2>
         <p className="muted">{pending ? `Enter the six-digit code sent to ${email}. Your code expires in five minutes.` : "Sign in with your work account, then verify the code sent to your email."}</p>
         {pending ? (
-          <label className="login-field">Verification code<input ref={codeRef} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} disabled={busy} onChange={(event) => { setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6)); setError(""); }} /></label>
+          <label className="login-field">Verification code<input ref={codeRef} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} disabled={busy} onChange={(event) => { setCode(event.target.value); setError(""); }} /></label>
         ) : <>
           <label className="login-field">Work email<input type="email" autoComplete="username" maxLength={254} required disabled={busy} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          <label className="login-field">Password<span className="password-wrap"><input type={showPassword ? "text" : "password"} autoComplete="current-password" maxLength={1024} required disabled={busy} value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+          <label className="login-field">Password<span className="password-wrap"><input type={showPassword ? "text" : "password"} autoComplete="current-password" minLength={12} maxLength={1024} required disabled={busy} value={password} onChange={(event) => setPassword(event.target.value)} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
         </>}
         {(error || connectionError) && <p className="form-error" role="alert">{error || connectionError}</p>}
         {status && <p className="muted" role="status">{status}</p>}

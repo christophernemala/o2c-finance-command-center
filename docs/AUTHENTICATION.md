@@ -172,3 +172,57 @@ against both Python requirements files. Refresh hash-pinned Python locks using
 `pip-compile --generate-hashes` after reviewing updates. Passing advisory scans
 reflect known vulnerabilities at that time, not a guarantee against all attacks.
 Re-run checks and review dependency updates regularly.
+
+
+## Strict server validation and rejection events
+
+All authentication mutations use strict Pydantic schemas, even if browser
+validation already ran. Unexpected properties, wrong types, missing required
+fields, duplicate JSON keys, nonstandard JSON numbers, and malformed encodings
+are rejected. Login no longer silently trims malformed email input.
+
+Email is a syntactically valid ASCII mailbox of at most 254 characters without
+padding or display-name/HTML syntax, then lowercased as an explicit identity
+policy. Password is an exact nonblank string of 12–1024 characters without control
+characters; it is never trimmed, normalized, or stripped of markup. Optional
+usernames are 3–32 ASCII letters/digits/`_.-`, starting with a letter. Optional
+names are 1–100 Unicode letters/marks, spaces, apostrophes, periods, and hyphens,
+without surrounding whitespace or controls. Tags/comments/script/style content
+are stripped during inspection; if this changes a name, the complete submission
+is rejected rather than silently storing cleaned text. Optional profile values
+may be omitted or null, but empty strings are rejected.
+
+The existing administrator-only signup path accepts the profile fields:
+
+```bash
+.venv/bin/flask --app backend.app:create_app create-user your-work-email@example.com --username finance.analyst --name "Jane Doe"
+```
+
+Existing databases gain profile columns additively; account password hashes are
+preserved. The app still has no public signup endpoint. Username/name submitted
+to login are unexpected properties and rejected. Verification requires an exact
+six-digit string; resend/logout require an empty JSON object. All rejected auth
+responses use `Unable to process submission.` without field details. Broad HTTP
+status categories remain distinguishable; detailed field diagnostics are private.
+A 120-request-per-peer-IP limit per 15 minutes also covers malformed submissions.
+
+Trusted administrators can inspect rejected submissions with:
+
+```bash
+.venv/bin/flask --app backend.app:create_app security-events --limit 100
+```
+
+Events live in the private authentication SQLite database. They contain a
+timestamp, fixed action/category, status, validated field names, and keyed hashes
+for peer/identity correlation. No body, original field value, password, OTP,
+cookie, CSRF token, raw validation exception, or user-agent is retained. Unknown
+property names are logged as `extra_field`. Identity hashes are captured only
+after email validation succeeds. No public audit endpoint is exposed.
+
+Retention is capped at the most recent 10,000 events and 30 days, pruned when a
+subsequent rejection is logged. Manage backup retention independently, and export
+sanitized JSON to trusted monitoring before rotation if longer retention is
+needed. Monitor database storage/availability: audit insertion failures fail the
+request rather than silently dropping evidence. Webserver/proxy access logs may
+have their own IP/path retention; never enable body or credential logging there.
+See [the validation audit](VALIDATION_AUDIT.md) for findings and file-level changes.

@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash
 from backend.app import create_app
 
 ORIGIN = "http://127.0.0.1:5174"
-EMAIL = "analyst@example.test"
+EMAIL = "analyst@example.com"
 PASSWORD = "a-long-test-password!"
 
 
@@ -28,7 +28,7 @@ def setup(tmp_path):
                   CLOCK=lambda: clock[0])
     app = create_app(config)
     with sqlite3.connect(config["DATABASE"]) as db:
-        db.execute("INSERT INTO users VALUES (?, ?)", (EMAIL, generate_password_hash(PASSWORD)))
+        db.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (EMAIL, generate_password_hash(PASSWORD)))
     return app, app.test_client(), messages, clock, config
 
 
@@ -75,8 +75,8 @@ def test_complete_login_rotation_restore_and_logout(setup):
 def test_password_required_and_unknown_accounts_are_generic(setup):
     _, client, messages, _, _ = setup
     csrf = bootstrap(client)
-    first = post(client, "login", csrf, {"email": EMAIL, "password": "wrong"})
-    second = post(client, "login", csrf, {"email": "missing@example.test", "password": "wrong"})
+    first = post(client, "login", csrf, {"email": EMAIL, "password": "wrong-password!"})
+    second = post(client, "login", csrf, {"email": "missing@example.com", "password": "wrong-password!"})
     assert first.status_code == second.status_code == 401
     assert first.json == second.json
     assert not messages
@@ -129,7 +129,7 @@ def test_login_throttle_persists_across_app_instances(setup):
     _, client, _, _, config = setup
     csrf = bootstrap(client)
     for _ in range(10):
-        assert post(client, "login", csrf, {"email": EMAIL, "password": "wrong"}).status_code == 401
+        assert post(client, "login", csrf, {"email": EMAIL, "password": "wrong-password!"}).status_code == 401
     other = create_app(config).test_client()
     assert post(other, "login", bootstrap(other), {"email": EMAIL, "password": PASSWORD}).status_code == 429
 
@@ -180,10 +180,10 @@ def test_authenticated_session_expires(setup):
 def test_account_provisioning_and_password_reset_revoke_sessions(setup):
     app, client, messages, _, _ = setup
     runner = app.test_cli_runner()
-    result = runner.invoke(args=["create-user", "new@example.test"], input=PASSWORD+"\n"+PASSWORD+"\n")
+    result = runner.invoke(args=["create-user", "new@example.com"], input=PASSWORD+"\n"+PASSWORD+"\n")
     assert result.exit_code == 0
     assert PASSWORD not in result.output
-    result = runner.invoke(args=["create-user", "new@example.test"], input=PASSWORD+"\n"+PASSWORD+"\n")
+    result = runner.invoke(args=["create-user", "new@example.com"], input=PASSWORD+"\n"+PASSWORD+"\n")
     assert result.exit_code != 0
     csrf = login(client)
     assert post(client, "verify", csrf, {"code": messages[-1][1]}).status_code == 200

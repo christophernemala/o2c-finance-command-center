@@ -43,8 +43,8 @@ def test_browser_login_reload_and_logout(tmp_path):
                           SMTP_FROM="sender@example.test"))
     password = secrets.token_urlsafe(20)
     with sqlite3.connect(db_path) as db:
-        db.execute("INSERT INTO users VALUES (?, ?)",
-                   ("analyst@example.test", generate_password_hash(password)))
+        db.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)",
+                   ("analyst@example.com", generate_password_hash(password)))
     server = make_server("127.0.0.1", 0, app, threaded=True)
     origin = f"http://127.0.0.1:{server.server_port}"
     app.config["APP_ORIGIN"] = origin
@@ -64,10 +64,10 @@ def test_browser_login_reload_and_logout(tmp_path):
             assert page.locator(".brand-dot svg").count() == 1
             original_style = page.locator(".login-card").evaluate("el => getComputedStyle(el).backgroundColor")
             assert original_style == "rgba(8, 17, 36, 0.84)"
-            page.get_by_label("Work email").fill("analyst@example.test")
+            page.get_by_label("Work email").fill("analyst@example.com")
             page.get_by_label("Password", exact=True).fill("incorrect-password")
             page.get_by_role("button", name="Sign in to dashboard").click()
-            playwright.expect(page.get_by_role("alert")).to_have_text("Invalid email or password.")
+            playwright.expect(page.get_by_role("alert")).to_have_text("Unable to process submission.")
             page.get_by_label("Password", exact=True).fill(password)
             page.get_by_role("button", name="Sign in to dashboard").click()
             playwright.expect(page.get_by_label("Verification code")).to_be_visible()

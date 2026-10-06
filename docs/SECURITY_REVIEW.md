@@ -51,3 +51,21 @@ authorization and ownership checks. SQLite/mail delivery is designed for one
 small host; larger deployments require a durable mail queue, shared database,
 and trusted proxy/gateway rate limits. Advisory scans do not prove immunity to
 unknown vulnerabilities, and this review does not certify every finance module.
+
+
+## Server-validation follow-up
+
+Shared strict Pydantic schemas now replace the handwritten credential checks.
+They apply to login, administrator account provisioning, password reset,
+verification, resend, and logout. Field/JSON rejection responses are generic;
+private rejection events provide redacted diagnostics and bounded retention.
+See [the validation audit](VALIDATION_AUDIT.md) for the field rules and file-level
+changes. This follow-up keeps the existing design and does not enable public
+registration or read provider credentials.
+
+
+Follow-up verification passed: 85 Python tests (including real local SMTP and
+Chromium), five workbook regression tests, TypeScript/production build, and
+hash-verified dependency installation. Both updated Python requirements scans
+reported no known vulnerabilities. Direct API tests explicitly bypass browser
+validation. These results do not establish production SMTP or remote-host readiness.
