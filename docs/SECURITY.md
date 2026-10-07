@@ -33,8 +33,19 @@ Header behavior is documented in [Vercel's request-header reference](https://ver
 
 Tests verify key privacy, normalization, successful-slot removal, denial handling,
 malformed replies, outages and trusted-header handling with a test HTTP transport.
-They do not run Redis Lua. Before promotion, exercise the actual Redis provider:
+Unit tests do not run Redis Lua. The opt-in live integration check exercises
+the actual configured Redis using isolated expiring HMAC keys; its 2026-10-08
+budget, release and concurrency checks passed. Before promotion, additionally verify:
 five failures then a denied sixth attempt, sliding expiry, concurrent requests from
 multiple app instances, successful login interleaved with failures, and Redis outage.
 Also verify Supabase's own abuse protections, invite/recovery delivery and MFA policy.
-No credentials or actual provider connectivity are supplied by this commit.
+Provider credentials belong in ignored local configuration or encrypted hosting
+variables. The application never uses a service-role key.
+
+Enrolled MFA accounts require AAL2 in server routes and financial database
+membership resolution. TOTP codes are verified by Supabase; no email OTP expiry
+or resend behavior is simulated. Profiles cannot grant financial access.
+OAuth callbacks use PKCE and fixed canonical origins; Vercel preview origins
+come only from VERCEL_URL. Continuation limiter tickets are HMAC signed and
+stored in HttpOnly cookies so a successful second factor can release the
+original login reservation without resetting unrelated failures.

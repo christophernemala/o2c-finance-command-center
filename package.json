@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 4174",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "verify": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

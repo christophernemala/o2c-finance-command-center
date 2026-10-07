@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLoginLimiter, loginLimiterConfig, trustedLoginIp } from "../src/lib/login-limiter";
+import { createLoginLimiter, loginLimiterConfig, trustedLoginIp, sealReservation, openReservation } from "../src/lib/login-limiter";
 const settings = { url: "https://test.upstash.io", token: "test-only-token", secret: "test-only-secret-32-characters-long" };
+test("OAuth and MFA reservations cannot be changed or signed with another key", () => {
+  const ticket={key:`o2c:{login}:account:${"a".repeat(64)}`,ipKey:`o2c:{login}:ip:${"b".repeat(64)}`,id:"00000000-0000-4000-8000-000000000001"};
+  const signed=sealReservation(ticket,settings.secret);
+  assert.deepEqual(openReservation(signed,settings.secret),ticket);
+  assert.equal(openReservation(signed,"another-key"),null); assert.equal(openReservation(`x${signed}`,settings.secret),null);
+  assert.equal(openReservation(sealReservation({...ticket,key:"another-application"},settings.secret),settings.secret),null);
+});
 test("durable limiter hashes identifiers, retains failures and releases only its successful attempt", async () => {
   const commands: unknown[][] = []; let count = 0;
   const transport: typeof fetch = async (url, options) => {

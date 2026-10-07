@@ -1,100 +1,94 @@
-# Deployment qualification
+# Deployment qualification — 2026-10-08
 
-## Verified locally
+## Release scope
 
-The receivables workbook now includes full-entity aging totals, the source customer
-directory, and first-page invoice details with aging/status and separate page control
-totals. Detail remains limited to 50 invoices. No customer balances, source invoices
-or invoice PDFs were generated. See `docs/SOURCE_DATA.md` for source requirements.
+PR #1 replaces the conflicting Vite/Flask template with the approved Next.js
+App Router application. It preserves exact AED decimal amounts, tenant/entity
+scope, independent maker/checker decisions, versioned evidence, idempotent
+posting, and the existing Treasury database.
 
-TypeScript strict check, Next.js production build, decimal/parser tests and embedded
-PostgreSQL migration/control tests. The browser can verify the sign-in theme and
-connection-unavailable behavior without creating fake data.
-The new insights migration and direct-method forecast are covered by embedded
-PostgreSQL and decimal tests, including full-entity totals beyond the first page,
-tenant isolation, immutable inputs, week boundaries, invalid dates and negative cash.
-Redis transport tests use an HTTP double; live Lua/concurrency/expiry remain unverified.
-The 2026-10-05 local revision passed strict TypeScript, all 30 tests, and a production
-build. Browser checks confirmed light/dark switching, bundled Inter/Sora styles,
-desktop and 390-pixel mobile layouts without horizontal overflow, unauthenticated
-dashboard redirection, and no captured browser errors. HTTP checks confirmed
-private/no-store responses, CSP nonces in rendered scripts, and cross-origin
-sign-in rejection. The local preview intentionally disables sign-in until both
-the finance backend and durable limiter are configured.
+Authentication includes invited password setup, password login, real enabled
+Google/Microsoft providers, PKCE callbacks, and verified TOTP challenges.
+Enrolled MFA is enforced both by server routes and financial database access.
+Identity profiles never grant workspace membership.
 
-The 2026-10-07 PR review repair passed strict TypeScript, all 39 tests with
-`npx tsx --test --test-concurrency=1 tests/*.test.ts`, and the production build.
-Regression coverage includes reader-independent table ACLs and effective RPC
-EXECUTE access, successful sign-in release of both limiter reservations,
-per-workspace pagination, canonical import dates, insights migration rollback,
-and joined approval evidence with captured/current versions and stale controls.
-An overlapping build/test run exceeded local memory; the sequential suite passed.
-Redis tests still use a transport double; live Lua/concurrency remain unverified.
-`npm audit --omit=dev` reports one existing high-severity `source-map-js` advisory;
-dependency files are unchanged by this review repair.
+Agent analysis jobs durably queue and complete exact source-based AR analysis,
+collection drafts, and treasury candidates. Jobs can be resumed after an
+interrupted request. They never send customer messages or post financial journals.
+Original validated CSV bytes are archived in private immutable application paths.
 
-## Required before live promotion
+## Validation record
 
-The infrastructure audit package additionally passed skill validation, read-only
-catalog tests, strict TypeScript, all 30 tests and the production build. The named
-Supabase project still reports INACTIVE; live RLS/cron/index/Realtime/webhook evidence
-is unavailable. See `audit_report.md`; no optimization DDL or integration deployment
-has been applied.
+The 2026-10-05 revision passed 30 tests. The 2026-10-07 review repair passed 39.
+These are historical counts, not the current suite count.
 
-1. Select the correct active Supabase project; review schema compatibility and backup.
-2. Apply `202610040001_workspaces.sql` followed by `202610050001_insights.sql`
-   from `supabase/migrations/` in an isolated staging database, then verify with real
-   Supabase JWTs and at least two tenants. Embedded auth stubs are not live auth proof.
-   If staging already applied these files, deploy the revised `workspace_snapshot`
-   and `stage_import` definitions through a reviewed forward migration before this
-   application revision. Do not rerun table-creation migrations on populated schemas.
-3. Invite real maker/checker users and provision their tenant/entity memberships.
-   Verify sign-in, refresh, recovery, logout and role revocation end-to-end.
-   Configure the three server-only Redis/HMAC variables from `.env.example` and
-   exercise the actual five-attempt policy across instances and during outages.
-4. Confirm Vercel builds from the repository root with `vercel.json` (Next.js,
-   `npm ci`, `npm run build`, framework-default output), Node.js 22, and the public
-   environment variables. Verify
-   actual deployment headers, redirects, CSRF rejection, cookie persistence and no caching.
-5. Exercise receipt/import/approval/allocation workflows with authorized source data.
-   Verify browser double-submit, parallel clients, connection loss and duplicate retries.
-6. Confirm source data opening balances. This importer supports unpaid invoices;
-   migrate credits, prior allocations and reversals through a reviewed separate process.
-7. Supply governed ECL runs and agent integrations if those workspaces are enabled.
-   Add external audit archiving, monitoring, recovery tests and retention policies.
-   Supply approved cashflow source runs following `docs/CASHFLOW_INPUTS.md` and
-   reconcile opening/closing cash with the reviewed source model.
-8. Verify keyboard/screen-reader access, contrast, mobile tables, real workload latency
-   and pagination using the authenticated staging deployment.
+The current release gates are `npm run verify` and `npm audit`.
+The 2026-10-08 source gates passed strict TypeScript, all 49 tests and a
+production build; the dependency audit reported zero vulnerabilities.
+Tests execute sequentially to avoid exhausting local embedded PostgreSQL memory.
+The opt-in real Redis check is:
+`node --env-file=.env.local --import tsx tests/login-limiter.integration.ts`.
+It uses isolated expiring keys and passed live account/IP budgets, successful slot
+release, and concurrent reservations on 2026-10-08.
 
-## Unsupported until explicitly implemented
+The source-map-js transitive dependency is patched to 1.2.2; npm reported zero
+vulnerabilities after installation. Local test fixtures never create hosted
+financial records. Hosted JWT, MFA, email and financial workflow tests require
+real users and source records.
 
-Calibrated ECL calculation/posting, customer dunning delivery, ERP/bank connectors,
-credit-limit changes, settlements/write-offs, refunds, reversals, general-ledger
-period locking, FX/multi-currency, SSO/MFA enforcement, SaaS billing, document storage,
-full-dataset exports, and compliance certification.
+## Database rollout
 
-Do not substitute demo data for any missing integration. Do not promote merely
-because the local build passes. Verify the matching Lovable project before sending
-editing instructions; a similarly named finance project is not sufficient evidence.
+For a fresh dedicated staging project, apply files in filename order:
+1. `202610040001_workspaces.sql`
+2. `202610050001_insights.sql`
+3. `20261006115901_user_profiles.sql`
+4. `202610080001_release_hardening.sql`
+5. `202610080002_agent_jobs.sql`
+6. `202610080003_source_storage.sql`
 
-## Current provider verification
+For the confirmed live project `vaxsnungigkeqxaolqvo`, the first two already
+exist. Apply only the missing profile and forward migrations. Do not rerun
+foundation table creation on an existing database. Review `audit_report.md`
+before DDL and verify policies/functions/ACLs after migration.
+All four missing migrations applied successfully on 2026-10-08. Catalog checks
+confirmed the updated source evidence/date definitions, authenticated-only RPC
+EXECUTE, the private 1 MB CSV bucket with scoped SELECT/INSERT policies, and all
+12 existing Treasury tables. The project still has zero Auth users.
 
-The initial branch commit passed both GitHub verification runs, but both connected
-Vercel projects reported failed previews. After explicit Next.js build settings
-were added in commit `59e40f0`, both projects reported Ready and both GitHub
-verification runs passed. The original build errors were not accessible: the
-connector returned 403 for `christophers-projects-896fb086`.
+## Hosting and operational gates
 
-The `o2c-finance-command-center-app` branch preview is
-https://o2c-finance-command-c-git-82dad6-christophers-projects-896fb086.vercel.app.
-The initial browser check reached deployment protection and two-factor sign-in.
-On 2026-10-05, commit `0e387d3` passed both GitHub verification runs and both Vercel
-previews reported Ready. The existing browser session opened the hosted application:
-login light/dark switching, Inter/Sora styles, 390-pixel mobile layout without
-horizontal overflow, and unauthenticated dashboard redirection passed with no
-captured browser errors. Sign-in remains disabled because required provider
-configuration is absent. Requests without that browser session still reach Vercel
-deployment protection, so unauthenticated HTTP probes did not verify application
-headers. Live Supabase/Redis and authenticated finance workflows remain unverified.
-Complete those gates before promotion; a Ready deployment status is insufficient.
+Vercel must build the repository root using Next.js, Node 22, npm ci and npm run
+build. Both public Supabase variables and the server-only Redis/HMAC variables
+must be configured. Production AUTH_SITE_URL must be the canonical HTTPS origin.
+Preview callbacks use Vercel's injected VERCEL_URL; allow those precise deployment
+origins in Supabase, never arbitrary request headers.
+
+The confirmed Supabase project is ACTIVE_HEALTHY, with no real Auth users,
+tenants, legal entities or memberships at audit time. A named real administrator,
+company and legal entity are required for onboarding. Independently verify:
+The live Auth settings currently enable email/password and public signup, while
+Google and Microsoft are disabled. Disable public signup for the invitation-only
+deployment after checking the shared project's other Auth consumers.
+
+- Invitation delivery, password setup, login, refresh, logout, recovery and TOTP.
+- Google/Microsoft credentials, callback allowlists and actual provider login.
+- Ordinary JWT tenant/entity isolation and MFA bypass denial.
+- Real private upload/read boundaries, approval evidence, independent decisions,
+  double submit, concurrency, connection loss and duplicate retries.
+- Governed source balances, forecast inputs and ECL runs.
+- Workload latency, mobile/accessibility, monitoring, immutable archive,
+  retention and tested backup/restore.
+
+## Supported limits
+
+Controlled CSV imports cover entirely unpaid invoices and bank lines. Historical
+settlements, credits, FX, refunds, write-offs, period locks and full statutory GL
+exports require separately governed implementations.
+
+Collection drafts are not delivered. No LLM service, external worker scheduler,
+two-way dunning inbox, ERP/bank connector, or automated allowance posting is
+connected. DSO/CEI and credit limits require governed source inputs. Forecasts
+use approved direct-method source runs rather than invented predictions.
+
+A Ready deployment and passing source checks are independent of these live
+operational gates. See `docs/REVIEW_AND_NEXT_STEPS.md` for the complete audit.

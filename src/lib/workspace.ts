@@ -3,10 +3,15 @@ import { createClient } from "./supabase/server";
 import { paginatedCollections, type Entity, type Membership, type Snapshot } from "@/types/workspace";
 import { amount, aggregateAmount } from "./money";
 import { validateCashflowRun } from "./cashflow";
+import { authenticationAssurance } from "./auth-flow";
+import { redirect } from "next/navigation";
 export async function access() {
   const client = await createClient();
   const { data: { user }, error } = await client.auth.getUser();
   if (error || !user) return null;
+  const assurance = await authenticationAssurance(client);
+  if (assurance === "mfa") redirect("/auth/verify");
+  if (assurance !== "ready") throw new Error("Authentication assurance unavailable");
   const membership = await client.rpc("workspace_access");
   if (membership.error || !Array.isArray(membership.data)) throw new Error("Membership lookup unavailable");
   return { client, user, memberships: membership.data as Membership[] };

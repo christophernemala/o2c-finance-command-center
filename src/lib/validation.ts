@@ -9,6 +9,10 @@ export const credentialsSchema = z.object({
   email: z.string().trim().max(254).pipe(z.email()).transform(value => value.toLowerCase()),
   password: z.string().min(1).max(256),
 });
+export const signupPasswordSchema = z.object({
+  password: z.string().min(12).max(256),
+  confirm: z.string().min(12).max(256),
+}).refine(value => value.password === value.confirm);
 export const commandSchema = z.discriminatedUnion("intent", [
   z.object({ ...scope, intent: z.literal("propose"), id: uuid, kind: z.enum(["receipt", "allocation"]), amount: money,
     evidence: z.string().trim().min(10).max(2000), invoice: uuid.optional(), receipt: uuid.optional(), bank: uuid.optional(), customer: uuid.optional() }),

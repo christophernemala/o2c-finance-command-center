@@ -19,7 +19,8 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
   protection allows at most five failed/in-flight account attempts in a sliding
   15-minute window and 30 failed/in-flight attempts per trusted Vercel IP. Successful
   membership verification releases that attempt's account and IP slots; outages fail closed.
-- Invited-account password authentication validated by Supabase on the server.
+- Invited-account password activation, PKCE Google/Microsoft authentication when
+  providers are enabled, and verified TOTP challenges validated by Supabase.
   No arbitrary local login, generated balances, default accounts, or seeded business data.
 - Tenant membership and entity context on every protected request. PostgreSQL RLS
   protects direct reads; scoped RPCs are the only application write path.
@@ -28,11 +29,14 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 - Incoming receipt and cash-allocation proposals, independent approval, separate
   posting, row/version locks, revoked-approver checks, idempotent retries, and audit evidence.
 - UTF-8 CSV imports with explicit column mapping, 1 MB / 2,000-row limits, rejected-row
-  details, control totals, preserved payload digests, independent review, and atomic commits.
+  details, control totals, preserved payload digests, private original CSV storage,
+  independent review, and atomic commits.
 - XLSX export reuses the existing workbook writer. It explicitly exports the first
   50 invoice records, with scope metadata and full-entity totals in a separate sheet.
 - Server-rendered scoped navigation, pagination, explicit empty/unavailable states,
-  accessible tables, visible focus, reduced motion, and theme preferences only in local storage.
+  accessible tables, visible focus, reduced motion, and session-only theme selection.
+- Durable scoped AR, collections and treasury analysis jobs use real source
+  records; interrupted jobs can be resumed. Drafts and candidates require review.
 
 ## Local setup
 
@@ -48,6 +52,9 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
    policies, abuse protections, and recovery delivery for the actual deployment.
 6. Set the server-only Redis URL, token, and HMAC secret in `.env.local`
    (variable names are listed in `.env.example`).
+   Set AUTH_SITE_URL to the canonical origin. For a local production preview,
+   AUTH_LOGIN_IP_SOURCE=loopback is permitted only on a server bound to 127.0.0.1.
+   Vercel always requires its trusted edge address.
    See `docs/SECURITY.md`; production client-IP handling currently targets Vercel.
 7. Run `npm run dev` and open http://127.0.0.1:5174.
 
@@ -67,9 +74,10 @@ Tests use disposable fixtures exclusively in an embedded PostgreSQL runtime,
 including RLS, direct-write denial, self-approval rejection, debit rejection,
 idempotency, stale allocations, revoked authority, atomic imports, and append-only
 records. They do not establish live Supabase, Vercel, email, or ERP connectivity.
-Redis transport/denial/outage tests use a controlled HTTP test double; Redis Lua
-execution, distributed concurrency, expiry, and the live provider still require
-staging verification.
+The opt-in live Redis integration check uses isolated expiring keys:
+`node --env-file=.env.local --import tsx tests/login-limiter.integration.ts`.
+The recorded live check passed budgets, release and concurrency. This does not
+establish real user authentication or financial workflow verification.
 
 ## Source files
 
@@ -96,8 +104,9 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
   are connected. Cashflow reads approved `cashflow_runs` supplied by a trusted source
   integration; see `docs/CASHFLOW_INPUTS.md`. Confidence is displayed only with an
   approved percentage and methodology, never inferred from a mixed-unit delay/score.
-- Agent workspaces display recorded runs. No model provider, worker runtime,
-  customer-message sender, or ERP/bank adapter is connected by this change.
+- Agent workspaces run durable source-based analysis and display external domain
+  activity separately. No LLM service, external worker scheduler, customer-message
+  sender, or ERP/bank adapter is connected.
 - The cash-control journal records equal debit/credit amounts per posting. It is
   not a full statutory GL: period locks, tax, FX, write-offs, refunds, credit-limit
   amendments, reversals, and ERP journal export remain outside supported commands.
@@ -107,7 +116,7 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
   are required before making a tamper-proof audit claim.
 - Input is controlled CSV. The unsafe permissive XLSX upload parser and fabricated
   PDF/proof/SLA generators were removed. XLSX **export** remains available.
-- MFA/SSO, billing, multi-currency, retention policies, performance qualification,
+- Live MFA/social-provider qualification, billing, multi-currency, retention, performance,
   and disaster recovery require deployment-specific implementation and evidence.
 
 The deployment framework changes from Vite to Next.js. Vercel must use the Next.js

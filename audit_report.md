@@ -1,70 +1,88 @@
-# Supabase infrastructure audit — 2026-10-05
+# O2C release audit — 2026-10-08
 
-Target: `vaxsnungigkeqxaolqvo`, `ap-northeast-1`, PostgreSQL 17.
-Scope: infrastructure inspection and reusable skill, not a database migration.
+## Scope and verified baseline
 
-## Live evidence
+Reviewed PR #1, its ten original findings, later review feedback, the approved
+Next.js design, and related O2C authentication/profile conversations. The original
+working checkout is preserved. The isolated PR checkout merges current master
+while removing the conflicting Vite/Flask template from the release tree.
 
-The authenticated Supabase `get_project` response reports **INACTIVE**.
-Live SQL catalog access, advisors, query plans, index usage/history, extension/cron
-configuration, Realtime and webhook delivery have not been verified. No database
-DDL, extension activation, cron scheduling, publication changes, credential changes
-or index removals were attempted. No 100ms latency or production-readiness claim
-is supported. Project activation and authorized catalog access are prerequisites.
+The confirmed Supabase project `vaxsnungigkeqxaolqvo` is ACTIVE_HEALTHY,
+PostgreSQL 17.6 in ap-northeast-1. Read-only catalog inspection found 27 public
+tables with RLS and policies, no PUBLIC table grants, and no anonymous EXECUTE
+on the O2C privileged RPCs. Twelve existing Treasury tables are outside this
+release and remain unchanged. There are zero Auth users, memberships, tenants,
+and entities. The two O2C foundation migrations are already deployed; profiles,
+agent jobs, and private source storage were absent at inspection.
 
-## Repository evidence
+Catalog/statistics checks used bounded read-only queries. The five highest
+aggregate query timings concern an empty business database and do not prove
+real-workload latency, index redundancy, or a reason to remove indexes.
 
-- `202610040001_workspaces.sql` creates `memberships`, not `tenant_memberships`;
-  its primary key is `(tenant_id,user_id)`, referencing `tenants(id)`/`auth.users(id)`.
-  RLS and `member_read` already permit authenticated SELECT of the user's membership.
-  `workspace_access()` uses invoker permissions. An empty result needs valid identity
-  and actual membership provisioning, not an assumed policy replacement.
-- The two migrations enable RLS on all 15 public application tables. Application
-  grants are SELECT only; scoped financial writes occur in role-checked RPCs with
-  independent approval, immutable evidence, version checks and idempotency.
-- `numeric(15,2)` is the existing record contract. There are no `payments`,
-  `dunning_jobs`, `o2c_state_events`, `webhook_configs` or `langgraph_runs` tables.
-  Invoice state uses `lifecycle`, `dispute`, `collection`; no `status`/`deleted_at`.
-  The supplied sample indexes therefore cannot be applied to this schema.
-- Existing indexes cover invoice/bank/approval/audit scope and allocation lookups.
-  Source inspection cannot establish index redundancy or workload performance.
-- GitHub CI and Vercel deployment producers exist. No tenant-facing workflow event
-  consumer, LangGraph implementation, Realtime client or signed webhook handler
-  exists in this checkout. These integrations require a real producer/consumer and
-  scoped credential contract before adding database tables or deployment endpoints.
-- Login already fails closed when Supabase/Redis configuration is absent. RLS
-  changes would not resolve that configuration blocker.
+## Remediation being released
 
-## Corrected implementation
+- All original PR findings: independent ACL audit, effective role EXECUTE,
+  checkout credential removal, canonical import dates, collection pagination,
+  transactional insights migration, safe secret instructions, both login
+  reservations released, and joined versioned approval evidence.
+- Latest floating O2C login design, email/password first, real provider availability,
+  invited-account activation, PKCE callbacks, and verified TOTP challenges.
+- Server and PostgreSQL assurance checks prevent enrolled MFA accounts from
+  bypassing the second factor through direct financial reads/RPCs.
+- Profiles store identity attributes separately from financial memberships.
+- Durable scoped analysis jobs calculate exact AR aging, prepare collection
+  drafts, and identify treasury match candidates from real records. Analysis
+  never sends messages or writes the ledger. Interrupted queued jobs are resumable.
+- Original validated CSV bytes are archived in private tenant/entity/uploader
+  paths. Members can read their scope; makers/admins can insert their originals.
+  No application overwrite/delete policy is granted.
+- Reviewed forward migrations update existing RPCs without recreating populated
+  foundation tables. New schema changes are transactional.
+- Browser localStorage has been removed. Theme choice lasts for the page session.
+- The vulnerable transitive source-map-js dependency is patched to 1.2.2.
 
-The repository skill preserves audit → evidenced RLS remediation → measured index
-changes → authorized Realtime/webhook integration order. Its read-only SQL reports
-catalog/grant/index/constraint/publication metadata without financial row contents,
-including statistics resets and protected index characteristics. It emits no DROP
-or CREATE statements and never treats zero scans as permission to remove an index.
-No speculative migrations or integration stubs are added to the migration chain.
+The live Redis integration check passed account/IP budgets, slot release, and
+parallel reservations using isolated expiring test keys. Vercel's confirmed
+two connected projects now use Next.js, Node 22, npm ci, and npm run build.
+All six required variable names were verified in preview/production targets;
+secrets were transferred into encrypted provider configuration without printing.
+Hosted release runtime must be checked independently of source gates.
 
-## Next live steps
+The four missing migrations applied successfully after this report's initial
+catalog review. Follow-up inspection confirmed profiles/jobs, updated canonical
+dates and joined approval evidence, authenticated-only privileged RPC EXECUTE,
+the private 1 MB CSV bucket with scoped SELECT/INSERT policies, and all twelve
+existing Treasury tables. No Auth users or financial records were generated.
 
-1. Activate the confirmed project and review schema compatibility/backups; compare
-   the actual deployed migration history to this checkout before making changes.
-2. Run the packaged audit SQL read-only with bounded statement timeout. Keep raw
-   metadata results in a protected audit location; update this report with redacted
-   results, actual gaps, role/JWT tests and a concrete remediation plan.
-3. Observe representative index use for at least 30 uninterrupted days, including
-   reset/recreation history and rare finance workloads. Review exact definitions,
-   dependencies and rollback before any approved removal.
-4. Review top five actual read plans under ordinary tenant identities. Index changes
-   need real column/plan evidence and before/after measurements against 100ms target.
-5. For deployed integrations, establish tenant mapping, restricted ingestion identity,
-   signature/replay contract, private channel authorization and real delivery tests.
+## Required operational evidence
 
-## Local validation
+1. Apply only missing profile and forward release migrations after reviewing this
+   report; verify deployed definitions, privileges, storage policies, and unchanged
+   Treasury objects. Record the resulting provider state in docs/RELEASE.md.
+2. Provision the first real company/legal entity and named admin, maker, and
+   independent checker. A requested work email/company name is still pending.
+   Profiles or email/provider metadata must never grant finance access.
+   Live Auth settings currently enable public signup. The app exposes only invited
+   password activation and grants no finance access to new identities; the shared
+   provider's public-signup setting still needs an owner-reviewed change.
+3. Verify real invitation delivery, password login/refresh/logout, TOTP,
+   revocation, two-tenant isolation, private uploads, independent approval, and
+   duplicate/retry behavior with ordinary Supabase JWTs.
+4. Configure real Google/Microsoft provider credentials and exact callback
+   allowlists before enabling those buttons. Disabled providers remain visible
+   with their unavailable state; there are no simulated social logins.
+5. Verify preview and production environment presence, authentication origins,
+   protected deployment behavior, runtime responses, and monitoring.
+6. Connect governed ERP/bank/forecast/ECL data and any model/message provider
+   under concrete scoped contracts. Collection drafts are not two-way delivery.
+   The analysis queue does not establish an external background scheduler,
+   LLM reasoning runtime, ERP connector, or autonomous financial posting.
+7. Qualify workload latency, retention, external immutable audit archive,
+   backup/restore, recovery delivery, accessibility, and incident operations.
 
-Skill-creator validation passed for the repository package and installed Codex copy;
-all three installed resources match the repository SHA-256 hashes. Strict TypeScript,
-all **30 tests**, and the Next.js production build passed. The new embedded PostgreSQL
-test executes the audit inside a READ ONLY transaction, confirms 15 protected tables,
-recognizes primary/constraint and foreign-key prefix indexes, flags deliberately
-unprotected/deny-all test tables, and confirms no index removal authorization.
-These results do not substitute for live Supabase authentication or measured traffic.
+Archived bytes may remain when staging an import fails; retry uses the same
+content-addressed path. The preserved import batch is the authoritative reviewed
+payload. Existing local attachments have not been bulk migrated to Storage.
+
+A passing build, merged PR, or Ready deployment does not establish the missing
+identity, provider, and real financial workflow evidence.

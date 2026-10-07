@@ -5,11 +5,17 @@ import { previewImport, type ImportKind } from "@/lib/imports";
 import { workspaces } from "@/types/workspace";
 import { sameOrigin } from "@/lib/request-security";
 import { commandSchema } from "@/lib/validation";
+import { authenticationAssurance } from "@/lib/auth-flow";
+import { createHash } from "node:crypto";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
-  if (!request.headers.get("content-length") || Number(request.headers.get("content-length")) > 1100000) return new NextResponse("File limit is 1 MB", { status: 413 });
-  const form = await request.formData(); const tenant = String(form.get("tenant") ?? ""); const entity = String(form.get("entity") ?? "");
+  const length = Number(request.headers.get("content-length"));
+  if (!Number.isInteger(length) || length < 1 || length > 1100000) return new NextResponse("File limit is 1 MB", { status: 413 });
+  let form: FormData;
+  try { form = await request.formData(); }
+  catch { return new NextResponse("Invalid request", { status: 400, headers: { "Cache-Control": "no-store" } }); }
+  const tenant = String(form.get("tenant") ?? ""); const entity = String(form.get("entity") ?? "");
   const view = String(form.get("view") ?? "overview");
   const destination = new URL("/", request.headers.get("origin")!);
   if (uuid.test(tenant) && uuid.test(entity)) { destination.searchParams.set("tenant", tenant); destination.searchParams.set("entity", entity); }
@@ -20,6 +26,9 @@ export async function POST(request: NextRequest) {
     if (!uuid.test(tenant) || !uuid.test(entity)) throw new Error("Invalid scope");
     const client = await createClient(); const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) return NextResponse.redirect(new URL("/login", request.headers.get("origin")!), 303);
+    const assurance = await authenticationAssurance(client);
+    if (assurance === "mfa") return NextResponse.redirect(new URL("/auth/verify", request.headers.get("origin")!), 303);
+    if (assurance !== "ready") throw new Error("Authentication assurance unavailable");
     const optionalId = (name: string) => { const value = String(form.get(name) ?? ""); if (!value) return null; if (!uuid.test(value)) throw new Error("Invalid record"); return value; };
     const version = Number(form.get("version")); const id = optionalId("id");
     const base = { p_tenant: tenant, p_entity: entity };
@@ -42,8 +51,12 @@ export async function POST(request: NextRequest) {
       case "stage": {
         const kind = String(form.get("kind")); if (!["invoices", "bank_lines"].includes(kind)) throw new Error("Invalid import type");
         const file = form.get("file"); if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".csv") || file.size > 1024 * 1024) throw new Error("Invalid file");
-        const preview = previewImport(await file.text(), kind as ImportKind);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
         if (preview.errors.length) { message = "invalid_import"; throw new Error("Import validation failed"); }
+        const digest = createHash("sha256").update(bytes).digest("hex");
+        const source = await client.storage.from("o2c-source-files").upload(`${tenant}/${entity}/${user.id}/${digest}.csv`,bytes,{contentType:"text/csv",upsert:false,metadata:{original_name:file.name}});
+        if (source.error && !("statusCode" in source.error && String(source.error.statusCode)==="409")) throw new Error("Private source archive unavailable");
         result = await client.rpc("stage_import", { ...base, p_kind: kind, p_name: file.name.slice(0,200), p_payload: preview.rows }); break;
       }
       case "commit": {

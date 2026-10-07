@@ -3,6 +3,7 @@ import { access, entities, snapshot } from "@/lib/workspace";
 import { supabaseConfig } from "@/lib/supabase/config";
 import { workspaces, type Workspace } from "@/types/workspace";
 import { FinanceWorkspace } from "@/components/workspace";
+import { AgentAnalysis, type AgentJob } from "@/components/agent-analysis";
 export const dynamic = "force-dynamic";
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string,string | string[] | undefined>> }) {
   if (!supabaseConfig()) redirect("/login");
@@ -15,5 +16,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const view = workspaces.includes(params.view as Workspace) ? params.view as Workspace : "overview";
   const asOf = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" }).format(new Date());
   const data = await snapshot(tenant.tenant_id,entity.id,asOf,page);
-  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined}/>;
+  let analysis;
+  if (view === "agents") {
+    const jobs = await auth.client.from("agent_jobs").select("id,agent,status,requested_by,as_of,result,created_at").eq("tenant_id",tenant.tenant_id).eq("entity_id",entity.id).order("created_at",{ascending:false}).order("id").limit(51);
+    if (jobs.error) throw new Error("Agent queue migration required");
+    analysis = <AgentAnalysis data={data} jobs={(jobs.data as AgentJob[]).slice(0,50)} more={jobs.data.length>50} userId={auth.user.id}/>;
+  }
+  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} analysis={analysis}/>;
 }

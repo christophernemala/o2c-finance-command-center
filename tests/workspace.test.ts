@@ -31,7 +31,7 @@ test("every workspace renders honest empty states and visible authenticated scop
     if(view==="cashflow") assert.match(html,/No approved 13-week forecast/);
     if(view==="customers") assert.match(html,/No customers in this entity/);
     if(view==="reconciliation") assert.doesNotMatch(html,/Submit for approval/);
-    if(view==="agents") assert.match(html,/No agent runtime is connected/);
+    if(view==="agents") assert.match(html,/No external domain activity is connected/);
   }
 });
 test("overview does not invent DSO, CEI, forecasts, or UAE customer records",()=>{
