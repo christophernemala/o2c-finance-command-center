@@ -17,9 +17,9 @@ Configure these **server-only** variables securely in development and Vercel:
 - `AUTH_RATE_LIMIT_SECRET`: cryptographically random secret of at least 32 characters.
 
 The atomic Redis Lua script reserves a unique slot before a Supabase sign-in. Five
-failed/in-flight account slots or 30 IP attempts in a sliding 15-minute window deny
+failed/in-flight account slots or 30 failed/in-flight IP attempts in a sliding 15-minute window deny
 another attempt with HTTP 429 and Retry-After. The Redis clock sets all timestamps.
-Only successful membership-verified login removes its own account reservation. Other
+Only successful membership-verified login removes its own account and IP reservations. Other
 concurrent failures remain counted. Crashes leave conservative slots until expiry.
 Redis stores HMAC identifiers, timestamps and random attempt IDs, not raw email, IP,
 password, or financial records. Changing the secret resets the key namespace.

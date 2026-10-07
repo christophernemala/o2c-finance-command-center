@@ -162,6 +162,16 @@ begin
     from public.receipts r join public.bank_lines b on b.id=r.bank_line_id where r.tenant_id=p_tenant and r.entity_id=p_entity
   ) select jsonb_build_object(
     'tenant_id',p_tenant,'entity_id',p_entity,'as_of',p_as_of,'fetched_at',now(),'role',public.member_role(p_tenant),'page',p_page,
+    'pagination',jsonb_build_object(
+      'invoices',exists(select 1 from inv offset offset_rows+50),
+      'receipts',exists(select 1 from rec offset offset_rows+50),
+      'bank_lines',exists(select 1 from public.bank_lines where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50),
+      'approvals',exists(select 1 from public.approvals where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50),
+      'audit',exists(select 1 from public.audit_events where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50),
+      'imports',exists(select 1 from public.import_batches where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50),
+      'ecl_runs',exists(select 1 from public.ecl_runs where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50),
+      'agent_runs',exists(select 1 from public.agent_runs where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50)
+    ),
     'has_more',exists(select 1 from inv offset offset_rows+50) or exists(select 1 from rec offset offset_rows+50)
       or exists(select 1 from public.bank_lines where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50)
       or exists(select 1 from public.approvals where tenant_id=p_tenant and entity_id=p_entity offset offset_rows+50)
@@ -172,7 +182,26 @@ begin
     'invoices',coalesce((select jsonb_agg(jsonb_build_object('id',id,'number',number,'customer',customer,'customer_id',customer_id,'due_date',due_date,'gross',gross::text,'open',open::text,'lifecycle',lifecycle,'dispute',dispute,'collection',collection,'version',version,'settlement',case when open=0 then 'settled' when open=gross then 'unpaid' else 'partial' end)) from (select * from inv order by number,id limit 50 offset offset_rows) s),'[]'),
     'receipts',coalesce((select jsonb_agg(jsonb_build_object('id',id,'reference',reference,'customer_id',customer_id,'amount',amount::text,'residual',residual::text,'version',version)) from (select * from rec order by created_at,id limit 50 offset offset_rows) s),'[]'),
     'bank_lines',coalesce((select jsonb_agg(jsonb_build_object('id',b.id,'reference',b.reference,'booked_at',b.booked_at,'direction',b.direction,'amount',b.amount::text,'version',b.version,'posted',exists(select 1 from public.receipts r where r.bank_line_id=b.id))) from (select * from public.bank_lines where tenant_id=p_tenant and entity_id=p_entity order by booked_at desc,id limit 50 offset offset_rows) b),'[]'),
-    'approvals',coalesce((select jsonb_agg(jsonb_build_object('id',id,'kind',kind,'amount',amount::text,'maker',maker,'approver',approver,'status',status,'invoice_id',invoice_id,'receipt_id',receipt_id,'bank_line_id',bank_line_id,'customer_id',customer_id,'evidence',evidence,'created_at',created_at,'version',version)) from (select * from public.approvals where tenant_id=p_tenant and entity_id=p_entity order by created_at desc,id limit 50 offset offset_rows) s),'[]'),
+    'approvals',coalesce((select jsonb_agg(jsonb_build_object(
+      'id',a.id,'kind',a.kind,'amount',a.amount::text,'maker',a.maker,'approver',a.approver,'status',a.status,
+      'invoice_id',a.invoice_id,'receipt_id',a.receipt_id,'bank_line_id',a.bank_line_id,'customer_id',a.customer_id,
+      'evidence',a.evidence,'created_at',a.created_at,'version',a.version,
+      'captured_versions',jsonb_build_object('invoice',a.invoice_version,'receipt',a.receipt_version,'bank_line',a.bank_version),
+      'source_records',jsonb_build_object(
+        'customer',(select jsonb_build_object('id',c.id,'name',c.name,'account',c.account)
+          from public.customers c where c.id=coalesce(a.customer_id,i.customer_id)
+            and c.tenant_id=p_tenant and c.entity_id=p_entity),
+        'invoice',case when i.id is not null then jsonb_build_object('id',i.id,'number',i.number,'customer_id',i.customer_id,
+          'customer',i.customer,'due_date',i.due_date,'gross',i.gross::text,'open',i.open::text,'lifecycle',i.lifecycle,'version',i.version) end,
+        'receipt',case when r.id is not null then jsonb_build_object('id',r.id,'reference',r.reference,'customer_id',r.customer_id,
+          'amount',r.amount::text,'residual',r.residual::text,'version',r.version) end,
+        'bank_line',case when b.id is not null then jsonb_build_object('id',b.id,'reference',b.reference,'booked_at',b.booked_at,
+          'direction',b.direction,'amount',b.amount::text,'version',b.version) end
+      )
+    ) order by a.created_at desc,a.id)
+    from (select * from public.approvals where tenant_id=p_tenant and entity_id=p_entity order by created_at desc,id limit 50 offset offset_rows) a
+    left join inv i on i.id=a.invoice_id left join rec r on r.id=a.receipt_id
+    left join public.bank_lines b on b.id=coalesce(a.bank_line_id,r.bank_line_id) and b.tenant_id=p_tenant and b.entity_id=p_entity),'[]'),
     'customers',coalesce((select jsonb_agg(jsonb_build_object('id',id,'name',name,'account',account)) from (select * from public.customers where tenant_id=p_tenant and entity_id=p_entity order by name,id limit 2000) s),'[]'),
     'ecl_runs',coalesce((select jsonb_agg(jsonb_build_object('id',id,'model_version',model_version,'exposure_snapshot',exposure_snapshot,'scenario',scenario::text,'allowance',allowance::text,'status',status,'as_of',as_of)) from (select * from public.ecl_runs where tenant_id=p_tenant and entity_id=p_entity order by created_at desc,id limit 50 offset offset_rows) s),'[]'),
     'agent_runs',coalesce((select jsonb_agg(jsonb_build_object('id',id,'name',name,'status',status,'operation_id',operation_id,'updated_at',updated_at)) from (select * from public.agent_runs where tenant_id=p_tenant and entity_id=p_entity order by updated_at desc,id limit 50 offset offset_rows) s),'[]'),
@@ -273,11 +302,18 @@ begin
     total_value:=total_value+(entry->>'amount')::numeric;
     if p_kind='invoices' then
       if coalesce(length(entry->>'number'),0) not between 1 and 100 or coalesce(length(entry->>'account'),0) not between 1 and 100 or coalesce(length(entry->>'customer'),0) not between 1 and 200 then raise exception 'Invalid invoice identity'; end if;
-      if entry->>'issued_at' is null or entry->>'due_date' is null then raise exception 'Dates required'; end if;
-      perform (entry->>'issued_at')::date,(entry->>'due_date')::date;
+      if jsonb_typeof(entry->'issued_at') is distinct from 'string' or jsonb_typeof(entry->'due_date') is distinct from 'string'
+        or entry->>'issued_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' or entry->>'due_date' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+        raise exception 'Canonical YYYY-MM-DD dates required';
+      end if;
+      if to_char((entry->>'issued_at')::date,'YYYY-MM-DD')<>entry->>'issued_at'
+        or to_char((entry->>'due_date')::date,'YYYY-MM-DD')<>entry->>'due_date' then raise exception 'Noncanonical date'; end if;
     else
       if coalesce(length(entry->>'reference'),0) not between 1 and 200 or entry->>'direction' is null or entry->>'direction' not in ('credit','debit') or entry->>'booked_at' is null then raise exception 'Invalid bank record'; end if;
-      perform (entry->>'booked_at')::date;
+      if jsonb_typeof(entry->'booked_at') is distinct from 'string' or entry->>'booked_at' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+        raise exception 'Canonical YYYY-MM-DD dates required';
+      end if;
+      if to_char((entry->>'booked_at')::date,'YYYY-MM-DD')<>entry->>'booked_at' then raise exception 'Noncanonical date'; end if;
     end if;
   end loop;
   digest_value:='sha256:'||encode(sha256(convert_to(p_kind||p_payload::text,'UTF8')),'hex');

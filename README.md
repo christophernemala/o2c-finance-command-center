@@ -17,8 +17,8 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
   preserved independently reviewed source records. Forecasts never post journals.
 - Zod validates credentials and command envelopes on the server. Durable Redis
   protection allows at most five failed/in-flight account attempts in a sliding
-  15-minute window and 30 total attempts per trusted Vercel IP. Successful membership
-  verification releases only that attempt's account slot; outages fail closed.
+  15-minute window and 30 failed/in-flight attempts per trusted Vercel IP. Successful
+  membership verification releases that attempt's account and IP slots; outages fail closed.
 - Invited-account password authentication validated by Supabase on the server.
   No arbitrary local login, generated balances, default accounts, or seeded business data.
 - Tenant membership and entity context on every protected request. PostgreSQL RLS
@@ -46,7 +46,8 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
    and independent approver are required for imports and financial posting.
 5. Disable public signup in Supabase; configure invited-user redirects, password
    policies, abuse protections, and recovery delivery for the actual deployment.
-6. Configure the server-only Redis URL, token, and HMAC secret in `.env.example`.
+6. Set the server-only Redis URL, token, and HMAC secret in `.env.local`
+   (variable names are listed in `.env.example`).
    See `docs/SECURITY.md`; production client-IP handling currently targets Vercel.
 7. Run `npm run dev` and open http://127.0.0.1:5174.
 

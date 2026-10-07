@@ -2,7 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 
 interface LimiterConfig { url: string; token: string; secret: string }
-interface Ticket { key: string; id: string }
+interface Ticket { key: string; ipKey: string; id: string }
 const reserveScript = `
 local time = redis.call('TIME')
 local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
@@ -22,6 +22,13 @@ for _, key in ipairs(KEYS) do
   redis.call('PEXPIRE', key, window)
 end
 return {1, 0}
+`;
+const releaseScript = `
+local removed = 0
+for _, key in ipairs(KEYS) do
+  removed = removed + redis.call('ZREM', key, ARGV[1])
+end
+return removed
 `;
 export function loginLimiterConfig(env: Record<string, string | undefined> = process.env): LimiterConfig | null {
   const url = env.UPSTASH_REDIS_REST_URL; const token = env.UPSTASH_REDIS_REST_TOKEN; const secret = env.AUTH_RATE_LIMIT_SECRET;
@@ -53,15 +60,15 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
   }
   return {
     async reserve(email: string, ip: string): Promise<{ allowed: boolean; retryAfter: number; ticket: Ticket }> {
-      const ticket = { key: `o2c:{login}:account:${digest(email.trim().toLowerCase())}`, id: randomUUID() };
-      const result = await command(["EVAL", reserveScript, 2, ticket.key, `o2c:{login}:ip:${digest(ip)}`, ticket.id]);
+      const ticket = { key: `o2c:{login}:account:${digest(email.trim().toLowerCase())}`, ipKey: `o2c:{login}:ip:${digest(ip)}`, id: randomUUID() };
+      const result = await command(["EVAL", reserveScript, 2, ticket.key, ticket.ipKey, ticket.id]);
       if (!Array.isArray(result) || result.length !== 2 || ![0, 1].includes(result[0]) || !Number.isInteger(result[1]) || result[1] < 0 || result[1] > 900
         || (result[0] === 1 && result[1] !== 0) || (result[0] === 0 && result[1] === 0)) throw new Error("Invalid login protection result");
       return { allowed: result[0] === 1, retryAfter: result[1], ticket };
     },
     async succeed(ticket: Ticket): Promise<void> {
-      const result = await command(["ZREM", ticket.key, ticket.id]);
-      if (result !== 0 && result !== 1) throw new Error("Invalid login protection result");
+      const result = await command(["EVAL", releaseScript, 2, ticket.key, ticket.ipKey, ticket.id]);
+      if (result !== 0 && result !== 1 && result !== 2) throw new Error("Invalid login protection result");
     },
   };
 }

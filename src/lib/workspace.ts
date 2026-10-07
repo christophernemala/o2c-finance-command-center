@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "./supabase/server";
-import type { Entity, Membership, Snapshot } from "@/types/workspace";
+import { paginatedCollections, type Entity, type Membership, type Snapshot } from "@/types/workspace";
 import { amount, aggregateAmount } from "./money";
 import { validateCashflowRun } from "./cashflow";
 export async function access() {
@@ -26,7 +26,15 @@ export function validateSnapshot(value: unknown, tenant: string, entity: string)
   }
   data.invoices.forEach(row => { amount(row.gross); amount(row.open); });
   data.receipts.forEach(row => { amount(row.amount); amount(row.residual); });
-  data.bank_lines.forEach(row => amount(row.amount)); data.approvals.forEach(row => amount(row.amount));
+  data.bank_lines.forEach(row => amount(row.amount)); data.approvals.forEach(row => {
+    amount(row.amount);
+    if (!row.source_records || !row.captured_versions) throw new Error("Approval evidence migration required");
+    const { invoice, receipt, bank_line } = row.source_records;
+    if (invoice) { amount(invoice.gross); amount(invoice.open); }
+    if (receipt) { amount(receipt.amount); amount(receipt.residual); }
+    if (bank_line) amount(bank_line.amount);
+  });
+  if (!data.pagination || paginatedCollections.some(key => typeof data.pagination[key] !== "boolean")) throw new Error("Pagination migration required");
   data.ecl_runs.forEach(row => amount(row.allowance));
   if (!data.insights || !Array.isArray(data.insights.charts) || data.insights.charts.length !== 6) throw new Error("Insights migration required");
   for (const chart of data.insights.charts) {

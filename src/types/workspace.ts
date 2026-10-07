@@ -15,7 +15,16 @@ export interface Approval {
   approver: string | null; status: "pending" | "approved" | "rejected" | "posted";
   invoice_id: string | null; receipt_id: string | null; bank_line_id: string | null;
   customer_id: string | null; evidence: string; created_at: string; version: number;
+  captured_versions: { invoice: number | null; receipt: number | null; bank_line: number | null };
+  source_records: {
+    customer: { id: string; name: string; account: string } | null;
+    invoice: Pick<Invoice, "id" | "number" | "customer_id" | "customer" | "due_date" | "gross" | "open" | "lifecycle" | "version"> | null;
+    receipt: Receipt | null;
+    bank_line: Omit<BankLine, "posted"> | null;
+  };
 }
+export const paginatedCollections = ["invoices", "receipts", "bank_lines", "approvals", "ecl_runs", "agent_runs", "imports", "audit"] as const;
+export type PaginatedCollection = typeof paginatedCollections[number];
 export interface Snapshot {
   insights: { charts: MetricChart[]; forecast: CashflowRun | null };
   tenant_id: string; entity_id: string; as_of: string; fetched_at: string; role: Role;
@@ -31,6 +40,7 @@ export interface Snapshot {
     invoice_count: number; pending_count: number;
   };
   page: number; has_more: boolean;
+  pagination: Record<PaginatedCollection, boolean>;
 }
 import type { CashflowRun } from "@/lib/cashflow";
 export interface MetricChart {

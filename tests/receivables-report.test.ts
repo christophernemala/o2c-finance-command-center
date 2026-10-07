@@ -15,6 +15,7 @@ function fixture(): Snapshot {
     insights: { forecast: null, charts: [{ key: "aging", title: "Aging", description: "Full entity", unit: "AED", series: [{ label: "1–30", value: "100.20" }] }] },
     totals: { gross: "9999999999999.99", open: "100.20", overdue: "100.20", unapplied: "0.00", allowance: null, dso_days: null, cei_percent: null, invoice_count: 51, pending_count: 0 },
     page: 0, has_more: true,
+    pagination: { invoices: true, receipts: false, bank_lines: false, approvals: false, ecl_runs: false, agent_runs: false, imports: false, audit: false },
   };
 }
 test("receivables report separates full-entity aging from paginated invoice control totals", () => {

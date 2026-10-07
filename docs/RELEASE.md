@@ -14,13 +14,24 @@ The new insights migration and direct-method forecast are covered by embedded
 PostgreSQL and decimal tests, including full-entity totals beyond the first page,
 tenant isolation, immutable inputs, week boundaries, invalid dates and negative cash.
 Redis transport tests use an HTTP double; live Lua/concurrency/expiry remain unverified.
-The 2026-10-05 local revision passed strict TypeScript, all 29 tests, and a production
+The 2026-10-05 local revision passed strict TypeScript, all 30 tests, and a production
 build. Browser checks confirmed light/dark switching, bundled Inter/Sora styles,
 desktop and 390-pixel mobile layouts without horizontal overflow, unauthenticated
 dashboard redirection, and no captured browser errors. HTTP checks confirmed
 private/no-store responses, CSP nonces in rendered scripts, and cross-origin
 sign-in rejection. The local preview intentionally disables sign-in until both
 the finance backend and durable limiter are configured.
+
+The 2026-10-07 PR review repair passed strict TypeScript, all 39 tests with
+`npx tsx --test --test-concurrency=1 tests/*.test.ts`, and the production build.
+Regression coverage includes reader-independent table ACLs and effective RPC
+EXECUTE access, successful sign-in release of both limiter reservations,
+per-workspace pagination, canonical import dates, insights migration rollback,
+and joined approval evidence with captured/current versions and stale controls.
+An overlapping build/test run exceeded local memory; the sequential suite passed.
+Redis tests still use a transport double; live Lua/concurrency remain unverified.
+`npm audit --omit=dev` reports one existing high-severity `source-map-js` advisory;
+dependency files are unchanged by this review repair.
 
 ## Required before live promotion
 
@@ -31,8 +42,12 @@ is unavailable. See `audit_report.md`; no optimization DDL or integration deploy
 has been applied.
 
 1. Select the correct active Supabase project; review schema compatibility and backup.
-2. Apply the migration in an isolated staging database, then verify it with real
+2. Apply `202610040001_workspaces.sql` followed by `202610050001_insights.sql`
+   from `supabase/migrations/` in an isolated staging database, then verify with real
    Supabase JWTs and at least two tenants. Embedded auth stubs are not live auth proof.
+   If staging already applied these files, deploy the revised `workspace_snapshot`
+   and `stage_import` definitions through a reviewed forward migration before this
+   application revision. Do not rerun table-creation migrations on populated schemas.
 3. Invite real maker/checker users and provision their tenant/entity memberships.
    Verify sign-in, refresh, recovery, logout and role revocation end-to-end.
    Configure the three server-only Redis/HMAC variables from `.env.example` and
