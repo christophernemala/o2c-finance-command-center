@@ -6,9 +6,9 @@ local-data/
 *.log
 .DS_Store
 *.tsbuildinfo
-__pycache__/
-.pytest_cache/
-.venv/
-.env
-.env.*
+.next/
+out/
+.env*
 !.env.example
+test-results/
+supabase/.temp/

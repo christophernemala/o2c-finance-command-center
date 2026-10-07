@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({ reset }: { reset: () => void }) { return <main id="main" className="mx-auto max-w-lg px-8 py-24"><h1 className="text-2xl font-semibold">Workspace unavailable</h1><p className="my-6 leading-6 text-muted">We could not retrieve a verified financial snapshot. Check the connection and retry. If an action was interrupted, check its recorded status before submitting it again.</p><button className="button" onClick={reset}>Retry connection</button></main>; }

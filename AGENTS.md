@@ -1,85 +1,24 @@
-# AGENTS.md — AI Agent Configuration for DHCM Finance Command Center
+# AI Rules — O2C Finance Command Center
 
-## Purpose
-
-Make AI coding agents immediately productive in this O2C finance analytics repository.
-
-## Quick Start
-
-```bash
-bash scripts/setup-cloud.sh  # Node 24 and Python 3.12; installs and validates
-# Configure SMTP and provision an account using docs/AUTHENTICATION.md first.
-.venv/bin/flask --app backend.app:create_app run --host 127.0.0.1 --port 5000
-# In a separate terminal:
-npm run dev -- --strictPort  # Vite proxies /api to Flask
-```
-
-## Build & Verify
-
-```powershell
-npx tsc --noEmit             # TypeScript type checking
-npm run build                # Production build (tsc + vite build)
-npm test                     # Workbook resource-limit regression tests
-.venv/bin/python -m pytest backend/tests -q  # Auth and Chromium/SMTP smoke tests
-```
-
-## Repository Layout
-
-```
-src/App.tsx                  ← Main monolith: 16 routes, all UI components
-src/data/financeModel.ts     ← Central model builder (orchestrates all modules)
-src/shared/types.ts          ← All TypeScript interfaces and type aliases
-src/styles.css               ← Full design system (glassmorphism, charts, upload)
-src/modules/                 ← Feature modules (one folder per domain)
-scripts/                     ← Node scripts (data generation, daily workflow)
-docs/ARCHITECTURE.md         ← Architecture and module documentation
-```
-
-## Module Boundaries
-
-Each module under `src/modules/` is **self-contained** with its own business logic:
-
-| Module | Responsibility |
-|---|---|
-| `AgingAnalytics` | Normal AR aging (no ECL 120-day bucket) |
-| `ARModule` | Oracle Fusion-style invoice status transitions |
-| `BankReconciliation` | Bank statement matching with confidence scoring |
-| `DashboardRenderer` | Excel workbook export (browser + Node paths) |
-| `DataIngestion` | Deterministic mock data generator (1,250 rows) |
-| `ECLProvision` | IFRS 9 ECL with 7 buckets; 180+ = 100% provision |
-| `EmailDrafting` | SOA email draft generation |
-| `ExcelUpload` | .xlsx parser + multi-criteria reconciliation engine |
-| `IFRSReporting` | IFRS 7 BU/DSO disclosure cues |
-| `InvoiceDocuments` | Invoice PDF queue + payment proof audit |
-| `Reminders` | Security cheque, trade license, document reminders |
-| `SlaDirectory` | Customer SLA/contract lookup |
-
-## Conventions
-
-- **All components live in `App.tsx`** — this is a single-file React component architecture for this prototype. Extract components only when the file exceeds maintainability limits.
-- **TypeScript strict mode** — All types are defined in `src/shared/types.ts`.
-- **No external charting libraries** — All charts (Line, Donut, Gauge, Heatmap, Stacked Bar, Sparkline) are custom SVG/CSS components.
-- **Excel parsing uses `fflate`** — The existing dependency handles ZIP decompression for .xlsx files. No additional libraries needed.
-- **Currency is always AED** — All monetary values use UAE Dirham.
-- **Deterministic data** — The mock data generator uses seeded logic for reproducible results.
-
-## Common Pitfalls
-
-- **Don't add charting libraries** (Chart.js, Recharts, etc.) — use the existing custom SVG components.
-- **Python is only for the Flask backend** — install hash-pinned dependencies from `backend/requirements*.txt` into `.venv`; keep finance report scripts in Node.
-- **Do not restore demo authentication** — login requires server-side password verification, SMTP OTP, and a revocable session. Preserve the existing logo, theme, and stylesheet.
-- **Don't modify `node_modules/`** or commit it.
-- **Excel generation scripts** (`scripts/`) run in Node, not the browser. Browser Excel export uses `src/modules/DashboardRenderer/browserExcel.ts`.
-- **The upload parser** relies on `fflate` for ZIP decompression — don't replace with a different library.
-
-## Design System
-
-- **Dark mode** with glassmorphism (backdrop-filter, semi-transparent borders)
-- **Color palette**: Blue (#0f8bff), Cyan (#20e3ff / #69d4ff), Violet (#a78bfa), Green (#10b981), Amber (#f59e0b), Red (#ef4444)
-- **Font**: Inter, Segoe UI, system-ui
-- **Border radius**: 12–20px
-- **Animations**: CSS keyframes for count-up, draw-line, cube-spin, ring rotation
-
-## Maintainers
-
-- Christopher Nemala ([@christophernemala](https://github.com/christophernemala))
+- Maintainer: Christopher Nemala, Dubai. Stack: Next.js App Router, strict
+  TypeScript, Tailwind, Supabase SSR/PostgreSQL, Vercel. Default currency AED.
+- Follow `DESIGN.md` and `STYLEGUIDE.md`. Inspect `src/components/ui`,
+  `src/lib/supabase`, and `src/types` before adding alternatives.
+- Never generate records, approvals, bank evidence, invoice documents, or execution
+  status for application users. Test fixtures belong only in `tests/`.
+- Financial database records use `numeric(15,2)`. Transport monetary values as
+  decimal strings. Use `src/lib/money.ts`; never convert money to Number.
+- Every write requires server authentication plus tenant/entity-scoped database
+  authorization. Application code never uses a service-role key.
+- Approvals and execution are distinct. Enforce independent maker/checker,
+  proposal/record versions, decimal limits, idempotency, and transactional posting
+  in PostgreSQL, including direct RPC calls. UI permissions are supplemental.
+- Use Server Components by default. Client state is restricted to actual interactions.
+  Do not cache financial data in browser storage or use optimistic financial updates.
+- Do not add dependencies unless required for a concrete feature or meaningful check.
+- Verify with `npm run typecheck`, `npm test`, and `npm run build`. Record separately
+  what was tested locally and what was verified on live Supabase/Vercel.
+- Never claim unimplemented connectors, calibrated ECL, SSO, compliance certification,
+  or complete enterprise readiness. Maintain `docs/RELEASE.md` as scope evolves.
+- Conventional commits: `<type>(<scope>): <lowercase description under 72 chars>`.
+  Scopes: ar-dashboard, invoice, collections, treasury, agents, auth, db.
