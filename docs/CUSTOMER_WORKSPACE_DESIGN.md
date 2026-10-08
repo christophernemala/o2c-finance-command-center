@@ -125,3 +125,52 @@ complete source population. Missing history or source inputs are explicit.
 Keep customer document tabs, Aging and Bank reconciliation as separate
 navigation destinations. Do not reuse the bank matching screen as the aging
 layout. Empty sources produce an empty state rather than sample balances.
+
+## One customer account and identification mechanism
+
+Reuse the existing `public.customers.id` and its unique
+`(tenant_id, entity_id, account)` constraint. The account code is unique within
+one authorized company/legal entity, rather than a global identifier spanning
+unrelated businesses. Invoices and receipts already reference that scoped
+customer identity; new document metadata must reference it as well.
+
+Identification order:
+
+1. Resolve the authenticated company and legal entity on the server.
+2. Match the source-system customer account code in that exact scope.
+3. When integrations are added, maintain reviewed source-system/external-ID
+   mappings to the existing customer ID. Do not create a second customer table.
+4. Use names, verified registration identifiers and contact details only as
+   supporting evidence. Similar names, shared emails, group companies or missing
+   account codes must not trigger automatic merging.
+5. Route missing or conflicting identification to a review queue. Keep source
+   evidence, proposed mapping and reviewer decision. Retain stable IDs when an
+   approved display name changes.
+
+One customer account contains the linked invoices, receipts, statements,
+contracts, proposals and activity timeline. A customer account record is not
+automatically a login account. A future external customer portal requires its
+own explicitly scoped identity and authorization design.
+
+## How updates propagate
+
+Source import or authorized upload -> validation -> customer identification ->
+staging and exception review -> governed commit or document acceptance ->
+updated customer view, aging and reconciliation evidence -> audit record.
+
+Only approved financial events change balances. Uploading a contract or
+commercial proposal does not create an invoice, receipt or ledger entry.
+Bank matching proposes an allocation; independent approval and posting remain
+distinct. A rejected or incomplete operation must never appear as successful.
+
+Use source delivery IDs/content digests and existing operation IDs for
+idempotency. Preserve source versions and conflicts instead of overwriting
+accepted facts. After a committed event, fetch the authoritative scoped
+snapshot; display last successful synchronization and pending/failed updates.
+Use exact amounts and one explicit as-of date across the statement and aging.
+
+Current durable analysis jobs can be reused. Scheduled source synchronization,
+document processing and autonomous external communications require additional
+integrations and durable job execution before they can be described as live.
+Failed jobs must be retryable without duplicate postings; uncertain external
+outcomes must be reconciled before repeating an action.
