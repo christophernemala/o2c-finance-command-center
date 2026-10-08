@@ -96,3 +96,11 @@ review before changing invitation-only settings.
 Keep the private consolidation archive as historical context. Do not copy its
 old source variants over this checkout. Source archival, a Ready deployment and
 an HTTP 200 login page do not establish complete operational readiness.
+
+## Latest preview and roadmap
+
+The light source proposal is in [Add light O2C workspace and recorded agent cards](https://github.com/christophernemala/o2c-finance-command-center/pull/3). Its TypeScript, 49 tests, build and GitHub verification passed. [The hosted light preview](https://o2c-finance-command-center-ngnqfekxo.vercel.app/login) was opened and its actual light login verified after removal of the Vercel sign-in gate under prior user authorization. This is a preview; production still uses the earlier release. Real account and provider qualification remain pending.
+
+Figma now contains twelve editable desktop/mobile screens. Three were screenshot-reviewed; remaining all-screen checks were limited by the account quota. The code proposal applies light presentation and recorded agent cards; it does not claim every Figma screen is fully reproduced.
+
+[AUTONOMOUS_AR_PLAN.md](AUTONOMOUS_AR_PLAN.md) proposes evidence packets, promise timelines, exception cases, shadow matching and policy-driven durable workflows. Connectors, scheduling and external delivery in that plan are future work.

@@ -60,4 +60,3 @@ Portfolio controls include per-tenant limits, pause/kill switch, source-health s
 5. Enable one approved external action at a time under explicit policy. Expand only after audit, reliability and quality gates pass.
 
 Measure verified outcomes: unmatched cash resolved, overdue cases with an accountable next action, promise completion, wrong-match rate, reviewer overrides, duplicate actions, stale-source rate and approval turnaround. Do not claim collections uplift or cost savings without a measured baseline.
-
