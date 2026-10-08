@@ -17,6 +17,8 @@ tenants, legal entities and memberships; refresh those counts before onboarding.
 production build, dependency audit, database rollout and remaining live gates.
 Those are historical release results, not checks rerun by this documentation PR.
 `docs/REVIEW_AND_NEXT_STEPS.md` contains the detailed qualification record.
+See [AR/O2C architecture](AR_O2C_ARCHITECTURE.md) for the current cloud ownership,
+visible analysis queue, source-to-approval boundaries and lifecycle roadmap.
 
 ## Production contracts to preserve
 
