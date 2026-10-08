@@ -41,21 +41,31 @@ live project on 8 October: `20261006115901_user_profiles.sql`,
 before applying anything. Do not replay foundation migrations on an existing
 shared database. The existing Treasury tables must remain intact.
 
-## Lovable design integration
+## Figma light redesign and legacy design reference
 
-The inspected candidate is
+The current direction is a premium light workspace with an iOS-like visual
+language, using the user's [Stripe reference](https://stripe.com/en-nl).
+Use light surfaces throughout; do not introduce dark or black surface themes.
+The editable draft is
+[O2C Finance — Premium Light Workspace](https://www.figma.com/design/ObzRP2ESHCtlyzjFqAOhCT).
+Its screens are still being built. The draft has not been integrated into the
+application or deployed. Treat the draft as work in progress, not a completed
+visual or accessibility review. Mobbin references were not reviewed because
+the reference tool request failed.
+
+The inspected legacy Lovable reference is
 [Finance Control Hub (20)](https://lovable.dev/projects/d72b65b2-acf1-400d-928a-b8872454eb8d).
 Its Vite frontend includes simulated login and generated finance records in
 `src/lib/mockData.ts`. It is a design reference, not proof of a prepared
 production backend. Its design has not yet been ported into this repository.
-The sidebar's duplicated chats do not establish which Lovable project is the
-final visual design; record that selection before replacing the maintained UI.
+The Figma light redesign now guides visual integration. Preserve useful legacy
+layout observations without importing simulated behavior or generated records.
 
 The next implementation should:
 
-1. Audit the selected screens at desktop/mobile sizes, keyboard focus, contrast,
-   form errors, tables, motion and empty/error/loading states. Update `DESIGN.md`
-   and `STYLEGUIDE.md` with approved visual changes.
+1. Complete and audit the Figma light screens at desktop/mobile sizes, keyboard
+   focus, contrast, form errors, tables, motion and empty/error/loading states.
+   Update `DESIGN.md` and `STYLEGUIDE.md` with the approved light visual system.
 2. Port layout, spacing, typography and navigation into existing Next components.
    Remove simulated login, generated data and unsupported certification claims
    from the active application. Keep Supabase SSR login and membership checks.
