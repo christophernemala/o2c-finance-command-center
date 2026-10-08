@@ -3,7 +3,7 @@
 **[Start here: project index, cloud locations and remaining launch work](START_HERE.md).**
 
 Authenticated finance operations using Next.js App Router, strict TypeScript,
-Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The proposed light visual system uses pearl surfaces, ink and slate text,
+Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The current light visual system uses pearl surfaces, ink and slate text,
 purple accents, and teal status colors.
 
 ## Implemented

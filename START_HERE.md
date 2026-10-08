@@ -2,15 +2,17 @@
 
 This repository is the single source of truth for the O2C application. Use this
 page to choose the correct code, cloud workflow, design, and release checklist.
-The project has a governed implementation and a proposed light workspace;
-production cutover and real-account onboarding are still pending.
+The current light workspace is the active application source and repository default.
+The previous dark dashboard is retired from the active source. Production cutover
+and real-account onboarding are still pending.
 
 ## Which version should I use?
 
 | Purpose | Use | Status |
 | --- | --- | --- |
-| Accepted application source | [Default branch](https://github.com/christophernemala/o2c-finance-command-center) | Governed Next.js/Supabase foundation. Being on the default branch does not establish live deployment readiness. |
-| Current development and light UI | [Add light O2C workspace and recorded agent cards](https://github.com/christophernemala/o2c-finance-command-center/pull/3) | Open draft proposal on `codex/light-finance-workspace`; work here until release gates are satisfied. |
+| Active application source | [Default branch](https://github.com/christophernemala/o2c-finance-command-center) | Current light workspace on `codex/light-finance-workspace`. Being on the default branch does not establish live deployment readiness. |
+| Current development and light UI | [Cloud workflow](docs/CLOUD_WORKFLOW.md) | Continue on the current light source. The dark theme and theme switch have been removed from this source. |
+| Historical change comparison | [Add light O2C workspace and recorded agent cards](https://github.com/christophernemala/o2c-finance-command-center/pull/3) | Open draft comparison against the former default branch; it is not an instruction to merge the former dark UI into the active source. |
 | Older continuation notes | [Document cloud continuation, Figma design and AR/O2C architecture](https://github.com/christophernemala/o2c-finance-command-center/pull/2) | Open draft handoff; compare useful notes against the current source rather than treating it as a second application. |
 | Screen designs | [O2C — Finance Workspace Design](https://www.figma.com/design/M1jFrwjc16qDMTpSf3RBI3?node-id=2-2) | Five SVG screen designs and a visual foundation. Native Figma components, auto-layout and interactive prototype remain pending. |
 | Architecture | [O2C governed cloud architecture](https://www.figma.com/board/lYiw6zDVRDua7Y6boXR3Jr) | FigJam diagram of the implemented hosting, identity, data, storage and limiter boundaries. |
@@ -68,8 +70,8 @@ copies and browser state must never become the financial system of record.
    build or a visible login page is insufficient evidence of successful application access.
 3. Prove real login, authorized scope, cross-tenant denial, independent review,
    imports, posting and audit behavior on the hosted environment.
-4. Complete the [release gates](docs/RELEASE.md) before merging or promoting the
-   proposed workspace.
+4. Complete the [release gates](docs/RELEASE.md) before promoting the active
+   workspace to a production deployment.
 5. Treat LLM services, external background schedulers, customer-message delivery,
    and ERP/bank adapters as pending integrations. Current agents perform durable
    source-based analysis; designs must not imply these external services are connected.
@@ -85,3 +87,10 @@ The owner supplied [Vibe UI](http://vibeui.online),
 [Mitte MCP](https://mitte.ai/mcp), plus dashboard and inbox reference images.
 These links are recorded as references, not verified dependencies, installed MCP
 servers, integrated services or approved changes to the application stack.
+
+## Retired source and cleanup
+
+The former `master` branch is historical source retained for recovery. Continue
+new work on the active light default branch. Do not reintroduce the former dark
+styles or theme switch. See [the cleanup record](docs/PROJECT_CLEANUP.md) for the
+verified duplicate removal and retained work.
