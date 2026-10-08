@@ -92,3 +92,14 @@ use approved direct-method source runs rather than invented predictions.
 
 A Ready deployment and passing source checks are independent of these live
 operational gates. See `docs/REVIEW_AND_NEXT_STEPS.md` for the complete audit.
+
+## Cloud development continuation — 2026-10-08
+
+Source changes are published directly to GitHub. The repository now includes a
+Node 22 Codespaces configuration and makes cloud setup the default documented
+workflow. Existing Actions gates verify pushes and PRs remotely. This change does
+not create a running Codespace: enumeration requires unavailable codespace API
+scope. See `docs/CLOUD_WORKFLOW.md` for destinations and verification boundaries.
+Live read-only checks confirmed the private CSV bucket, zero objects and zero
+Auth users/memberships. The private Drive continuation ZIP exists and returned
+owner-only permission metadata. No local copies were deleted.
