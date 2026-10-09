@@ -1,0 +1,22 @@
+flowchart LR
+subgraph client ["People"]
+ financeUser["Finance user - maker or independent checker"]
+end
+subgraph gateway ["Hosting"]
+ vercelEdge["Vercel HTTPS ingress"]
+end
+subgraph service ["Application and identity"]
+ nextApp["Next.js O2C app - SSR and route handlers"]
+ authService["Supabase Auth - sessions and MFA"]
+end
+subgraph datastore ["Governed cloud storage"]
+ postgresDb["PostgreSQL - tenant RLS, scoped RPCs, approvals and audit"]
+ csvStorage["Private CSV originals - 1 MB immutable application paths"]
+ redisStore["Redis - atomic sign-in rate limits"]
+end
+financeUser -->|"HTTPS requests"| vercelEdge
+vercelEdge -->|"Routes application requests"| nextApp
+nextApp -->|"Validates identity and assurance"| authService
+nextApp -->|"Scoped reads and transactional commands"| postgresDb
+nextApp -->|"Archives validated source CSV"| csvStorage
+nextApp -->|"Reserves sign-in attempt slots"| redisStore

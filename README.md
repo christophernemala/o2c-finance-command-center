@@ -1,8 +1,10 @@
 # O2C Finance Command Center
 
+**[Start here: project index, cloud locations and remaining launch work](START_HERE.md).**
+
 Authenticated finance operations using Next.js App Router, strict TypeScript,
-Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The visual system follows the
-user's Stripe reference: navy, violet, restrained gradients, and light/dark surfaces.
+Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The current light visual system uses pearl surfaces, ink and slate text,
+purple accents, and teal status colors.
 
 ## Implemented
 
@@ -34,29 +36,29 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 - XLSX export reuses the existing workbook writer. It explicitly exports the first
   50 invoice records, with scope metadata and full-entity totals in a separate sheet.
 - Server-rendered scoped navigation, pagination, explicit empty/unavailable states,
-  accessible tables, visible focus, reduced motion, and session-only theme selection.
+  accessible tables, visible focus, reduced motion, and a consistent light theme.
 - Durable scoped AR, collections and treasury analysis jobs use real source
   records; interrupted jobs can be resumed. Drafts and candidates require review.
 
-## Local setup
+## Cloud setup (default)
 
-1. Run `npm ci`.
-2. Copy `.env.example` to `.env.local`. Set the project URL and **publishable** key
-   from the intended active Supabase project. Never use a service-role key in this app.
-3. Apply all SQL files in `supabase/migrations/` in filename order to a dedicated
-   staging database after reviewing schema conflicts. They create no business records.
-4. Invite at least two real users through Supabase Auth. A trusted database
-   administrator provisions the tenant, legal entity, and memberships. A maker
-   and independent approver are required for imports and financial posting.
-5. Disable public signup in Supabase; configure invited-user redirects, password
-   policies, abuse protections, and recovery delivery for the actual deployment.
-6. Set the server-only Redis URL, token, and HMAC secret in `.env.local`
-   (variable names are listed in `.env.example`).
-   Set AUTH_SITE_URL to the canonical origin. For a local production preview,
-   AUTH_LOGIN_IP_SOURCE=loopback is permitted only on a server bound to 127.0.0.1.
-   Vercel always requires its trusted edge address.
-   See `docs/SECURITY.md`; production client-IP handling currently targets Vercel.
-7. Run `npm run dev` and open http://127.0.0.1:5174.
+Use [the cloud workflow](docs/CLOUD_WORKFLOW.md) and the checked-in
+`.devcontainer/devcontainer.json` to develop in GitHub Codespaces.
+Source stays in GitHub, verification runs in cloud CI, hosting uses Vercel, and
+financial records/original CSV files stay in private Supabase storage.
+Private continuation archives belong in private Google Drive.
+
+Configure required staging secrets in Codespaces and hosted secrets in Vercel.
+Use only the intended Supabase publishable key in this app; never a service-role
+key. Review existing migrations before applying missing forward changes to the
+confirmed project. Never rerun foundation creation on an existing database.
+
+A trusted administrator must invite real users and provision tenant, AED legal
+entity and memberships. A maker and independent approver are required for
+imports and posting. Configure invitation redirects, password policies, recovery,
+Redis and the canonical `AUTH_SITE_URL` for the deployment. See
+[production provisioning](docs/PRODUCTION_PROVISIONING.md) and
+[security controls](docs/SECURITY.md).
 
 Missing credentials produce a connection-unavailable screen with sign-in disabled.
 An authenticated account without membership cannot enter any financial workspace.
@@ -137,3 +139,8 @@ integration migration is included without actual deployed workload evidence.
 ## Maintainer
 
 Christopher Nemala · Dubai, UAE
+
+
+## Latest continuation handoff
+
+Read [current completion status and remaining work](docs/CONTINUATION_STATUS.md), [editable design gallery](docs/design/index.html), [machine-readable YAML](docs/handoff.yaml), and [continuation skill](.agents/skills/o2c-production-continuation/SKILL.md). The latest screen sources cover 18 screens; native Figma assembly and browser visual QA are not claimed. New invoice issuance, full SOA and private customer document workflows remain pending implementation.
