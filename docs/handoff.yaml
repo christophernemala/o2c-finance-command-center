@@ -1,0 +1,48 @@
+schema_version: 1
+updated_on: "2026-10-09"
+repository: christophernemala/o2c-finance-command-center
+active_branch: codex/light-finance-workspace
+baseline_commit: 9e6bf35b1c7267787ad79b05c9b8e1389f328ddb
+product_status: foundation_with_pending_production_qualification
+theme: light
+currency: AED
+financial_arithmetic: exact_decimal
+source_storage: github_cloud
+business_document_storage: private_scoped_supabase
+design:
+  delivery: editable_svg
+  screen_count: 18
+  source_file_count: 10
+  native_figma: blocked_by_starter_library_limit
+  structural_validation: passed_by_design_agents
+  browser_visual_validation: pending
+  gallery: docs/design/index.html
+handoff:
+  status: docs/CONTINUATION_STATUS.md
+  skill: .agents/skills/o2c-production-continuation/SKILL.md
+  customer_requirements: docs/CUSTOMER_WORKSPACE_DESIGN.md
+pending:
+  - real_user_and_entity_onboarding
+  - real_invoice_issuance
+  - complete_customer_statement_of_account
+  - private_versioned_contracts_and_commercial_proposals
+  - aging_due_today_boundary_alignment
+  - forecast_scenario_workspace
+  - connected_provider_integrations
+  - hosted_end_to_end_financial_verification
+  - production_release_qualification
+guardrails:
+  demo_records: forbidden
+  name_only_customer_merge: forbidden
+  financial_float_arithmetic: forbidden
+  self_approval: forbidden
+  scenario_ledger_mutation: forbidden
+  secrets_in_repository: forbidden
+  sensitive_financial_actions: human_approval
+aging:
+  reporting_date_required: true
+  buckets: ["Not yet due", "0–30", "31–60", "61–90", "91+"]
+  due_today_bucket: "0–30"
+verification:
+  source_and_ci: separate_from_live_provider_proof
+  deployment: not_claimed

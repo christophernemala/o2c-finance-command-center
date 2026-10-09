@@ -140,3 +140,7 @@ integration migration is included without actual deployed workload evidence.
 
 Christopher Nemala · Dubai, UAE
 
+
+## Latest continuation handoff
+
+Read [current completion status and remaining work](docs/CONTINUATION_STATUS.md), [editable design gallery](docs/design/index.html), [machine-readable YAML](docs/handoff.yaml), and [continuation skill](.agents/skills/o2c-production-continuation/SKILL.md). The latest screen sources cover 18 screens; native Figma assembly and browser visual QA are not claimed. New invoice issuance, full SOA and private customer document workflows remain pending implementation.

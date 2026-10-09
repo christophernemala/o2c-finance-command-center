@@ -1,41 +1,24 @@
-# O2C design handoff — 2026-10-08
+# O2C design sources
 
-- [Figma screen design](https://www.figma.com/design/M1jFrwjc16qDMTpSf3RBI3)
-- [FigJam architecture](https://www.figma.com/board/lYiw6zDVRDua7Y6boXR3Jr)
-- [Editable SVG source](./o2c-finance-workspace.svg)
-- [Architecture Mermaid source](./o2c-cloud-architecture.mmd)
+## Latest complete screen-source handoff
+[Browser gallery](index.html) · [Exact continuation status](../CONTINUATION_STATUS.md) · [Machine-readable handoff](../handoff.yaml).
+Open index.html from a cloud checkout/static preview; GitHub's file view does not execute HTML.
 
-## Screen coverage
+The 10 files under screens/ contain 18 editable SVG screens: eight customer screens; aging, collections, cashflow and ECL plus mobile aging; reconciliation, independent approval, imports and agent/audit plus mobile reconciliation.
+All text and vectors remain editable. They contain no fabricated customer records or balances.
+Typography follows source Inter, Sora 600 and JetBrains Mono; palette is the current light workspace.
 
-Desktop overview, receivables, independent approval review, controlled CSV
-import review, and a mobile overview at 390 px width. The board uses the current
-light palette from STYLEGUIDE.md: pearl, white, ink, slate, purple and teal.
-Inter, Sora and JetBrains Mono map to body, heading and exact-amount typography.
+Customer screens cover directory, account/invoices, true-source invoice issuance review, full SOA, contracts/proposals, document upload review, identity mapping and mobile.
+Fundora references inform table/filter and guided drawer structure. ConnectHub informs workbench grouping. TaxAid informs broader finance module planning, not dark-theme adoption.
 
-All financial values are unavailable placeholders. No synthetic invoices, users,
-companies, approval outcomes or cash balances appear. These are UI specifications;
-the screens do not establish provisioned access or live financial operations.
+## Verification and limitations
+Agents performed XML/structural validation. Final browser visual inspection remains pending.
+SVG handoff is complete as source coverage, not native Figma component assembly or production implementation.
+Figma file inspection succeeded, but library discovery returned the Starter MCP limit. Native editing was stopped rather than claiming completion.
 
-## Source alignment
+Existing five-screen board: https://www.figma.com/design/M1jFrwjc16qDMTpSf3RBI3?node-id=2-2
+Existing architecture board: https://www.figma.com/board/lYiw6zDVRDua7Y6boXR3Jr
+Original source board: o2c-finance-workspace.svg.
+Existing architecture source: o2c-cloud-architecture.mmd.
 
-- Shared surfaces/status/empty states: src/components/ui/index.tsx
-- Navigation, scoped workspaces and independent approvals: src/components/workspace.tsx
-- CSV validation and review: src/components/import-review.tsx
-- Server-validated access and exact snapshot contracts: src/lib/workspace.ts
-- Financial commands and private CSV archival: src/app/api/commands/route.ts
-- Recorded database analysis jobs: src/app/api/agents/route.ts
-
-The architecture depicts actual Vercel ingress, one Next.js application,
-Supabase Auth, PostgreSQL RLS/scoped RPCs, private CSV Storage and Redis sign-in
-limits. Agent jobs are durable PostgreSQL records executed/resumed through scoped
-RPCs in the request path; there is no separately deployed worker or scheduler.
-Google/Microsoft setup and ERP/bank/message adapters are not implied to be connected.
-
-## Editing and implementation limits
-
-Figma created the design file, then blocked use_figma/design-library inspection
-because this Starter account reached its MCP call limit. SVG asset upload remains
-available and imports the screen board as editable vector node trees.
-The fallback is vector artwork, not a native auto-layout component library or
-interactive prototype. Preserve the SVG source for text/layout edits.
-No Figma plan upgrade, application deployment or finance data migration is included.
+Read ../CUSTOMER_WORKSPACE_DESIGN.md before implementation. Existing invoice CSV imports do not issue new invoices; the first-50 export is not a full customer SOA. Private PDF/contract storage and real issuance remain pending.
