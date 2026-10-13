@@ -1,7 +1,7 @@
 # O2C Finance Command Center
 
 Authenticated finance operations using Next.js App Router, strict TypeScript,
-Tailwind, Supabase SSR, PostgreSQL, and Decimal.js. The visual system follows the
+Tailwind, direct PostgreSQL, app-managed sessions, and Decimal.js. The visual system follows the
 user's Stripe reference: navy, violet, restrained gradients, and light/dark surfaces.
 
 ## Implemented
@@ -19,11 +19,11 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
   protection allows at most five failed/in-flight account attempts in a sliding
   15-minute window and 30 failed/in-flight attempts per trusted Vercel IP. Successful
   membership verification releases that attempt's account and IP slots; outages fail closed.
-- Invited-account password activation, PKCE Google/Microsoft authentication when
-  providers are enabled, and verified TOTP challenges validated by Supabase.
+- Invited-account activation, scrypt password hashing, opaque HttpOnly sessions,
+  encrypted TOTP enrollment and replay-protected second-factor challenges.
   No arbitrary local login, generated balances, default accounts, or seeded business data.
 - Tenant membership and entity context on every protected request. PostgreSQL RLS
-  protects direct reads; scoped RPCs are the only application write path.
+  protects reads; governed routines authorize financial writes, and private CSV archival uses scoped RLS.
 - AED `numeric(15,2)` records, exact decimal-string contracts, Decimal.js arithmetic,
   and currency formatting without converting amounts to JavaScript Number.
 - Incoming receipt and cash-allocation proposals, independent approval, separate
@@ -40,23 +40,22 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 
 ## Local setup
 
-1. Run `npm ci`.
-2. Copy `.env.example` to `.env.local`. Set the project URL and **publishable** key
-   from the intended active Supabase project. Never use a service-role key in this app.
-3. Apply all SQL files in `supabase/migrations/` in filename order to a dedicated
-   staging database after reviewing schema conflicts. They create no business records.
-4. Invite at least two real users through Supabase Auth. A trusted database
-   administrator provisions the tenant, legal entity, and memberships. A maker
-   and independent approver are required for imports and financial posting.
-5. Disable public signup in Supabase; configure invited-user redirects, password
-   policies, abuse protections, and recovery delivery for the actual deployment.
-6. Set the server-only Redis URL, token, and HMAC secret in `.env.local`
-   (variable names are listed in `.env.example`).
-   Set AUTH_SITE_URL to the canonical origin. For a local production preview,
-   AUTH_LOGIN_IP_SOURCE=loopback is permitted only on a server bound to 127.0.0.1.
-   Vercel always requires its trusted edge address.
-   See `docs/SECURITY.md`; production client-IP handling currently targets Vercel.
+1. Run `npm ci` and copy `.env.example` to `.env.local`.
+2. Choose a standalone PostgreSQL database. Neon is recommended for Vercel.
+3. Set the schema-owner `DATABASE_MIGRATION_URL`, then run `npm run db:migrate`.
+   Migrations create no users or business records.
+4. Create the restricted runtime login and set server-only `DATABASE_URL` and
+   `MFA_ENCRYPTION_KEY`; see [PostgreSQL setup](docs/POSTGRESQL_MIGRATION.md).
+5. Configure the Redis URL, token and separate HMAC secret, plus `AUTH_SITE_URL`.
+6. A trusted administrator provisions the real tenant/entity and issues invitations:
+   `npm run auth:invite -- '<WORK EMAIL>' '<TENANT UUID>' maker`.
+   A separate approver is required for imports/posting; see
+   [provisioning](docs/PRODUCTION_PROVISIONING.md). No default administrator exists.
 7. Run `npm run dev` and open http://127.0.0.1:5174.
+
+For local production previews only, set `AUTH_LOGIN_IP_SOURCE=loopback` and bind
+to 127.0.0.1. Hosted production requires HTTPS and trusted Vercel edge headers.
+Database, MFA and Redis credentials never use `NEXT_PUBLIC_` variables.
 
 Missing credentials produce a connection-unavailable screen with sign-in disabled.
 An authenticated account without membership cannot enter any financial workspace.
@@ -73,7 +72,11 @@ npm run start
 Tests use disposable fixtures exclusively in an embedded PostgreSQL runtime,
 including RLS, direct-write denial, self-approval rejection, debit rejection,
 idempotency, stale allocations, revoked authority, atomic imports, and append-only
-records. They do not establish live Supabase, Vercel, email, or ERP connectivity.
+records. They do not establish live managed PostgreSQL, Vercel, email, or ERP connectivity.
+The explicit `npm run test:postgres` suite additionally exercises real local
+PostgreSQL sessions, pooled identity isolation, atomic source archival and MFA.
+After building, `npm run test:postgres:http` tests Next.js auth over HTTP with
+a test-only Redis transport. See the migration guide for disposable database setup.
 The opt-in live Redis integration check uses isolated expiring keys:
 `node --env-file=.env.local --import tsx tests/login-limiter.integration.ts`.
 The recorded live check passed budgets, release and concurrency. This does not
@@ -116,23 +119,18 @@ deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
   are required before making a tamper-proof audit claim.
 - Input is controlled CSV. The unsafe permissive XLSX upload parser and fabricated
   PDF/proof/SLA generators were removed. XLSX **export** remains available.
-- Live MFA/social-provider qualification, billing, multi-currency, retention, performance,
+- Hosted MFA qualification, billing, multi-currency, retention, performance,
   and disaster recovery require deployment-specific implementation and evidence.
 
-The deployment framework changes from Vite to Next.js. Vercel must use the Next.js
-preset, the two public Supabase variables, and three server-only Redis/HMAC variables.
-Inter, Sora, and JetBrains Mono are bundled through Next.js font handling.
-Do not promote the branch
-while the database connection, migration, onboarding, and live checks are incomplete.
+Vercel uses the Next.js preset and the server-only variables in `.env.example`.
+Never deploy the migration-owner connection. Inter, Sora and JetBrains Mono are
+bundled through Next.js font handling. Google/Microsoft provider callbacks are
+retired; this deployment supports invited email/password and TOTP. New OIDC login
+requires a separate implementation. No hosted data was migrated by this source change.
 
-## Supabase infrastructure audit
-
-Use the repository skill at
-`.agents/skills/supabase-principal-architect-infrastructure-optimization/SKILL.md`
-for audit-first RLS/index/cron/Realtime/webhook work. Its packaged SQL reads catalog
-metadata without financial records or DDL. See [audit_report.md](audit_report.md)
-for current source findings and live-provider blockers; no index change or speculative
-integration migration is included without actual deployed workload evidence.
+See [migration and rollback](docs/POSTGRESQL_MIGRATION.md) before moving existing
+users, financial records or private CSV originals. Preserve user UUIDs, exact
+balances, approvals, digests and MFA; do not replay settled invoices as fresh imports.
 
 ## Maintainer
 

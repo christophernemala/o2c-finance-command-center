@@ -8,31 +8,24 @@ const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 test("PostgreSQL finance controls and tenant boundaries", async t => {
   const db=new PGlite();
   try {
-    await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key);
-      create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
-      grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
-    await db.exec(await readFile(new URL("../supabase/migrations/202610040001_workspaces.sql",import.meta.url),"utf8"));
-    await db.exec(await readFile(new URL("../supabase/migrations/202610050001_insights.sql",import.meta.url),"utf8"));
-    await db.exec(`create table auth.mfa_factors(user_id uuid,status text);
-      create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;`);
-    await db.exec(await readFile(new URL("../supabase/migrations/202610080001_release_hardening.sql",import.meta.url),"utf8"));
-    await db.exec(await readFile(new URL("../supabase/migrations/202610080002_agent_jobs.sql",import.meta.url),"utf8"));
-    await db.exec(`create schema storage;
-      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-      create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text,owner_id text);
-      alter table storage.objects enable row level security;
-      create function storage.foldername(text) returns text[] language sql immutable as $$ select (string_to_array($1,'/'))[1:array_length(string_to_array($1,'/'),1)-1] $$;
-      grant usage on schema storage to authenticated,anon;
-      grant select,insert,update,delete on storage.objects to authenticated,anon;`);
-    await db.exec(await readFile(new URL("../supabase/migrations/202610080003_source_storage.sql",import.meta.url),"utf8"));
-    await db.query(`insert into auth.users values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);
+    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql"]) {
+      await db.exec(await readFile(new URL(`../postgres/migrations/${file}`, import.meta.url), "utf8"));
+    }
+    await db.query(`insert into auth.users(id) values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);
     await db.query(`insert into public.tenants(id,name) values($1,'Tenant A'),($2,'Tenant B')`,[id(10),id(11)]);
     await db.query(`insert into public.memberships values($1,$2,'admin'),($1,$3,'approver'),($1,$4,'viewer'),($5,$6,'admin')`,[id(10),id(1),id(2),id(3),id(11),id(4)]);
     await db.query(`insert into public.entities(id,tenant_id,name) values($1,$2,'A'),($3,$4,'B')`,[id(20),id(10),id(21),id(11)]);
     await db.query(`insert into public.customers(id,tenant_id,entity_id,account,name) values($1,$2,$3,'A1','Customer A'),($4,$5,$6,'B1','Customer B')`,[id(30),id(10),id(20),id(31),id(11),id(21)]);
     await db.query(`insert into public.invoices(id,tenant_id,entity_id,customer_id,number,issued_at,due_date,gross) values($1,$2,$3,$4,'INV-A','2026-09-01','2026-10-01',1000),($5,$6,$7,$8,'INV-B','2026-09-01','2026-10-01',1000)`,[id(40),id(10),id(20),id(30),id(41),id(11),id(21),id(31)]);
     await db.query(`insert into public.bank_lines(id,tenant_id,entity_id,reference,booked_at,direction,amount) values($1,$2,$3,'CREDIT','2026-10-04','credit',1000),($4,$2,$3,'DEBIT','2026-10-04','debit',1000)`,[id(50),id(10),id(20),id(51)]);
-    async function asUser(n:number) { await db.exec("reset role"); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id(n)]); await db.exec("set role authenticated"); }
+    async function asUser(n:number) {
+      await db.exec("reset role");
+      await db.query("update auth.users set email_confirmed_at=now() where id=$1", [id(n)]);
+      const hash=String(n).padStart(64,"0");
+      await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do update set aal='aal1'", [hash,id(n)]);
+      await db.query("select set_config('o2c.session_hash',$1,false)", [hash]);
+      await db.exec("set role authenticated");
+    }
     const proposeReceipt=(command:number,bank=50)=>db.query(`select public.propose_action($1,$2,$3,'receipt','1000.00','Verified bank remittance',null,null,$4,$5)`,[id(10),id(20),id(command),id(bank),id(30)]);
     const decide=(command:number)=>db.query(`select public.decide_action($1,$2,$3,1,'approved')`,[id(10),id(20),id(command)]);
     const execute=(command:number)=>db.query<{execute_action:string}>(`select public.execute_action($1,$2,$3,2)`,[id(10),id(20),id(command)]);
@@ -146,26 +139,25 @@ test("PostgreSQL finance controls and tenant boundaries", async t => {
       await assert.rejects(db.exec("update public.agent_jobs set result='{}'"),/permission denied/);
     });
     await t.test("private source storage enforces tenant, entity, uploader and immutability",async()=>{
-      const name=`${id(10)}/${id(20)}/${id(1)}/digest.csv`;
-      const put=(path:string,owner=id(1))=>db.query("insert into storage.objects(bucket_id,name,owner_id) values('o2c-source-files',$1,$2)",[path,owner]);
-      await asUser(1); await put(name);
-      await assert.rejects(put(`${id(11)}/${id(21)}/${id(1)}/other.csv`),/row-level security/);
-      await assert.rejects(put(`${id(10)}/${id(21)}/${id(1)}/wrong-entity.csv`),/row-level security/);
-      await assert.rejects(put(name,id(2)),/row-level security/);
-      await asUser(3); assert.equal((await db.query("select id from storage.objects")).rows.length,1);
-      await assert.rejects(put(`${id(10)}/${id(20)}/${id(3)}/viewer.csv`,id(3)),/row-level security/);
-      assert.equal((await db.query("update storage.objects set name='changed' returning id")).rows.length,0);
-      assert.equal((await db.query("delete from storage.objects returning id")).rows.length,0);
-      await asUser(4); assert.equal((await db.query("select id from storage.objects")).rows.length,0);
-      await db.exec("reset role; set role anon"); assert.equal((await db.query("select id from storage.objects")).rows.length,0);
+      const put=(tenant=10,entity=20,owner=1)=>db.query("insert into public.source_files(tenant_id,entity_id,uploaded_by,digest,original_name,content) values($1,$2,$3,encode(sha256(convert_to('test-only-csv','UTF8')),'hex'),'test.csv',convert_to('test-only-csv','UTF8'))",[id(tenant),id(entity),id(owner)]);
+      await asUser(1); await put();
+      await assert.rejects(put(11,21),/row-level security/);
+      await assert.rejects(put(10,21),/foreign key/);
+      await assert.rejects(put(10,20,2),/row-level security/);
+      await asUser(3); assert.equal((await db.query("select digest from public.source_files")).rows.length,1);
+      await assert.rejects(put(10,20,3),/row-level security/);
+      await assert.rejects(db.query("update public.source_files set original_name='changed'"),/permission denied/);
+      await assert.rejects(db.query("delete from public.source_files"),/permission denied/);
+      await asUser(4); assert.equal((await db.query("select digest from public.source_files")).rows.length,0);
+      await db.exec("reset role; set role anon"); await assert.rejects(db.query("select digest from public.source_files"),/permission denied/);
     });
     await t.test("enrolled MFA blocks financial RLS and direct RPCs until AAL2",async()=>{
-      await db.exec("reset role"); await db.query("insert into auth.mfa_factors values($1,'verified')",[id(1)]);
-      await asUser(1); await db.exec(`set request.jwt.claims='{"aal":"aal1"}'`);
+      await db.exec("reset role"); await db.query("insert into auth.mfa_factors(user_id,status,secret_ciphertext) values($1,'verified','test-only-ciphertext')",[id(1)]);
+      await asUser(1);
       assert.equal((await db.query("select id from public.invoices")).rows.length,0);
       await assert.rejects(snapshot(),/Forbidden/);
       await assert.rejects(proposeReceipt(66),/Forbidden/);
-      await db.exec(`set request.jwt.claims='{"aal":"aal2"}'`);
+      await db.exec("reset role"); await db.query("update auth.sessions set aal='aal2' where user_id=$1", [id(1)]); await db.exec("set role authenticated");
       assert.ok((await snapshot()).invoices.length>0);
       await db.exec("reset role"); await db.query("delete from auth.mfa_factors where user_id=$1",[id(1)]);
     });

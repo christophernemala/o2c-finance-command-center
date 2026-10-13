@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   outputFileTracingRoot: process.cwd(),
   turbopack: { root: process.cwd() },
   async headers() {

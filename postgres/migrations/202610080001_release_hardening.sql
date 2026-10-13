@@ -6,7 +6,7 @@ create function o2c_private.session_assured() returns boolean
 language sql stable security definer set search_path='' as $$
   select auth.uid() is not null and (
     not exists(select 1 from auth.mfa_factors where user_id=auth.uid() and status='verified')
-    or auth.jwt()->>'aal'='aal2'
+    or auth.assurance()='aal2'
   )
 $$;
 revoke all on function o2c_private.session_assured() from public, anon, authenticated;

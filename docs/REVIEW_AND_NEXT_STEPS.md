@@ -1,3 +1,6 @@
+> Historical record from the previous provider-based release. Current runtime and
+> rollout instructions are in docs/POSTGRESQL_MIGRATION.md and docs/RELEASE.md.
+
 # Complete review and next steps — 2026-10-08
 
 ## Architecture decision

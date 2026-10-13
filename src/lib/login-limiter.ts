@@ -84,6 +84,25 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
     return data.result;
   }
   return {
+    async reserveApi(userId: string, scope: "commands" | "agents" | "export"): Promise<{ allowed: boolean; retryAfter: number }> {
+      const key = `o2c:{api}:${scope}:${digest(userId)}`;
+      const script = `
+local time = redis.call('TIME')
+local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now - 60000)
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+  local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+  return {0, math.max(1, math.ceil((tonumber(oldest[2]) + 60000 - now) / 1000))}
+end
+redis.call('ZADD', KEYS[1], now, ARGV[1])
+redis.call('PEXPIRE', KEYS[1], 60000)
+return {1, 0}
+`;
+      const result = await command(["EVAL", script, 1, key, randomUUID(), scope === "commands" ? 120 : 30]);
+      if (!Array.isArray(result) || result.length !== 2 || ![0, 1].includes(result[0]) || !Number.isInteger(result[1])
+        || result[1] < 0 || result[1] > 60 || (result[0] === 1 && result[1] !== 0) || (result[0] === 0 && result[1] === 0)) throw new Error("Invalid API protection result");
+      return { allowed: result[0] === 1, retryAfter: result[1] };
+    },
     async reserveIp(ip: string): Promise<{ allowed: boolean; retryAfter: number; ticket: Ticket }> {
       const ipKey = `o2c:{login}:ip:${digest(ip)}`; const ticket = { key: ipKey, ipKey, id: randomUUID() };
       const result = await command(["EVAL", reserveScript, 1, ipKey, ticket.id]);
