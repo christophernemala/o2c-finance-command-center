@@ -5,10 +5,11 @@ import { Panel, Money, Badge } from "@/components/ui";
 import { MutationForm } from "@/components/mutation-form";
 export const dynamic = "force-dynamic";
 export default async function Review({ params, searchParams }: { params: Promise<{id:string}>; searchParams: Promise<{tenant?:string;entity?:string}> }) {
-  const auth = await access(); if (!auth) redirect("/login"); const {id} = await params; const scope = await searchParams;
-  const membership = auth.memberships.find(row => row.tenant_id === scope.tenant); if (!membership || !scope.entity) notFound();
+  const {id} = await params; const scope = await searchParams;
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuid.test(id) || !uuid.test(scope.entity)) notFound();
+  if (!uuid.test(id) || !scope.entity || !uuid.test(scope.entity)) notFound();
+  const auth = await access(); if (!auth) redirect("/login");
+  const membership = auth.memberships.find(row => row.tenant_id === scope.tenant); if (!membership) notFound();
   const batch = await auth.client.importBatch(id, scope.tenant!, scope.entity);
   if (!batch) notFound();
   // Presentation totals derive from the preserved exact decimal strings.
