@@ -1,3 +1,11 @@
+## Dashboard statistics — 2026-10-15
+
+Added an explicit server refresh that preserves tenant, entity, workspace and page.
+The overview distinguishes an entity with no invoice records from a populated
+ledger and links to import review. DSO and CEI cards now state that their
+reporting-period calculations are not connected; importing open invoices alone
+does not implement these KPIs. No financial records or database migrations changed.
+
 # Deployment qualification — 2026-10-13
 
 ## PR #4 CodeRabbit repair — 2026-10-14

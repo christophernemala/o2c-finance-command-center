@@ -6,7 +6,9 @@ import { loginLimiterConfig } from "@/lib/login-limiter";
 import { encryptionKey, validToken } from "@/lib/auth/crypto";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 
-const privateHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+// Native form POSTs under no-referrer may send Origin: null and fail CSRF checks.
+// strict-origin retains the origin while never disclosing the invitation URL path/query.
+const privateHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "strict-origin" };
 const configured = () => Boolean(postgresConfig() && encryptionKey() && loginLimiterConfig());
 function destination(error?: "invite" | "unavailable") {
   const origin = authSiteOrigin();

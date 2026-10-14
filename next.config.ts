@@ -12,7 +12,7 @@ const config: NextConfig = {
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
     ] }, { source: "/auth/confirm", headers: [
-      { key: "Referrer-Policy", value: "no-referrer" },
+      { key: "Referrer-Policy", value: "strict-origin" },
     ] }];
   },
 };

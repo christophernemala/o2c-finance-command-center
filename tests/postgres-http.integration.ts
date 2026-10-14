@@ -56,7 +56,7 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       for (let scan = 0; scan < 2; scan++) {
         const landing = await browser().request(url.pathname + url.search);
         assert.equal(landing.status, 200); assert.ok((await landing.text()).includes("Continue activation"));
-        assert.equal(landing.headers.get("referrer-policy"), "no-referrer");
+        assert.equal(landing.headers.get("referrer-policy"), "strict-origin");
         assert.equal(landing.headers.getSetCookie().length, 0);
       }
       assert.equal((await admin.query("select consumed_at from auth.invitations where user_id=$1", [user])).rows[0].consumed_at, null);
@@ -65,7 +65,7 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       assert.equal((await admin.query("select consumed_at from auth.invitations where user_id=$1", [user])).rows[0].consumed_at, null);
       const confirm = await page.request("/auth/confirm", { type: "invite", token });
       assert.equal(confirm.status, 303); assert.equal(new URL(confirm.headers.get("location")!).pathname, "/signup");
-      assert.equal(confirm.headers.get("referrer-policy"), "no-referrer");
+      assert.equal(confirm.headers.get("referrer-policy"), "strict-origin");
       assert.ok(confirm.headers.getSetCookie().some(cookie => /HttpOnly/i.test(cookie)));
       const activation = await page.request("/api/auth/signup", { password, confirm: password });
       assert.equal(activation.status, 303); assert.equal(new URL(activation.headers.get("location")!).pathname, "/login");
