@@ -18,7 +18,7 @@ test("infrastructure audit runs read-only and identifies access/index invariants
       create function auth.uid() returns uuid language sql stable as $$
         select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;`);
     for (const migration of ["202610040001_workspaces.sql", "202610050001_insights.sql"]) {
-      await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), "utf8"));
+      await db.exec(await readFile(new URL(`../postgres/migrations/${migration}`, import.meta.url), "utf8"));
     }
     const sql = await readFile(new URL("../.agents/skills/supabase-principal-architect-infrastructure-optimization/scripts/audit.sql", import.meta.url), "utf8");
     await db.exec("begin read only");

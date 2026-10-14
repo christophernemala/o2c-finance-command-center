@@ -1,5 +1,11 @@
 # O2C continuation status — 9 October 2026
 
+Historical snapshot. The owner selected standalone PostgreSQL/custom Auth on
+14 October 2026. Current status and remaining work are maintained in
+[START_HERE.md](../START_HERE.md), [UNIFIED_AUDIT.md](UNIFIED_AUDIT.md) and
+[handoff.yaml](handoff.yaml). The Supabase-specific descriptions below do not
+describe the consolidated candidate's current runtime.
+
 ## Canonical source
 Repository: christophernemala/o2c-finance-command-center.
 Active branch: codex/light-finance-workspace.

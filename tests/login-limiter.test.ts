@@ -74,3 +74,20 @@ test("production trusts only the Vercel edge address and requires complete serve
   assert.equal(loginLimiterConfig({ UPSTASH_REDIS_REST_URL: "http://example.com", UPSTASH_REDIS_REST_TOKEN: settings.token, AUTH_RATE_LIMIT_SECRET: settings.secret }), null);
   assert.deepEqual(loginLimiterConfig({ UPSTASH_REDIS_REST_URL: settings.url, UPSTASH_REDIS_REST_TOKEN: settings.token, AUTH_RATE_LIMIT_SECRET: settings.secret }), settings);
 });
+
+test("API limits use separate private user keys and enforce valid denial replies", async () => {
+  const { createLoginLimiter } = await import("../src/lib/login-limiter");
+  const config = { url: "https://test.upstash.io", token: "test-token", secret: "test-only-secret-with-at-least-32-characters" };
+  const keys: string[] = [];
+  const limiter = createLoginLimiter(config, async (_url, options) => {
+    const command = JSON.parse(String(options?.body));
+    assert.equal(command[0], "EVAL"); assert.equal(command[2], 1);
+    keys.push(command[3]); assert.ok(!command[3].includes("private-user"));
+    assert.equal(command[5], command[3].includes(":commands:") ? 120 : 30);
+    return Response.json({ result: [0, 42] });
+  });
+  for (const scope of ["commands", "agents", "export"] as const) assert.deepEqual(await limiter.reserveApi("private-user", scope), { allowed: false, retryAfter: 42 });
+  assert.equal(new Set(keys).size, 3);
+  const malformed = createLoginLimiter(config, async () => Response.json({ result: [0, 0] }));
+  await assert.rejects(malformed.reserveApi("private-user", "export"));
+});

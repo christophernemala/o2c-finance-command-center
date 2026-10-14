@@ -1,92 +1,55 @@
-# Cloud workflow
+# Unified cloud workflow
 
-GitHub is the source of truth for application code and public documentation.
-Edit in GitHub Codespaces, run verification in Codespaces or GitHub Actions,
-and use Vercel for hosted previews. No Windows checkout is required.
+## Source and development
 
-## Open the cloud workspace
+Use `codex/unified-cloud-audit` in the existing O2C repository for this candidate.
+GitHub stores code, migrations, tests and public-safe designs/documentation.
+The restored devcontainer uses Node 22 and `npm ci`; a Codespace must still be
+created with the owner's account authorization. No running Codespace is claimed.
+The current GitHub default branch remains the prior light/Supabase source until
+the candidate's live release gates are met.
 
-1. Open the repository on GitHub and select the branch under review.
-   The current light UI work is on `codex/light-finance-workspace` (PR #3).
-2. Select **Code → Codespaces → Create codespace on this branch**.
-   The checked-in dev container uses Node 22 and runs `npm ci`.
-3. Edit, commit and push inside the browser editor. Commit durable work before
-   stopping the codespace; GitHub commits remain the durable source archive.
-4. Run `npm run verify` and `npm audit --audit-level=high` in the cloud terminal.
-   The existing GitHub Actions workflow runs these gates on every push and PR.
-5. Inspect the Vercel preview associated with that commit. Financial workflows
-   still require real Supabase users, memberships, and source records.
+Run `npm run verify` and `npm audit --audit-level=high`. GitHub Actions additionally
+tests migrations twice and exercises real PostgreSQL/HTTP Auth against a disposable
+CI database. Never point fixture/integration test suites at the hosted finance DB.
 
-The Codespaces start screen controls account authorization, machine selection and
-billing. This configuration does not create a running codespace or prove it boots.
-Never copy a Windows checkout, local credential store, or local environment file
-into it. Configure only required staging credentials as repository-scoped
-Codespaces secrets. Use Vercel environment settings for hosted app secrets.
+## Candidate staging destinations
 
-## Storage destinations
-
-| Material | Durable destination | Access |
+| Material | Destination | Qualification |
 | --- | --- | --- |
-| Application code, migrations, tests, public docs | GitHub commits | Repository visibility |
-| Development runtime and temporary build outputs | GitHub Codespaces | Authorized developer |
-| Hosted application | Vercel | Deployment configuration plus application Auth |
-| Financial records, approvals, audit evidence | Supabase PostgreSQL | Tenant/entity authorization and RLS |
-| Validated original CSV imports | Supabase Storage `o2c-source-files` | Private, scoped authenticated access |
-| Private conversation history and continuation archives | Owner-controlled private Google Drive | Explicit private permissions |
-| Secrets | Provider secret settings | Restricted provider access |
+| Source and cloud CI | Existing GitHub repository, candidate branch | Inspect checks for the exact commit |
+| Web/API preview | Vercel `o2c-finance-command-center-app` | Candidate preview; production is not promoted |
+| Identity, financial records and private CSV originals | Dedicated Neon `autonomous-ar-platform`, database `autonomous_ar`, staging branch | Seven migrations applied; real onboarding/workflows pending |
+| Login/API limiter | Existing server-only Upstash settings on selected Vercel project | Values retained; actual provider health needs a live check |
+| Private chat history, archives and evidence | Owner-controlled private storage | Do not publish to this public repository |
 
-The repository is public. Do not commit private customer data, chat history,
-bank evidence, credentials, or environment files. GitHub Actions logs must not
-print them. Runtime caches and dependency folders are reproducible artifacts;
-they are not source archives.
+The selected Neon project is in `aws-us-east-1` and uses 0.25 CU. Region selection
+is for staging adjacent to observed hosting; production data residency and workload
+requirements must be decided before loading real business records. Account defaults
+control compute suspension and retention; backup/restore capability remains a gate.
 
-## Financial source files
+## Secrets and privileged operations
 
-The app already stores validated original CSV bytes in the private
-`o2c-source-files` bucket before staging an import. Paths include tenant, legal
-entity, uploader and the SHA-256 content digest. The bucket limit is 1 MB and its
-allowed MIME type is `text/csv`. Application INSERT/SELECT policies require
-authorized scope; application overwrite/delete is denied.
+Candidate preview needs server-only `DATABASE_URL`, `MFA_ENCRYPTION_KEY`,
+`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AUTH_RATE_LIMIT_SECRET`
+and `AUTH_SITE_URL`. Use verified remote TLS and a pooled non-owner runtime role.
+The candidate DB and MFA variables are branch-scoped preview settings so existing
+production deployments retain their previous configuration.
 
-Cloud storage does not grant financial posting authority. Independent import
-review and transactional database authorization remain required. This path
-supports controlled CSV imports; it does not provide arbitrary PDF/image uploads
-or migrate every file from a developer's computer.
+`DATABASE_MIGRATION_URL` is operator-only; never deploy it. Migration/invitation
+commands run through an authorized administrator environment. Store MFA encryption
+keys with restricted access and retain them for recovery; do not silently rotate
+them after accounts enroll factors. Ignored operator files are local convenience,
+not proof of a provisioned cloud development environment.
 
-Create or change buckets through the Supabase Storage API/dashboard. Do not use
-direct SQL edits of Storage metadata for future bucket/object operations.
-Preserve applied historical migrations; use reviewed forward changes.
+Do not expose database URLs, credentials, activation links or financial records in
+CI logs, screenshots, prompts or this repository. Public Supabase variables retained
+on old deployments are historical settings; candidate code does not use them.
 
-## Browser and preview behavior
+## Promotion gates
 
-The light UI does not persist application state in browser localStorage or
-sessionStorage. Supabase SSR uses session cookies for authentication; financial
-records remain in Supabase. Temporary input/CSV previews exist only in browser
-memory until the authenticated request uploads the file.
-
-`npm run dev` listens on loopback port 5174 inside the codespace. Keep the
-forwarded port private. Prefer Vercel for authenticated workflow testing:
-Codespaces forwarding alone does not configure a trusted client-IP source,
-Auth callbacks, Redis or production secrets. Never weaken Auth/RLS to preview UI.
-
-## Verified state — 2026-10-08
-
-- PR #1 is merged. PR #3 contains the proposed light UI and remains a draft.
-- Live Storage metadata reports the private 1 MB CSV bucket.
-- Live Auth users, memberships and stored objects were all zero at this check.
-- The existing private continuation archive was confirmed in Google Drive;
-  returned permission metadata contained only the owner.
-- Codespaces enumeration returned HTTP 403 because the current GitHub credential
-  lacks the `codespace` scope. No running workspace was created by this change.
-- This update writes source directly to GitHub. Existing Windows copies are
-  retained for recovery; no local deletion or full-device migration is claimed.
-
-A bucket and passing CI do not establish real uploads or finance operations.
-Complete real identity/workspace provisioning and verify uploads with ordinary
-user JWTs before claiming live operational readiness.
-
-## Provider references
-
-- [GitHub dev containers](https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration/introduction-to-dev-containers)
-- [Codespaces port forwarding](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace)
-- [Supabase Storage metadata design](https://supabase.com/docs/guides/storage/schema/design)
+Inspect the candidate preview and exact commit. Real login, two independent users,
+tenant/entity denial, MFA, import review/posting and source-backed balances must
+pass before production. Preserve the older provider and deployments until their
+data and rollback requirements are verified. See the unified audit for remaining
+autonomous integrations; a hosted application alone does not establish autonomy.

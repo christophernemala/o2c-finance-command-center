@@ -1,7 +1,7 @@
 # O2C design sources
 
 ## Latest complete screen-source handoff
-[Browser gallery](index.html) · [Exact continuation status](../CONTINUATION_STATUS.md) · [Machine-readable handoff](../handoff.yaml).
+[Browser gallery](index.html) · [Unified audit and completion backlog](../UNIFIED_AUDIT.md) · [Current cloud workflow](../CLOUD_WORKFLOW.md).
 Open index.html from a cloud checkout/static preview; GitHub's file view does not execute HTML.
 
 The 10 files under screens/ contain 18 editable SVG screens: eight customer screens; aging, collections, cashflow and ECL plus mobile aging; reconciliation, independent approval, imports and agent/audit plus mobile reconciliation.
@@ -17,7 +17,7 @@ SVG handoff is complete as source coverage, not native Figma component assembly 
 Figma file inspection succeeded, but library discovery returned the Starter MCP limit. Native editing was stopped rather than claiming completion.
 
 Existing five-screen board: https://www.figma.com/design/M1jFrwjc16qDMTpSf3RBI3?node-id=2-2
-Existing architecture board: https://www.figma.com/board/lYiw6zDVRDua7Y6boXR3Jr
+Historical architecture board (prior Supabase direction): https://www.figma.com/board/lYiw6zDVRDua7Y6boXR3Jr
 Original source board: o2c-finance-workspace.svg.
 Existing architecture source: o2c-cloud-architecture.mmd.
 
