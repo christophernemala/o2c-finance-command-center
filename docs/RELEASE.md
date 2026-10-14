@@ -1,5 +1,24 @@
 # Deployment qualification — 2026-10-13
 
+## PR #4 CodeRabbit repair — 2026-10-14
+
+The ready PR received eight actionable review comments. Fixes use a forward
+source-file policy migration with transaction-local entity selection, retain
+migration error causes/rollback uncertainty, validate agent input before budget
+reservation, map source-staging conflicts, validate import UUIDs, check MFA-key
+configuration and make invitation GET read-only with same-origin POST activation.
+The external-review guide now targets the consolidated candidate archive.
+
+Existing applied migrations are unchanged. Apply
+`202610140001_source_scope.sql` on the dedicated PostgreSQL target before
+claiming the new hosted source-file policy is active. Existing tenant membership
+authorizes its entities; this hardening scopes each source-file operation to the
+selected authorized entity and does not introduce separate per-entity grants.
+Regression coverage includes repeated link scans, CSRF activation denial,
+malformed import IDs, same-tenant entity separation and pooled scope cleanup.
+Local TypeScript, 56 control tests and build passed after the repair. Hosted
+real-user and production finance qualification remain separate release gates.
+
 ## Consolidation update — 2026-10-14
 
 The owner selected standalone PostgreSQL/custom Auth. Candidate

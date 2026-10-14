@@ -8,7 +8,7 @@ const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 test("PostgreSQL finance controls and tenant boundaries", async t => {
   const db=new PGlite();
   try {
-    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql"]) {
+    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql","202610140001_source_scope.sql"]) {
       await db.exec(await readFile(new URL(`../postgres/migrations/${file}`, import.meta.url), "utf8"));
     }
     await db.query(`insert into auth.users(id) values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);
@@ -140,10 +140,18 @@ test("PostgreSQL finance controls and tenant boundaries", async t => {
     });
     await t.test("private source storage enforces tenant, entity, uploader and immutability",async()=>{
       const put=(tenant=10,entity=20,owner=1)=>db.query("insert into public.source_files(tenant_id,entity_id,uploaded_by,digest,original_name,content) values($1,$2,$3,encode(sha256(convert_to('test-only-csv','UTF8')),'hex'),'test.csv',convert_to('test-only-csv','UTF8'))",[id(tenant),id(entity),id(owner)]);
-      await asUser(1); await put();
+      await db.exec("reset role");
+      await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Second authorized tenant A entity')", [id(22),id(10)]);
+      await asUser(1);
+      await assert.rejects(put(),/row-level security/);
+      await db.query("select set_config('o2c.entity_id',$1,false)", [id(20)]); await put();
       await assert.rejects(put(11,21),/row-level security/);
-      await assert.rejects(put(10,21),/foreign key/);
+      await assert.rejects(put(10,21),/row-level security/);
+      await assert.rejects(put(10,22),/row-level security/);
       await assert.rejects(put(10,20,2),/row-level security/);
+      await db.query("select set_config('o2c.entity_id',$1,false)", [id(22)]); await put(10,22);
+      assert.equal((await db.query<{entity_id:string}>("select entity_id from public.source_files")).rows[0].entity_id,id(22));
+      await db.query("select set_config('o2c.entity_id',$1,false)", [id(20)]);
       await asUser(3); assert.equal((await db.query("select digest from public.source_files")).rows.length,1);
       await assert.rejects(put(10,20,3),/row-level security/);
       await assert.rejects(db.query("update public.source_files set original_name='changed'"),/permission denied/);

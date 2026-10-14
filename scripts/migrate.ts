@@ -22,6 +22,10 @@ try {
       await client.query("insert into o2c_migrations.applied(name,checksum) values($1,$2)", [name, checksum]);
       await client.query("commit");
       process.stdout.write(`Applied ${name}\n`);
-    } catch { await client.query("rollback"); throw new Error(`Migration failed: ${name}. Transaction rolled back.`); }
+    } catch (error) {
+      let rolledBack = false;
+      try { await client.query("rollback"); rolledBack = true; } catch { /* Preserve the original migration failure. */ }
+      throw new Error(`Migration failed: ${name}. ${rolledBack ? "Transaction rolled back." : "Rollback could not be confirmed."}`, { cause: error });
+    }
   }
 } finally { await client.end(); }

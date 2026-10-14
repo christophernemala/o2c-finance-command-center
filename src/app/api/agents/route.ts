@@ -11,8 +11,10 @@ export async function POST(request: NextRequest) {
   const destination = new URL("/", request.headers.get("origin")!); destination.searchParams.set("view", "agents");
   try {
     const auth = await access(); if (!auth) return NextResponse.redirect(new URL("/login", destination),303);
+    const parsed = input.safeParse(Object.fromEntries(await body.formData()));
+    if (!parsed.success) throw new Error("Invalid request");
+    const data = parsed.data;
     const limited = await apiLimit(auth.user.id, "agents"); if (limited) return limited;
-    const data = input.parse(Object.fromEntries(await body.formData()));
     destination.searchParams.set("tenant",data.tenant); destination.searchParams.set("entity",data.entity);
     const queued = await auth.client.rpc("enqueue_agent_job", { p_tenant:data.tenant,p_entity:data.entity,p_id:data.id,p_agent:data.agent,
       p_as_of:data.as_of ?? new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Dubai"}).format(new Date()) });

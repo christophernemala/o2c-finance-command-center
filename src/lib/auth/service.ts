@@ -59,6 +59,17 @@ export function authService(pool: SqlPool, cookies: SessionCookies, key: Buffer)
         cookies.clear(); return { error: null };
       } catch { cookies.clear(); return { error: unavailable() }; }
     },
+    async validateInvitation(token: string) {
+      if (!validToken(token)) return { valid: false, error: null };
+      try {
+        const valid = await transaction(pool, async connection => {
+          const invitation = await connection.query(`select i.user_id from auth.invitations i join auth.users u on u.id=i.user_id
+            where i.token_hash=$1 and i.expires_at>now() and i.consumed_at is null and not u.disabled`, [tokenHash(token)]);
+          return invitation.rows.length === 1;
+        });
+        return { valid, error: null };
+      } catch { return { valid: false, error: unavailable() }; }
+    },
     async acceptInvitation(token: string) {
       if (!validToken(token)) return { error: new Error("Invalid invitation") };
       try {

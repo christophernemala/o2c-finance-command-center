@@ -52,8 +52,20 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
     const user = (await admin.query("select id from auth.users where email=$1", [email])).rows[0].id;
     const page = browser(); const password = "test-only-HTTP-password";
     await t.test("operator invitation activates exactly one account without finance access", async () => {
-      const url = new URL(link); const confirm = await page.request(url.pathname + url.search);
+      const url = new URL(link); const token = url.searchParams.get("token")!;
+      for (let scan = 0; scan < 2; scan++) {
+        const landing = await browser().request(url.pathname + url.search);
+        assert.equal(landing.status, 200); assert.ok((await landing.text()).includes("Continue activation"));
+        assert.equal(landing.headers.get("referrer-policy"), "no-referrer");
+        assert.equal(landing.headers.getSetCookie().length, 0);
+      }
+      assert.equal((await admin.query("select consumed_at from auth.invitations where user_id=$1", [user])).rows[0].consumed_at, null);
+      const attack = await browser().request("/auth/confirm", { type: "invite", token }, "https://attacker.example");
+      assert.equal(attack.status, 403);
+      assert.equal((await admin.query("select consumed_at from auth.invitations where user_id=$1", [user])).rows[0].consumed_at, null);
+      const confirm = await page.request("/auth/confirm", { type: "invite", token });
       assert.equal(confirm.status, 303); assert.equal(new URL(confirm.headers.get("location")!).pathname, "/signup");
+      assert.equal(confirm.headers.get("referrer-policy"), "no-referrer");
       assert.ok(confirm.headers.getSetCookie().some(cookie => /HttpOnly/i.test(cookie)));
       const activation = await page.request("/api/auth/signup", { password, confirm: password });
       assert.equal(activation.status, 303); assert.equal(new URL(activation.headers.get("location")!).pathname, "/login");
@@ -67,6 +79,9 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       const cookie = login.headers.getSetCookie().find(cookie => cookie.startsWith("o2c-session=")); assert.ok(cookie);
       assert.match(cookie, /HttpOnly/i); assert.match(cookie, /SameSite=Lax/i);
       const workspace = await page.request("/"); assert.equal(workspace.status, 200); assert.ok((await workspace.text()).includes("test-only HTTP tenant"));
+      const entityId = (await admin.query("select id from public.entities where tenant_id=$1", [tenant])).rows[0].id;
+      const invalidBatch = await page.request(`/imports/not-a-uuid?tenant=${tenant}&entity=${entityId}`);
+      assert.equal(invalidBatch.status, 404);
       assert.equal(workspace.headers.get("cache-control"), "private, no-store");
       assert.equal((await page.request("/api/auth", { intent: "logout" }, "https://attacker.example")).status, 403);
     });

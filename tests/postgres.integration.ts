@@ -75,6 +75,8 @@ test("standalone PostgreSQL sessions, identity isolation and MFA", async t => {
       const invalid = Buffer.from('test-only-invalid-original'); const invalidDigest = tokenHash(invalid.toString());
       await assert.rejects(first.finance.stageSource({ ...input, bytes: invalid, digest: invalidDigest, rows: [{ ...rows[0], amount: 'invalid' }] }));
       assert.equal((await admin.query("select digest from public.source_files where digest=$1", [invalidDigest])).rowCount, 0);
+      const unscoped = await transaction(pool, connection => connection.query("select digest from public.source_files"), tokenHash(first.cookies.read()!));
+      assert.equal(unscoped.rows.length, 0, "a pooled connection must not retain the previous selected source entity");
     });
     let secret = ""; let factor = "";
     await t.test("MFA enrollment encrypts secrets, rotates sessions and revokes earlier logins", async () => {

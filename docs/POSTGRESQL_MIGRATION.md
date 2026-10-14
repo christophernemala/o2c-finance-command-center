@@ -7,6 +7,13 @@ verified version. Standard PostgreSQL hosting works with a verified TLS connecti
 
 ## New database setup
 
+Apply all ordered forward migrations, including `202610140001_source_scope.sql`.
+It requires an explicit transaction-local selected entity for private CSV access.
+The app reconstructs and clears that scope on every pooled financial transaction.
+Tenant membership authorizes the tenant's entities; the selected entity limits
+the current source-file operation. Separate per-entity membership grants are not
+implemented or claimed by this existing tenant-level authorization model.
+
 Create a dedicated database/Neon project and take a backup before importing data.
 Use the schema owner's **direct** connection for migration; use the restricted
 runtime login's **pooled** connection in Vercel. PostgreSQL roles are cluster-wide;

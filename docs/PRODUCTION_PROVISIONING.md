@@ -31,7 +31,7 @@ through your approved private channel. Do not log, commit or publicly share it.
 A re-invitation replaces pending invitation links. Password activation invalidates
 all sessions and invitations for that identity, including other activation sessions.
 
-The invitee opens the link, sets a password of at least 12 characters, and signs
+The invitee opens the link, selects **Continue activation**, sets a password of at least 12 characters, and signs
 in. An activation session expires after 10 minutes and cannot read financial data.
 After sign-in, Account security allows the user to enroll a TOTP authenticator.
 Enrolled accounts must verify their second factor for all financial access.

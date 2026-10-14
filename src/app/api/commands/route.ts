@@ -57,8 +57,13 @@ export async function POST(request: NextRequest) {
         const preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
         if (preview.errors.length) { message = "invalid_import"; throw new Error("Import validation failed"); }
         const digest = createHash("sha256").update(bytes).digest("hex");
-        const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, bytes, kind, rows: preview.rows });
-        result = { data: staged, error: null }; break;
+        try {
+          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, bytes, kind, rows: preview.rows });
+          result = { data: staged, error: null };
+        } catch (error) {
+          result = { data: null, error: { message: error instanceof Error ? error.message : "failed" } };
+        }
+        break;
       }
       case "commit": {
         if (form.get("acknowledge") !== "yes") throw new Error("Review acknowledgement required");
