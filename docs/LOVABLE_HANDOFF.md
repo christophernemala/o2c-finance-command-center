@@ -1,3 +1,6 @@
+> Historical record from the previous provider-based release. Current runtime and
+> rollout instructions are in docs/POSTGRESQL_MIGRATION.md and docs/RELEASE.md.
+
 # Lovable production handoff
 
 Target repository: `christophernemala/o2c-finance-command-center`.

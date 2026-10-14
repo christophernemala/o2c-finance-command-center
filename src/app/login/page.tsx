@@ -1,20 +1,18 @@
 import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
 import { redirect } from "next/navigation";
-import { supabaseConfig } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/server";
+import { postgresConfig } from "@/lib/postgres/config";
+import { createClient } from "@/lib/postgres/server";
 import { AuthShell } from "@/components/auth-shell";
-import { AuthProviders } from "@/components/auth-providers";
-import { authSiteOrigin, socialProviderAvailability } from "@/lib/auth-flow";
+import { encryptionKey } from "@/lib/auth/crypto";
 import { loginLimiterConfig } from "@/lib/login-limiter";
 import { LoginForm } from "@/components/login-form";
 import { authenticationAssurance } from "@/lib/auth-flow";
 export const dynamic = "force-dynamic";
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
-  const settings = supabaseConfig(); const params = await searchParams;
-  const available = !!settings && !!loginLimiterConfig();
-  if (settings) { const client = await createClient(); const { data: { user } } = await client.auth.getUser(); if (user) redirect(await authenticationAssurance(client) === "mfa" ? "/auth/verify" : "/"); }
-  const providers = await socialProviderAvailability(settings);
+  const settings = postgresConfig(); const params = await searchParams;
+  const available = !!settings && !!encryptionKey() && !!loginLimiterConfig();
+  if (settings && encryptionKey()) { const client = await createClient(); const { data: { user } } = await client.auth.getUser(); if (user) redirect(user.purpose === "invitation" ? "/signup" : await authenticationAssurance(client) === "mfa" ? "/auth/verify" : "/"); }
   const errors: Record<string, string> = {
     invalid: "Incorrect email or password.", oauth: "We could not complete sign-in. Please try again.",
     pending: "Your identity is verified, but workspace access still needs administrator approval.",
@@ -26,8 +24,6 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     {!available && <div className="mt-5 rounded-lg border border-line bg-surface p-4" role="status"><p className="font-semibold">{settings ? "Sign-in protection unavailable" : "Workspace connection unavailable"}</p><p className="mt-2 text-sm leading-6 text-muted">{settings ? "Your administrator needs to restore sign-in protection before access is available." : "Your administrator needs to connect the finance workspace and sign-in protection before access is available."}</p></div>}
     {params.message === "activated" && <p role="status" className="mt-5 rounded-lg bg-success-soft p-4 text-success">Your account is ready. Sign in to continue.</p>}
     <LoginForm key={params.error ?? "ready"} available={available} error={params.error ? errors[params.error] ?? "Sign-in is unavailable. Try again when the connection is restored." : undefined}/>
-    <div className="my-6 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-line"/><span>or continue with</span><span className="h-px flex-1 bg-line"/></div>
-    <AuthProviders available={available && !!authSiteOrigin()} providers={providers}/>
     <p className="mt-6 text-center text-sm text-muted">New to the workspace? <Link href="/signup" className="font-semibold text-link underline underline-offset-4">Sign up</Link></p>
     <p className="mt-4 text-center text-xs leading-5 text-muted">Workspace access is granted by your administrator.<br/>Contact them for an invitation or account recovery.</p>
   </AuthShell>;

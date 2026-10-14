@@ -16,8 +16,8 @@ test("Auth profiles preserve identity and cannot grant financial access", async 
       grant usage on schema public,auth to authenticated,anon;
       grant execute on function auth.uid() to authenticated,anon;`);
     await db.query(`insert into auth.users values ($1,'existing@example.test','{"name":"Existing user","role":"admin"}','{"provider":"google"}')`, [first]);
-    await db.exec(await readFile(new URL("../supabase/migrations/202610040001_workspaces.sql", import.meta.url), "utf8"));
-    await db.exec(await readFile(new URL("../supabase/migrations/20261006115901_user_profiles.sql", import.meta.url), "utf8"));
+    await db.exec(await readFile(new URL("../postgres/migrations/202610040001_workspaces.sql", import.meta.url), "utf8"));
+    await db.exec(await readFile(new URL("../postgres/migrations/20261006115901_user_profiles.sql", import.meta.url), "utf8"));
     const backfill = await db.query<{ email: string; full_name: string; provider: string }>("select * from public.profiles");
     assert.equal(backfill.rows[0].email, "existing@example.test");
     assert.equal(backfill.rows[0].full_name, "Existing user");

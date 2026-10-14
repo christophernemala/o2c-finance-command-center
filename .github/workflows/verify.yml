@@ -5,6 +5,22 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: o2c_migration_test
+          POSTGRES_PASSWORD: test-only-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d o2c_migration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_MIGRATION_URL: postgresql://postgres:test-only-ci-password@127.0.0.1:5432/o2c_migration_test?sslmode=disable
+      POSTGRES_TEST_ADMIN_URL: postgresql://postgres:test-only-ci-password@127.0.0.1:5432/o2c_migration_test?sslmode=disable
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -18,3 +34,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm run db:migrate
+      - run: npm run db:migrate # Successful files must be idempotently skipped
+      - run: npm run test:postgres
+      - run: npm run test:postgres:http

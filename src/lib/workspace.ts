@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "./supabase/server";
+import { createClient } from "./postgres/server";
 import { paginatedCollections, type Entity, type Membership, type Snapshot } from "@/types/workspace";
 import { amount, aggregateAmount } from "./money";
 import { validateCashflowRun } from "./cashflow";
@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 export async function access() {
   const client = await createClient();
   const { data: { user }, error } = await client.auth.getUser();
-  if (error || !user) return null;
+  if (error || !user || user.purpose !== "login" || !user.email_confirmed_at) return null;
   const assurance = await authenticationAssurance(client);
   if (assurance === "mfa") redirect("/auth/verify");
   if (assurance !== "ready") throw new Error("Authentication assurance unavailable");

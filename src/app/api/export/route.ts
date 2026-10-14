@@ -1,3 +1,4 @@
+import { apiLimit } from "@/lib/api-limiter";
 import { NextRequest, NextResponse } from "next/server";
 import { access, snapshot } from "@/lib/workspace";
 import { buildWorkbookBytes } from "@/modules/DashboardRenderer/browserExcel";
@@ -5,6 +6,7 @@ import { receivablesReport } from "@/lib/receivables-report";
 export async function GET(request: NextRequest) {
   try {
     const auth = await access(); if (!auth) return new NextResponse("Unauthorized", { status: 401 });
+    const limited = await apiLimit(auth.user.id, "export"); if (limited) return limited;
     const tenant = request.nextUrl.searchParams.get("tenant") ?? ""; const entity = request.nextUrl.searchParams.get("entity") ?? "";
     if (!auth.memberships.some(row => row.tenant_id === tenant)) return new NextResponse("Forbidden", { status: 403 });
     const data = await snapshot(tenant, entity, new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" }).format(new Date()), 0);
