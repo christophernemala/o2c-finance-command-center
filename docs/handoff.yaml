@@ -1,0 +1,49 @@
+schema_version: 2
+updated_on: "2026-10-14"
+repository: christophernemala/o2c-finance-command-center
+candidate_branch: codex/unified-cloud-audit
+source_baseline: "70f0bd461379c34f667db10235038a89bc301aef"
+product_status: consolidated_staging_foundation
+theme: light
+currency: AED
+financial_arithmetic: exact_decimal
+identity: custom_invitation_password_opaque_session_totp
+database: dedicated_neon_postgresql_17
+csv_storage: private_postgresql_atomic_archival
+source_storage: github
+cloud_development: codespaces_configured_not_provisioned
+chat_review:
+  referenced_count: 11
+  coverage: recent_turns_and_relevant_earlier_history
+  private_report: outside_public_repository
+qualification:
+  local_typecheck_tests_build: passed
+  cloud_ci_postgresql_http_auth: passed_at_42a25a5
+  hosted_runtime_role_rls_anonymous_denial: passed
+  hosted_real_user_login: pending
+  autonomous_provider_execution: not_connected
+  production_promotion: not_performed
+pending:
+  - real_administrator_and_entity_onboarding
+  - independent_checker_and_live_finance_qualification
+  - aging_due_today_sql_ui_export_alignment
+  - complete_customer_soa_and_real_invoice_issuance
+  - private_versioned_contracts_and_documents
+  - additional_treasury_capability_port
+  - durable_worker_scheduler_and_budgets
+  - real_source_and_controlled_delivery_connectors
+  - backup_restore_mfa_key_recovery_and_monitoring
+guardrails:
+  fabricated_business_records: forbidden
+  fictional_practice_pack: excluded
+  financial_float_arithmetic: forbidden
+  self_approval: forbidden
+  privileged_owner_connection_in_app: forbidden
+  private_transcripts_or_secrets_in_public_repository: forbidden
+  high_value_credit_settlement_actions: independent_human_approval
+links:
+  index: START_HERE.md
+  audit: docs/UNIFIED_AUDIT.md
+  architecture: docs/AGENT_HARNESS.md
+  cloud: docs/CLOUD_WORKFLOW.md
+  provisioning: docs/PRODUCTION_PROVISIONING.md

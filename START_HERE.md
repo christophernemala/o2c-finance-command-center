@@ -32,3 +32,7 @@ This repository is public. Keep chat transcripts, credentials, invitations and
 business records in private storage. Existing branches and local work remain
 recoverable. A source candidate, a hosted preview and a qualified production
 service are distinct deliverables.
+
+All eleven supplied chats were reviewed for the unified audit. App project
+membership moves are only partially supported across their different hosts;
+sidebar grouping does not migrate execution to the cloud or merge transcripts.
