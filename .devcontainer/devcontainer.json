@@ -1,0 +1,25 @@
+{
+  "name": "O2C finance cloud workspace",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "remoteUser": "node",
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [
+    5174
+  ],
+  "portsAttributes": {
+    "5174": {
+      "label": "O2C development preview",
+      "onAutoForward": "notify"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "docs/CLOUD_WORKFLOW.md"
+      ]
+    }
+  }
+}

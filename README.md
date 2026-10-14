@@ -1,8 +1,10 @@
 # O2C Finance Command Center
 
+**[Start here: unified autonomous AR project](START_HERE.md).**
+
 Authenticated finance operations using Next.js App Router, strict TypeScript,
-Tailwind, direct PostgreSQL, app-managed sessions, and Decimal.js. The visual system follows the
-user's Stripe reference: navy, violet, restrained gradients, and light/dark surfaces.
+Tailwind, direct PostgreSQL, app-managed sessions, and Decimal.js. The consolidated
+candidate preserves the light workspace, purple accents and teal status colors.
 
 ## Implemented
 
@@ -34,7 +36,7 @@ user's Stripe reference: navy, violet, restrained gradients, and light/dark surf
 - XLSX export reuses the existing workbook writer. It explicitly exports the first
   50 invoice records, with scope metadata and full-entity totals in a separate sheet.
 - Server-rendered scoped navigation, pagination, explicit empty/unavailable states,
-  accessible tables, visible focus, reduced motion, and session-only theme selection.
+  accessible tables, visible focus, reduced motion, and a consistent light theme.
 - Durable scoped AR, collections and treasury analysis jobs use real source
   records; interrupted jobs can be resumed. Drafts and candidates require review.
 

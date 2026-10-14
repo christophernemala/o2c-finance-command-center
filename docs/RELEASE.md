@@ -1,5 +1,23 @@
 # Deployment qualification — 2026-10-13
 
+## Consolidation update — 2026-10-14
+
+The owner selected standalone PostgreSQL/custom Auth. Candidate
+`codex/unified-cloud-audit` combines this implementation with the light workspace,
+cloud devcontainer and customer design sources. See [unified audit](UNIFIED_AUDIT.md).
+A dedicated Neon staging project has seven applied migrations and a verified
+non-owner runtime role; all public tables have RLS. It contains no users, tenants,
+entities, memberships or business records. Candidate preview DB/MFA settings are
+branch-scoped. Original provider records and production configuration are preserved.
+Hosted real-user login, maker/checker finance workflows, autonomous scheduling,
+provider execution and a running Codespace remain unqualified.
+
+Candidate local checks passed strict TypeScript, 56 tests and a production build.
+Dependency installation audit reported zero vulnerabilities. The read-only
+`npm run audit:cloud` verified the dedicated hosted runtime connection, non-owner
+role, RLS on all 18 public tables, empty anonymous workspace access and denial of
+anonymous identity-table reads. These checks inserted no hosted test fixtures.
+
 ## Current scope
 
 Next.js now connects directly to standalone PostgreSQL through a restricted pg
