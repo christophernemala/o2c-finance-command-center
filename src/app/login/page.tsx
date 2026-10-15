@@ -14,10 +14,9 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const available = !!settings && !!encryptionKey() && !!loginLimiterConfig();
   if (settings && encryptionKey()) { const client = await createClient(); const { data: { user } } = await client.auth.getUser(); if (user) redirect(user.purpose === "invitation" ? "/signup" : await authenticationAssurance(client) === "mfa" ? "/auth/verify" : "/"); }
   const errors: Record<string, string> = {
-    invalid: "Incorrect email or password.", oauth: "We could not complete sign-in. Please try again.",
+    invalid: "Incorrect email or password.",
     pending: "Your identity is verified, but workspace access still needs administrator approval.",
     limited: "Too many sign-in attempts. Please wait before trying again.",
-    provider: "This sign-in provider is not available yet. Contact your workspace administrator.",
   };
   return <AuthShell>
     <div className="mb-5 inline-flex rounded-xl bg-primary-soft p-3 text-primary"><LockKeyhole size={24} aria-hidden="true"/></div><h2 className="text-3xl font-semibold tracking-tight">Welcome back</h2><p className="mt-3 leading-6 text-muted">Sign in with your invited work account to access your financial workspace.</p>
