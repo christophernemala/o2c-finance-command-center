@@ -2,7 +2,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { parseCsv } from "./imports";
 
 export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 20 * 1024 * 1024;
+const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 12 * 1024 * 1024, MAX_TOTAL_BYTES = 24 * 1024 * 1024;
 export interface Sheet { name: string; rows: string[][] }
 
 const decode = (value: string) => value.replace(/&(lt|gt|quot|apos|amp|#x[0-9a-f]+|#\d+);/gi, (_, entity: string) => {
@@ -19,7 +19,15 @@ function columnIndex(reference: string) {
 
 /** Read values (not formulas or styles) from an .xlsx workbook. Bounded against zip bombs and huge sheets. */
 export function readXlsx(bytes: Uint8Array): Sheet[] {
-  const files = unzipSync(bytes, { filter: file => file.originalSize <= MAX_PART_BYTES && (/^xl\/(workbook\.xml|sharedStrings\.xml|_rels\/workbook\.xml\.rels|worksheets\/sheet\d+\.xml)$/.test(file.name)) });
+  // fflate sizes output buffers from the declared uncompressed size, so a lying header is truncated rather
+  // than expanded. Budget the declared sizes per part and in total to bound memory for any upload.
+  let budget = MAX_TOTAL_BYTES;
+  const files = unzipSync(bytes, { filter: file => {
+    if (!/^xl\/(workbook\.xml|sharedStrings\.xml|_rels\/workbook\.xml\.rels|worksheets\/sheet\d+\.xml)$/.test(file.name)) return false;
+    budget -= file.originalSize;
+    if (file.originalSize > MAX_PART_BYTES || budget < 0) throw new Error("Workbook is too large to read");
+    return true;
+  } });
   const part = (name: string) => files[name] ? strFromU8(files[name]) : "";
   const workbook = part("xl/workbook.xml"); if (!workbook) throw new Error("Not an Excel workbook");
   const shared = [...part("xl/sharedStrings.xml").matchAll(/<si>([\s\S]*?)<\/si>/g)].map(match => text(match[1]));

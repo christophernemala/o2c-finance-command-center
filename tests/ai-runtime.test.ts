@@ -131,3 +131,18 @@ test("end-to-end agent run: claim, tools through RLS, policy auto-post, recorded
     assert.deepEqual(failed, { status: "failed", error: "AI provider not configured" });
   } finally { await db.close(); }
 });
+
+test("xlsx reader refuses workbooks whose declared sizes exceed the memory budget", async () => {
+  const { zipSync, strToU8 } = await import("fflate");
+  const zip = zipSync({
+    "xl/workbook.xml": strToU8('<workbook><sheets><sheet name="A" r:id="rId1"/></sheets></workbook>'),
+    "xl/worksheets/sheet1.xml": strToU8("<worksheet/>"), "xl/worksheets/sheet2.xml": strToU8("<worksheet/>"), "xl/worksheets/sheet3.xml": strToU8("<worksheet/>"),
+  });
+  const view = new DataView(zip.buffer, zip.byteOffset);
+  const claimed = 12 * 1024 * 1024; // each part within the per-part cap, 36 MB in total
+  for (let i = 0; i + 30 < zip.length; i++) {
+    if (view.getUint32(i, true) === 0x04034b50 && view.getUint16(i + 26, true) === 24) view.setUint32(i + 22, claimed, true);
+    if (view.getUint32(i, true) === 0x02014b50 && view.getUint16(i + 28, true) === 24) view.setUint32(i + 24, claimed, true);
+  }
+  assert.throws(() => readXlsx(zip), /too large/);
+});

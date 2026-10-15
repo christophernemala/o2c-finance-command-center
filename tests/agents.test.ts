@@ -174,3 +174,30 @@ test("agent runtime controls in PostgreSQL", async t => {
     });
   } finally { await db.close(); }
 });
+
+test("policy daily limit counts postings by posting date, not proposal date", async () => {
+  const db = await migratedDatabase();
+  try {
+    await db.query("insert into auth.users(id,email_confirmed_at) values($1,now()),($2,now())", [id(1), id(2)]);
+    await db.query("insert into public.tenants(id,name) values($1,'Tenant')", [T]);
+    await db.query("insert into public.memberships values($1,$2,'admin'),($1,$3,'approver')", [T, id(1), id(2)]);
+    await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Entity')", [E, T]);
+    await db.query("insert into public.customers(id,tenant_id,entity_id,account,name) values($1,$2,$3,'C1','Customer')", [id(30), T, E]);
+    await db.query("insert into public.invoices(id,tenant_id,entity_id,customer_id,number,issued_at,due_date,gross) values($1,$2,$3,$4,'INV-A','2026-09-01','2026-10-01',1000),($5,$2,$3,$4,'INV-B','2026-09-01','2026-10-01',500)", [id(40), T, E, id(30), id(41)]);
+    await db.query("insert into public.bank_lines(id,tenant_id,entity_id,reference,booked_at,direction,amount) values($1,$2,$3,'INV-A','2026-10-14','credit',1000),($4,$2,$3,'INV-B','2026-10-14','credit',500)", [id(50), T, E, id(51)]);
+    await db.query("insert into public.agent_policies(id,tenant_id,entity_id,auto_execute,per_item_limit,daily_limit,status,maker,checker) values($1,$2,$3,true,1000,1000,'active',$4,$5)", [id(60), T, E, id(1), id(2)]);
+    await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Cash application agent','queued','cash_application','schedule','2026-10-15')", [id(100), T, E]);
+    const session = "c".repeat(64);
+    await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), session]);
+    const asAgent = async () => { await db.exec("reset role"); await db.query("select set_config('o2c.session_hash',$1,false)", [session]); await db.exec("set role authenticated"); };
+    await asAgent();
+    await db.query("select public.propose_action($1,$2,$3,'receipt','1000.00','AI agent: exact INV-A',null,null,$4,$5)", [T, E, id(200), id(50), id(30)]);
+    // The first proposal was raised yesterday and is auto-posted today.
+    await db.exec("reset role"); await db.query("update public.approvals set created_at=now()-interval '1 day' where id=$1", [id(200)]);
+    await asAgent();
+    assert.equal((await db.query<{ v: { status: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v.status, "posted");
+    await db.query("select public.propose_action($1,$2,$3,'receipt','500.00','AI agent: exact INV-B',null,null,$4,$5)", [T, E, id(201), id(51), id(30)]);
+    const second = (await db.query<{ v: { status: string; reason?: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(201)])).rows[0].v;
+    assert.deepEqual(second, { status: "awaiting_approval", reason: "Daily auto-execution limit reached" });
+  } finally { await db.close(); }
+});
