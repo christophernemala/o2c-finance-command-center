@@ -1,138 +1,142 @@
 # O2C Finance Command Center
 
-**[Start here: unified autonomous AR project](START_HERE.md).**
+An agentic accounts-receivable (order-to-cash) platform for UAE finance teams. AI
+agents read the ledger, propose cash application, draft collections, screen credit
+risk and write management reports. Every step they take is recorded and visible.
+Every money movement still goes through PostgreSQL-enforced maker/checker
+controls. The one exception is policy auto-posting: two humans can approve a
+policy that lets the agent post exact matches within AED limits.
 
-Authenticated finance operations using Next.js App Router, strict TypeScript,
-Tailwind, direct PostgreSQL, app-managed sessions, and Decimal.js. The consolidated
-candidate preserves the light workspace, purple accents and teal status colors.
+Stack: Next.js 16 App Router, strict TypeScript, Tailwind 4, direct PostgreSQL
+(RLS + `SECURITY DEFINER` routines), app-managed sessions with TOTP, Decimal.js,
+Anthropic Claude API (server-side tool use), Vercel.
+Default currency is AED. Time zone is Asia/Dubai.
 
-## Implemented
+> **What this is:** a working, tested product foundation that you can deploy and pilot.
+> **What it is not yet:** a certified enterprise SaaS. See [What is not built](#what-is-not-built)
+> and [docs/ROADMAP.md](docs/ROADMAP.md).
 
-- Ten workspaces: overview, customers, receivables, 13-week cashflow, cash
-  application, ECL review, approval inbox, agent activity, import review, and audit explorer.
-- Stable product routes for `/dashboard`, `/customers`, `/invoices`, `/cashflow`,
-  and `/reconciliation`; each route uses the same authenticated server snapshot.
-- Six custom SVG charts show full-entity aging, settlement, disputes, collections,
-  statement direction, and approval states, with exact values available as text.
-- Thirteen-week direct-method cash forecasts calculate exact weekly opening,
-  incoming, outgoing, operating/investing/financing net, and closing cash from
-  preserved independently reviewed source records. Forecasts never post journals.
-- Zod validates credentials and command envelopes on the server. Durable Redis
-  protection allows at most five failed/in-flight account attempts in a sliding
-  15-minute window and 30 failed/in-flight attempts per trusted Vercel IP. Successful
-  membership verification releases that attempt's account and IP slots; outages fail closed.
-- Invited-account activation, scrypt password hashing, opaque HttpOnly sessions,
-  encrypted TOTP enrollment and replay-protected second-factor challenges.
-  No arbitrary local login, generated balances, default accounts, or seeded business data.
-- Tenant membership and entity context on every protected request. PostgreSQL RLS
-  protects reads; governed routines authorize financial writes, and private CSV archival uses scoped RLS.
-- AED `numeric(15,2)` records, exact decimal-string contracts, Decimal.js arithmetic,
-  and currency formatting without converting amounts to JavaScript Number.
-- Incoming receipt and cash-allocation proposals, independent approval, separate
-  posting, row/version locks, revoked-approver checks, idempotent retries, and audit evidence.
-- UTF-8 CSV imports with explicit column mapping, 1 MB / 2,000-row limits, rejected-row
-  details, control totals, preserved payload digests, private original CSV storage,
-  independent review, and atomic commits.
-- XLSX export reuses the existing workbook writer. It explicitly exports the first
-  50 invoice records, with scope metadata and full-entity totals in a separate sheet.
-- Server-rendered scoped navigation, pagination, explicit empty/unavailable states,
-  accessible tables, visible focus, reduced motion, and a consistent light theme.
-- Durable scoped AR, collections and treasury analysis jobs use real source
-  records; interrupted jobs can be resumed. Drafts and candidates require review.
+## What works
 
-## Local setup
+| Area | Capability |
+|---|---|
+| **AI agents** (`/?view=agents`) | Four agents run on demand or daily via Vercel Cron: **Cash application**, **Collections**, **Credit risk** and **Reporting**. Each runs a Claude tool-use loop under its own non-human database identity. Reasoning summaries, tool calls, results, proposals and posting decisions stream live into the Agent Console, which also shows token cost per run. |
+| **Autonomy policy** | Off by default. An admin proposes per-item and daily AED limits and a *different* approver activates them. Within those limits, the cash application agent may auto-post **exact** matches (bank reference = invoice number and amount = open balance). Everything else waits in the Approval inbox. |
+| **Copilot** (`/?view=copilot`) | Chat over live ledger data, streamed. The copilot calls the same scoped tools as the agents, under *your* role. Attach a **CSV or Excel (.xlsx)** file and ask questions about it. Conversations are stored per user in PostgreSQL, never in browser storage. |
+| **Reports** (`/?view=reports`) | AR pack computed in SQL: aging (Current / 1-30 / 31-60 / 61-90 / 91-180 / 180+), **countback DSO**, **30-day CEI** (with its inputs shown), top debtors, disputed and unapplied cash. Downloads as a multi-sheet .xlsx. |
+| Cash application | Bank credit → receipt → allocation proposals with independent approval, separate posting, version locks, idempotency and an append-only journal and audit trail. |
+| Imports | UTF-8 CSV for invoices and bank lines: validation, rejected-row detail, control totals, SHA-256 digest, original bytes archived, independent checker commit (atomic). |
+| Workspaces | Overview (KPIs and 6 charts), Customers, Receivables, Cash application, Approval inbox, 13-week cashflow (approved inputs), ECL review (supplied runs), Import review, Audit explorer. |
+| Security | Invite-only accounts, scrypt, opaque HttpOnly sessions, TOTP MFA enforced in RLS, Redis rate limits (fail closed), CSP nonces, Origin checks, bounded bodies. The runtime DB role is non-owner and cannot bypass RLS. |
 
-1. Run `npm ci` and copy `.env.example` to `.env.local`.
-2. Choose a standalone PostgreSQL database. Neon is recommended for Vercel.
-3. Set the schema-owner `DATABASE_MIGRATION_URL`, then run `npm run db:migrate`.
-   Migrations create no users or business records.
-4. Create the restricted runtime login and set server-only `DATABASE_URL` and
-   `MFA_ENCRYPTION_KEY`; see [PostgreSQL setup](docs/POSTGRESQL_MIGRATION.md).
-5. Configure the Redis URL, token and separate HMAC secret, plus `AUTH_SITE_URL`.
-6. A trusted administrator provisions the real tenant/entity and issues invitations:
+## Architecture in one picture
+
+```
+Browser ──► Next.js server components / route handlers ──► pg pool (non-owner role)
+               │                                              │
+               ├─ /api/copilot (SSE) ─┐                       ▼
+               ├─ /api/agents ── after() ─► Agent runner ──► PostgreSQL
+               ├─ /api/cron/agents ───┘     │                 RLS + allow-listed routines
+               │                            ▼                 maker/checker, policy limits,
+               │                    Claude API (tool use)     idempotency, append-only audit
+               └─ /api/agents/runs/:id (SSE tail of agent_steps)
+```
+
+The model never writes SQL. Each tool maps to one allow-listed PostgreSQL routine,
+and that routine re-checks tenant/entity scope, role, versions, limits and
+idempotency. A prompt injection hidden in a customer name or bank reference
+therefore can do no more than the agent role permits: read, propose, and
+auto-post an exact match under policy. Details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Setup
+
+1. `npm ci`, then copy `.env.example` to `.env.local`.
+2. Use a standalone PostgreSQL 16 or 17 database (Neon works well with Vercel). Set
+   `DATABASE_MIGRATION_URL` (schema owner) and run `npm run db:migrate`. Migrations
+   create no users or business data.
+3. Create the restricted runtime login (granted `o2c_app`). Set `DATABASE_URL`,
+   `MFA_ENCRYPTION_KEY`, the Upstash Redis variables, `AUTH_RATE_LIMIT_SECRET` and
+   `AUTH_SITE_URL`. See [docs/POSTGRESQL_MIGRATION.md](docs/POSTGRESQL_MIGRATION.md).
+4. **AI:** set `ANTHROPIC_API_KEY`. Optional settings:
+   - `AI_MODEL` (default `claude-opus-5-5`)
+   - `AI_AGENT_EFFORT` (default `medium`)
+   - `AI_COPILOT_EFFORT` (default `low`)
+
+   Without a key, the agents and copilot show "not configured", and requested runs
+   are recorded as failed with that reason. Nothing is simulated.
+5. **Scheduler:** set `CRON_SECRET` (32 or more random characters). `vercel.json`
+   calls `/api/cron/agents` daily at 04:00 UTC (08:00 GST). An admin chooses which
+   agents run daily in the Agent Console.
+6. Provision a real tenant and entity, then invite users:
    `npm run auth:invite -- '<WORK EMAIL>' '<TENANT UUID>' maker`.
-   A separate approver is required for imports/posting; see
-   [provisioning](docs/PRODUCTION_PROVISIONING.md). No default administrator exists.
-7. Run `npm run dev` and open http://127.0.0.1:5174.
-
-For local production previews only, set `AUTH_LOGIN_IP_SOURCE=loopback` and bind
-to 127.0.0.1. Hosted production requires HTTPS and trusted Vercel edge headers.
-Database, MFA and Redis credentials never use `NEXT_PUBLIC_` variables.
-
-Missing credentials produce a connection-unavailable screen with sign-in disabled.
-An authenticated account without membership cannot enter any financial workspace.
+   You need at least one maker and a separate approver. See [docs/PRODUCTION_PROVISIONING.md](docs/PRODUCTION_PROVISIONING.md).
+7. `npm run dev`, then open http://127.0.0.1:5174.
 
 ## Checks
 
-```powershell
-npm run typecheck
-npm test
-npm run build
-npm run start
+```bash
+npm run typecheck && npm test && npm run build      # local, embedded PostgreSQL (PGlite)
+npm run test:postgres && npm run test:postgres:http  # real PostgreSQL; see migration guide
 ```
 
-Tests use disposable fixtures exclusively in an embedded PostgreSQL runtime,
-including RLS, direct-write denial, self-approval rejection, debit rejection,
-idempotency, stale allocations, revoked authority, atomic imports, and append-only
-records. They do not establish live managed PostgreSQL, Vercel, email, or ERP connectivity.
-The explicit `npm run test:postgres` suite additionally exercises real local
-PostgreSQL sessions, pooled identity isolation, atomic source archival and MFA.
-After building, `npm run test:postgres:http` tests Next.js auth over HTTP with
-a test-only Redis transport. See the migration guide for disposable database setup.
-The opt-in live Redis integration check uses isolated expiring keys:
-`node --env-file=.env.local --import tsx tests/login-limiter.integration.ts`.
-The recorded live check passed budgets, release and concurrency. This does not
-establish real user authentication or financial workflow verification.
+The test suite covers the following.
+- **Database controls:** RLS tenant isolation; the agent cannot approve, execute or
+  stage; policy auto-post refused when off, over the per-item limit, over the daily
+  limit or inexact; independent policy activation; countback DSO and CEI against
+  hand-computed fixtures; copilot privacy.
+- **Agent runtime:** an end-to-end agent run on embedded PostgreSQL with a scripted
+  model, checking claim-once, tool calls through RLS, policy posting, the recorded
+  step sequence, cost and session revocation.
+- **Supporting code:** the tool loop (input validation, refusals, turn cap), the
+  .xlsx reader round trip, and the existing auth, import and finance suites.
+
+Tests never call the live Claude API.
 
 ## Source files
 
-Invoice CSV headers:
-`number,account,customer,issued_at,due_date,amount,currency`
+| File | Headers |
+|---|---|
+| Invoice CSV | `number,account,customer,issued_at,due_date,amount,currency` |
+| Bank CSV | `reference,booked_at,direction,amount,currency` |
 
-Bank CSV headers:
-`reference,booked_at,direction,amount,currency`
+- Amounts must be exact positive decimals.
+- Dates must be ISO `YYYY-MM-DD`.
+- `currency` must be `AED`.
+- Bank `direction` is `credit` or `debit`. Debits never become receipts.
+- Import only entirely unpaid invoices. Opening balances that are partially paid need a reviewed migration.
 
-Use exact positive decimals, ISO dates, and currency `AED`. Bank direction is
-`credit` or `debit`; debits can never create incoming receipts. Import only
-**entirely unpaid** source-system invoices. Partially paid opening balances,
-credit notes, reversals, closed periods, and historical allocation migration
-require a separately reviewed migration rather than fabricated settlement.
+## What is not built
 
-## Deployment and material limitations
+These limits are deliberate. Read them before you sell or demo the product.
 
-This is a tested production foundation, not a claim that a live enterprise SaaS
-deployment has been validated. See `docs/RELEASE.md` for concrete release gates.
+- **No outbound email or SMS.** Collections messages are drafts only.
+- **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
+  statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
+- **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
+  and no TRN capture in the ledger yet.
+- **No credit limits or order holds.** The credit risk agent recommends holds for a
+  human decision.
+- **No statutory general ledger.** The cash-control journal only (bank → unapplied
+  cash → AR). No period locks, FX, write-offs or refunds.
+- **ECL is display-only for supplied runs.** There is no calibrated model.
+- **Not yet available:** SSO/OIDC, tenant self-signup, billing, Arabic UI.
+- **No external certifications or audits:** no SOC 2, ISO 27001 or penetration test
+  has been performed.
+- **Live verification pending:** the hosted deployment has not been tested with real
+  users. See [docs/RELEASE.md](docs/RELEASE.md) for what was verified locally versus live.
 
-- ECL workspaces display externally supplied preserved measurement runs. There is
-  no calibrated ECL engine, automatic allowance posting, or default loss-rate matrix.
-- DSO and CEI remain unavailable until governed sales and collection-period inputs
-  are connected. Cashflow reads approved `cashflow_runs` supplied by a trusted source
-  integration; see `docs/CASHFLOW_INPUTS.md`. Confidence is displayed only with an
-  approved percentage and methodology, never inferred from a mixed-unit delay/score.
-- Agent workspaces run durable source-based analysis and display external domain
-  activity separately. No LLM service, external worker scheduler, customer-message
-  sender, or ERP/bank adapter is connected.
-- The cash-control journal records equal debit/credit amounts per posting. It is
-  not a full statutory GL: period locks, tax, FX, write-offs, refunds, credit-limit
-  amendments, reversals, and ERP journal export remain outside supported commands.
-- Invoice imports register source-system receivables; they do not recognize revenue.
-- Audit records resist application updates/deletes. Database administrators can
-  still alter the database; an external immutable archive and recovery controls
-  are required before making a tamper-proof audit claim.
-- Input is controlled CSV. The unsafe permissive XLSX upload parser and fabricated
-  PDF/proof/SLA generators were removed. XLSX **export** remains available.
-- Hosted MFA qualification, billing, multi-currency, retention, performance,
-  and disaster recovery require deployment-specific implementation and evidence.
+## Docs
 
-Vercel uses the Next.js preset and the server-only variables in `.env.example`.
-Never deploy the migration-owner connection. Inter, Sora and JetBrains Mono are
-bundled through Next.js font handling. Google/Microsoft provider callbacks are
-retired; this deployment supports invited email/password and TOTP. New OIDC login
-requires a separate implementation. No hosted data was migrated by this source change.
+| Document | Purpose |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, agent runtime, data flow, control model |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Commercial roadmap for the UAE market, slices 2-4 |
+| [docs/RELEASE.md](docs/RELEASE.md) | Release log: tested locally vs verified live |
+| [docs/REPO_CONSOLIDATION.md](docs/REPO_CONSOLIDATION.md) | What was ported from the retired AR repos and what to delete |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model and controls |
+| [AGENTS.md](AGENTS.md), [DESIGN.md](DESIGN.md), [STYLEGUIDE.md](STYLEGUIDE.md) | Engineering rules, product contract, visual system |
 
-See [migration and rollback](docs/POSTGRESQL_MIGRATION.md) before moving existing
-users, financial records or private CSV originals. Preserve user UUIDs, exact
-balances, approvals, digests and MFA; do not replay settled invoices as fresh imports.
+Historical documents are in `docs/archive/`.
 
 ## Maintainer
 

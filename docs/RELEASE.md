@@ -1,3 +1,52 @@
+## Agent runtime, copilot and AR pack — 2026-10-15
+
+**Built:**
+- Claude tool-use agents (cash application, collections, credit risk, reporting),
+  each running under a per-tenant agent identity with run-bound sessions.
+- Live Agent Console: an SSE tail of append-only `agent_steps`, plus run history,
+  cost, daily schedules through Vercel Cron, and an auto-execution policy.
+  - The policy is off by default.
+  - An admin proposes it and a different approver activates it.
+  - It posts only exact matches within per-item and daily AED limits.
+- Copilot with streamed answers, scoped tools and CSV/.xlsx analysis.
+- AR pack with countback DSO, 30-day CEI and a multi-sheet .xlsx export.
+- The overview DSO and CEI cards now show computed values.
+
+New migration: `202610150001_agent_runtime.sql`. It is forward-only and leaves
+earlier migrations unchanged.
+
+New dependency: `@anthropic-ai/sdk` 0.134.0.
+
+**Removed:**
+- `review-source.zip`.
+- The retired OAuth stub routes.
+- The unused `downloadWorkbook`.
+- The deterministic agent-job UI. Its SQL tables and functions remain for history,
+  but they are no longer called.
+- The stale Supabase skill. Its RLS auditor moved to `scripts/db-audit.sql`.
+
+Historical documents moved to `docs/archive/`.
+
+**Tested locally:**
+- Strict TypeScript, the full unit and embedded-PostgreSQL suite, and a production build.
+- New database tests:
+  - The agent role cannot approve, execute or stage.
+  - Auto-posting is refused when the policy is off, over a limit or inexact, and
+    the policy must be activated by an independent approver.
+  - The schedule fan-out runs once per day.
+  - DSO and CEI match fixture arithmetic.
+  - Copilot conversations are private to their owner.
+- An end-to-end agent run with a scripted model (claim-once, tools through RLS,
+  policy posting, recorded step order, cost, session revocation).
+- The .xlsx reader round trip.
+
+**Not verified live:**
+- No call to the live Claude API was made from this environment.
+- The hosted Vercel and PostgreSQL deployment has not been migrated or exercised.
+  Before claiming it is active, set `ANTHROPIC_API_KEY` and `CRON_SECRET`, run
+  `npm run db:migrate` against the target, then run one manual agent run and one
+  copilot question as real users.
+
 ## Dashboard statistics — 2026-10-15
 
 Added an explicit server refresh that preserves tenant, entity, workspace and page.
