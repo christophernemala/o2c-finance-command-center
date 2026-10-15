@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { Layers3, ShieldCheck } from "lucide-react";
 
@@ -12,6 +13,6 @@ export function AuthShell({ children }: { children: ReactNode }) {
       </div>
       <p className="relative hidden text-xs text-muted lg:block">Finance operations with a clear audit trail — Built for finance teams</p>
     </section>
-    <section className="flex flex-col bg-canvas px-4 py-6 sm:px-10 lg:px-12 lg:py-10"><div className="auth-card mx-auto my-auto w-full max-w-md px-6 py-8 sm:p-10">{children}</div><p className="mt-6 text-center text-xs text-muted">Finance operations with a clear audit trail.</p></section>
+    <section className="flex flex-col bg-canvas px-4 py-6 sm:px-10 lg:px-12 lg:py-10"><div className="auth-card mx-auto my-auto w-full max-w-md px-6 py-8 sm:p-10">{children}</div><p className="mt-6 text-center text-xs text-muted">Finance operations with a clear audit trail. · <Link href="/privacy" className="underline underline-offset-2">Privacy</Link></p></section>
   </main>;
 }

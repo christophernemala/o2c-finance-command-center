@@ -11,6 +11,15 @@ import { Reports } from "@/components/reports";
 import { aiConfig } from "@/lib/ai/config";
 import { validateArPack } from "@/lib/ar-pack";
 export const dynamic = "force-dynamic";
+const viewTitles: Record<Workspace, string> = {
+  overview: "Overview", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
+  reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
+  ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
+};
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const view = (await searchParams).view;
+  return { title: workspaces.includes(view as Workspace) ? viewTitles[view as Workspace] : "Overview" };
+}
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string,string | string[] | undefined>> }) {
   if (!postgresConfig()) redirect("/login");

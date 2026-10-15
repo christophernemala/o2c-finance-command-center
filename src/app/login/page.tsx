@@ -9,6 +9,7 @@ import { loginLimiterConfig } from "@/lib/login-limiter";
 import { LoginForm } from "@/components/login-form";
 import { authenticationAssurance } from "@/lib/auth-flow";
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Sign in" };
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
   const settings = postgresConfig(); const params = await searchParams;
   const available = !!settings && !!encryptionKey() && !!loginLimiterConfig();

@@ -7,6 +7,7 @@ import { authSiteOrigin } from "@/lib/auth-flow";
 import { encryptionKey } from "@/lib/auth/crypto";
 import { loginLimiterConfig } from "@/lib/login-limiter";
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Activate account" };
 export default async function Signup({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams; const settings = postgresConfig();
   const available = !!settings && !!encryptionKey() && !!loginLimiterConfig() && !!authSiteOrigin();

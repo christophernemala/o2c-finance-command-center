@@ -5,6 +5,7 @@ import { authenticationAssurance } from "@/lib/auth-flow";
 import { AuthShell } from "@/components/auth-shell";
 import { MutationForm } from "@/components/mutation-form";
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Account security" };
 export default async function Security({ searchParams }: { searchParams: Promise<{ error?: string; message?: string }> }) {
   const client = await createClient(); const { data: { user }, error } = await client.auth.getUser();
   if (error || !user || user.purpose !== "login") redirect("/login");
