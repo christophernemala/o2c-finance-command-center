@@ -61,3 +61,11 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .skip { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-160%); }
 .skip:focus { transform: translateY(0); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* Agent activity */
+.step { display: flex; align-items: flex-start; gap: 10px; }
+.step > svg { margin-top: 3px; flex: none; }
+.pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent-teal); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+.chat-bubble { max-width: min(760px, 100%); border-radius: 18px; padding: 14px 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-bubble.user { margin-inline-start: auto; background: var(--primary); color: var(--surface); }
+.chat-bubble.assistant { background: var(--surface); border: 1px solid var(--border); }
