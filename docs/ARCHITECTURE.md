@@ -82,7 +82,7 @@ Posting without a human checker requires **all** of the following:
   by a different approver or admin.
 - `auto_execute = true`.
 - The amount is no more than `per_item_limit`.
-- Policy-posted amounts for today (Asia/Dubai), plus this amount, are no more than
+- Policy-posted amounts for today (Asia/Dubai, counted by journal posting date), plus this amount, are no more than
   `daily_limit`. The policy row is locked, so concurrent runs cannot both slip under the cap.
 - An exact match. For receipts: the bank reference equals an undisputed invoice
   number of the same customer, and the amount equals that invoice's open balance.

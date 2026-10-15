@@ -27,6 +27,7 @@ enforced in PostgreSQL and tested. UI-only is not done.
   Confirm the current Ministry of Finance / FTA mandate dates before committing to customers.
 
 ## Slice 4: commercial SaaS
+- PDPL and data-processing review; finalise the privacy policy wording (draft page exists)
 - Tenant self-onboarding, subscription billing, usage metering (AI cost per tenant is already recorded)
 - SSO (Entra ID, Google Workspace), SCIM
 - Arabic UI and bilingual documents. Layouts already use logical properties.

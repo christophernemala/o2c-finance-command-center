@@ -129,12 +129,17 @@ These limits are deliberate. Read them before you sell or demo the product.
 
 | Document | Purpose |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, agent runtime, data flow, control model |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Commercial roadmap for the UAE market, slices 2-4 |
+| [docs/PRD.md](docs/PRD.md) | Product requirements: goal, users, features, success metrics |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical spec: system design, agent runtime, control model |
+| [docs/APP_FLOW.md](docs/APP_FLOW.md) | Screen map and user journeys |
+| [DESIGN.md](DESIGN.md), [STYLEGUIDE.md](STYLEGUIDE.md) | Product screen contract and visual system |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | Database schema, generated from the migrations (`npm run docs:schema`) |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Implementation plan: slices 2-4 |
+| [docs/TRACKER.md](docs/TRACKER.md) | Done / in progress / blocked |
+| [AGENTS.md](AGENTS.md) | Coding rules for people and AI agents |
 | [docs/RELEASE.md](docs/RELEASE.md) | Release log: tested locally vs verified live |
-| [docs/REPO_CONSOLIDATION.md](docs/REPO_CONSOLIDATION.md) | What was ported from the retired AR repos and what to delete |
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model and controls |
-| [AGENTS.md](AGENTS.md), [DESIGN.md](DESIGN.md), [STYLEGUIDE.md](STYLEGUIDE.md) | Engineering rules, product contract, visual system |
+| [docs/REPO_CONSOLIDATION.md](docs/REPO_CONSOLIDATION.md) | What was ported from the retired AR repos |
 
 Historical documents are in `docs/archive/`.
 

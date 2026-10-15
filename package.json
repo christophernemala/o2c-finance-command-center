@@ -14,7 +14,8 @@
     "audit:cloud": "node --env-file-if-exists=.env.cloud.local --import tsx scripts/audit-cloud.ts",
     "auth:invite": "node --env-file-if-exists=.env.local --import tsx scripts/invite.ts",
     "test:postgres": "node --env-file-if-exists=.env.local --import tsx --test tests/postgres.integration.ts",
-    "test:postgres:http": "node --env-file-if-exists=.env.local --import tsx --test tests/postgres-http.integration.ts"
+    "test:postgres:http": "node --env-file-if-exists=.env.local --import tsx --test tests/postgres-http.integration.ts",
+    "docs:schema": "tsx scripts/schema-doc.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.134.0",
