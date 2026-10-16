@@ -37,6 +37,8 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] Liquid white/iOS-blue workspace: glass chrome, native interactive charts with Framer Motion, customer segment visuals, forecast week selection, searchable/sortable collections workbench and explicit action labels. Verified locally with 142 tests, TypeScript, build and dependency audit; browser visual sign-off remains pending.
 
+- [x] CI font-build repair: bundle the existing typefaces with `next/font/local`, source digests and licenses. Local verification passed all 142 tests and a build with Google font loading blocked.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

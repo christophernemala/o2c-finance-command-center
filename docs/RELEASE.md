@@ -1,3 +1,19 @@
+## Reproducible font builds — 2026-10-16
+
+The push workflow at commit `68806d5` failed in Turbopack's generated Space Grotesk
+Google font asset imports (`next/font/google queries have exactly one entry`).
+The PR workflow for the same commit passed; this was not a finance-test failure.
+
+The application now uses `next/font/local` with bundled Latin variable WOFF2 files
+for the same Geist, Space Grotesk and JetBrains Mono families. Source package
+versions, SHA-256 digests and the SIL Open Font Licenses are included in
+`src/app/fonts/`. No new runtime dependency, workflow bypass or retry was added.
+
+A build with Google font loading explicitly blocked failed before the change.
+With the same block enabled, `npm run verify` passed TypeScript, all 142 tests
+and the production build after the fix. GitHub verification is recorded separately;
+this source check does not establish signed-in visual or live-provider verification.
+
 ## Liquid white interactive finance workspace — 2026-10-16
 
 The owner's iOS-inspired white/blue direction replaces teal. Navigation and scope
