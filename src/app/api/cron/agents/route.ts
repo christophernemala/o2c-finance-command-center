@@ -5,7 +5,7 @@ import { executeRun } from "@/lib/ai/runner";
 import { aiDependencies } from "@/lib/ai/server";
 import { dubaiDate } from "@/lib/ai/config";
 import { deliverApproved } from "@/lib/collections/send";
-import { emailSender } from "@/lib/email/server";
+import { collectionSenders } from "@/lib/messaging/server";
 export const maxDuration = 300;
 function authorized(header: string | null) {
   const secret = process.env.CRON_SECRET;
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     // Stuck runs produce no finish call, so the sweep is what catches them.
     const incidents = await agentControl(deps.pool).detectIncidents();
     // Retry approved collections emails that were not sent right after approval.
-    const outbox = await deliverApproved(deps.pool, emailSender(), 25);
+    const outbox = await deliverApproved(deps.pool, collectionSenders(), 25);
     return Response.json({ queued: queued.length, executed: executed.length, remaining: queued.length - executed.length, incidents, outbox }, { headers: { "Cache-Control": "no-store" } });
   } catch { return Response.json({ error: "Scheduler unavailable" }, { status: 503 }); }
 }

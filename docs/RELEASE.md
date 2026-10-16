@@ -1,3 +1,27 @@
+## Twilio SMS and WhatsApp — 2026-10-16
+
+Added migration `202610160008_messaging.sql`, Twilio adapters, configured-channel
+outbox claims and Collections contact/message forms. Independent human approval,
+snapshotted recipients, current consent and ledger evidence are enforced in SQL.
+Phone sends are never automatically retried, including after an expired worker claim.
+Uncertain outcomes require reconciliation in Twilio before a new proposal.
+
+Configure server-only `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and either
+`TWILIO_SMS_FROM` (E.164) or `TWILIO_WHATSAPP_FROM` (`whatsapp:+...`). Apply the
+migration before deploying this source. Missing channel settings leave messages queued.
+
+WhatsApp supports free-text replies within an active 24-hour service window only;
+proactive approved templates are not implemented. Statements remain email-only.
+Provider acceptance is recorded with its SID; delivery receipts and inbound opt-out
+webhooks are not implemented. Remove contacts to withdraw permission and queued
+messages. Already claimed messages cannot be recalled.
+
+Local verification: `npm run verify` passed strict TypeScript, all 138 tests and
+the production build. Tests include Twilio request/error handling, channel routing,
+consent and approval checks, audit recipients, worker-crash recovery and the UI.
+No hosted migration,
+Vercel deployment, live Twilio send or live delivery verification has been performed.
+
 ## Credit and debit notes — 2026-10-16
 
 **Added:**

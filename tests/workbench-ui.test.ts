@@ -46,3 +46,15 @@ test("daily pack keeps amounts as decimal strings and rejects malformed rows", (
   assert.deepEqual(withSegments["By category"][0], { Category: "Unassigned", Customers: "1", "Open AED": "99.50", "Current AED": "0.00", "1-30 AED": "99.50", "31-60 AED": "0.00", "61-90 AED": "0.00", "90+ AED": "0.00", "Disputed AED": "0.00", "Share %": "100.00" });
   assert.throws(() => validateDailyPack({ ...pack, byRegion: { ...byCategory, total: { ...byCategory.total, open: 99.5 } } }), /Invalid/);
 });
+
+test("collections offers phone outreach only with channel consent and shows actual channel and provider acceptance", () => {
+  const phoneAccount: CustomerAccount = { ...account,
+    contacts: [{ id: "k1", name: "Reem", email: "ar@example.com", role: "ar", is_primary: true, phone: "+971501234567", sms_opt_in: true, whatsapp_opt_in: false }],
+    invoices: [{ id: "i1", number: "INV-1", issued_at: "2026-01-01", due_date: "2026-02-01", gross: "1200.50", open: "1200.50", days_overdue: 100, dispute: "none" }],
+    messages: [{ id: "m1", tone: "firm", channel: "sms", subject: "Reminder", body: "Approved reminder for payment", to: "+971501234567", total_overdue: "1200.50", invoice_ids: ["i1"], attach_statement: false, status: "sent", maker: "u1", checker: "u2", agent_run_id: null, error: null, created_at: "2026-10-16T10:00:00Z", sent_at: "2026-10-16T10:01:00Z", provider_id: `SM${"b".repeat(32)}` }],
+  };
+  const html = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "maker" } as Snapshot, account: phoneAccount }));
+  assert.match(html, /Propose SMS/); assert.doesNotMatch(html, /Propose WhatsApp/);
+  assert.match(html, /Accepted by provider/); assert.match(html, /SMS/); assert.match(html, /name="phone"/);
+  assert.match(html, /Consent evidence/);
+});

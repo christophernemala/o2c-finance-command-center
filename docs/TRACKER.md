@@ -33,14 +33,16 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] Credit and debit notes: propose (maker, admin, or agent for small short payments), independent human approval, separate posting; credit notes as non-cash allocations, debit notes as receivables; short-payment list; guardrails enforced in SQL.
 
+- [x] SMS and WhatsApp replies through Twilio on the human-approved outbox: recorded channel consent, snapshotted phone recipients, channel-aware claims, no automatic phone retries, provider references and Collections forms. Local verification passed 138 tests, typecheck and build. WhatsApp replies require an active 24-hour service window; proactive templates remain future work.
+
 ## In progress
 
-- [ ] SMS / WhatsApp outreach through Twilio, on the same human-approved outbox.
+- None. Hosted verification remains blocked below.
 
 ## Blocked or waiting on the owner
 
 - [ ] **Privacy policy legal wording.** The page is a marked draft.
-- [ ] **Live verification.** Set `ANTHROPIC_API_KEY`, `CRON_SECRET`, `RESEND_API_KEY` and `COLLECTIONS_FROM` (verified domain), run `npm run db:migrate`, then do one agent run, one copilot question and one approved test email.
+- [ ] **Live verification.** Set `ANTHROPIC_API_KEY`, `CRON_SECRET`, `RESEND_API_KEY` and `COLLECTIONS_FROM` (verified domain), set Twilio channel credentials for phone outreach, run `npm run db:migrate`, then do one agent run, one copilot question and one approved test email.
 - [ ] **Repository settings.** Make `codex/light-finance-workspace` the default branch.
 - [ ] **Delete the retired repositories** (`o2c-orchestration-saas`, `o2c-orchestration-platform`).
 - [ ] **Figma.** Needs an Editor seat to build the design system in Figma.

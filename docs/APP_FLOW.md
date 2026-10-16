@@ -33,7 +33,7 @@ Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each
 
 ## Journeys in slice 2
 
-7. **Morning collections.** The collections agent ranks overdue customers and drafts messages. A controller reviews and submits a draft to the outbox, and a manager approves and sends it through Resend.
+7. **Morning collections.** The collections agent ranks overdue customers and drafts messages. A controller reviews and submits a draft to the outbox, and a manager approves it before the platform submits it through Resend. Controllers can also propose SMS or WhatsApp replies to contacts with recorded channel consent; these use the same independent approval flow and Twilio sender.
 8. **Promises and disputes.** A promise to pay is logged on an invoice, and a broken promise raises a flag. A dispute removes the invoice from dunning and auto-match until it is resolved.
 9. **Credit holds and limits.** An agent or maker places a hold, and only an approver can release it. Limit changes need maker/checker approval.
 10. **Statement of account.** On the customer page, generate the PDF statement and download it or attach it to an email.

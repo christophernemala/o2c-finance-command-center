@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 16 · public tables: 36 · tables with RLS: 36
+Migrations: 17 · public tables: 36 · tables with RLS: 36
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -339,6 +339,8 @@ References: agent_runs, customer_contacts, customers, entities, users
 | decided_at | timestamp with time zone | yes |
 | sending_at | timestamp with time zone | yes |
 | sent_at | timestamp with time zone | yes |
+| channel | text | no |
+| to_phone | text | yes |
 
 ## copilot_files
 
@@ -423,6 +425,10 @@ References: customers, entities, users
 | archived | boolean | no |
 | created_by | uuid | no |
 | created_at | timestamp with time zone | no |
+| phone | text | yes |
+| sms_opt_in | boolean | no |
+| whatsapp_opt_in | boolean | no |
+| consent_note | text | yes |
 
 ## customer_holds
 

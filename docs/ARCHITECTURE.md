@@ -250,3 +250,27 @@ auto-post an exact match that it could have posted legitimately anyway.
 The platform never generates customers, invoices, balances, TRNs, forecasts or ECL
 rates. Empty data stays empty. A missing AI key is shown as "not configured" and is
 never simulated.
+
+### Collections phone channels
+
+Migration `202610160008_messaging.sql` adds phone numbers, channel opt-ins and consent
+references to contacts, and channel plus a snapshotted recipient to messages. Removing
+a contact withdraws pending/approved messages. The database checks current contact
+permission, recipient and invoice evidence at approval and claim. One open message
+per customer still applies across all channels. Existing proposals default to email;
+the agent's email-only tool is unchanged.
+
+`collectionSenders()` supplies configured Resend, Twilio SMS and Twilio WhatsApp
+adapters to the same worker. Claims filter by configured channels, so missing phone
+credentials cannot drain the queue. The Twilio adapter makes one bounded POST,
+never follows redirects, and records its Message SID. `sent` means provider
+acceptance, not a delivery receipt. Phone failures and expired claims are terminal;
+operators must reconcile with Twilio before creating a new proposal. This avoids
+automatic duplicates when a request succeeded but the response or completion was lost.
+Email retains its existing idempotency-key retries.
+
+Phone text is limited to 1600 characters; PDF statements remain email attachments.
+WhatsApp free-text replies require an active 24-hour customer-service window, which
+Twilio enforces. Approved WhatsApp templates, inbound messages, opt-out webhooks and
+delivery-status webhooks are not implemented. Operators must record withdrawal by
+removing the contact; removal cannot recall a message already claimed or accepted.

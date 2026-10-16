@@ -31,9 +31,9 @@ const routines = {
   agent_guardrails_active: ["p_tenant", "p_entity", "p_agent_kind"], agent_guardrails_list: ["p_tenant", "p_entity"],
   agent_incidents_list: ["p_tenant", "p_entity", "p_status"], agent_ops_overview: ["p_tenant", "p_entity", "p_hours"],
   agent_edges: ["p_tenant", "p_entity", "p_hours"], edge_failures: ["p_tenant", "p_entity", "p_agent_kind", "p_tool", "p_hours"],
-  add_customer_contact: ["p_tenant", "p_entity", "p_id", "p_customer", "p_name", "p_email", "p_role", "p_primary"],
+  add_customer_contact: ["p_tenant", "p_entity", "p_id", "p_customer", "p_name", "p_email", "p_role", "p_primary", "p_phone", "p_sms", "p_whatsapp", "p_consent"],
   archive_customer_contact: ["p_tenant", "p_entity", "p_id"],
-  propose_collection_message: ["p_tenant", "p_entity", "p_id", "p_customer", "p_contact", "p_tone", "p_subject", "p_body", "p_invoices", "p_attach"],
+  propose_collection_message: ["p_tenant", "p_entity", "p_id", "p_customer", "p_contact", "p_tone", "p_subject", "p_body", "p_invoices", "p_attach", "p_channel"],
   decide_collection_message: ["p_tenant", "p_entity", "p_id", "p_decision"],
   record_payment_promise: ["p_tenant", "p_entity", "p_id", "p_customer", "p_invoice", "p_amount", "p_date", "p_note"],
   resolve_payment_promise: ["p_tenant", "p_entity", "p_id", "p_status", "p_reason"],
@@ -99,8 +99,8 @@ export function agentControl(pool: SqlPool) {
     async claim(run: string, sessionHash: string) {
       return transaction(pool, async connection => (await connection.query<{ value: ClaimedRun | null }>("select o2c_private.claim_agent_run($1,$2) as value", [run, sessionHash])).rows[0]?.value ?? null);
     },
-    async claimMessages(limit: number) {
-      return transaction(pool, async connection => (await connection.query<{ value: ClaimedMessage[] }>("select o2c_private.claim_collection_messages($1) as value", [limit])).rows[0]?.value ?? []);
+    async claimMessages(limit: number, channels: string[] = ["email"]) {
+      return transaction(pool, async connection => (await connection.query<{ value: ClaimedMessage[] }>("select o2c_private.claim_collection_messages($1,$2::text[]) as value", [limit, channels])).rows[0]?.value ?? []);
     },
     async completeMessage(id: string, attempt: number, ok: boolean, providerId: string | null, error: string | null) {
       return transaction(pool, async connection => (await connection.query<{ value: string }>("select o2c_private.complete_collection_message($1,$2,$3,$4,$5) as value", [id, attempt, ok, providerId, error])).rows[0]?.value);
@@ -117,5 +117,5 @@ export function agentControl(pool: SqlPool) {
   };
 }
 export interface ClaimedRun { id: string; tenant_id: string; entity_id: string; kind: AgentKind; as_of: string; trigger: "manual" | "schedule"; agent_user: string }
-export interface ClaimedMessage { id: string; tenant_id: string; entity_id: string; customer_id: string; to: string; subject: string; body: string; attach_statement: boolean; attempts: number; customer: string; account: string }
+export interface ClaimedMessage { channel: "email" | "sms" | "whatsapp"; id: string; tenant_id: string; entity_id: string; customer_id: string; to: string; subject: string; body: string; attach_statement: boolean; attempts: number; customer: string; account: string }
 export type AgentKind = "collections" | "cash_application" | "credit_risk" | "reporting";

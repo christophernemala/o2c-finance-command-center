@@ -5,17 +5,18 @@ import { apiLimit } from "@/lib/api-limiter";
 import { access } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { deliverApproved } from "@/lib/collections/send";
-import { emailSender } from "@/lib/email/server";
+import { collectionSenders } from "@/lib/messaging/server";
 import { databasePool } from "@/lib/postgres/pool";
 import { remarkChannels, remarkReasons } from "@/types/collections";
 const decimal = z.string().regex(/^(0|[1-9]\d{0,12})(\.\d{1,2})?$/);
 const scope = { tenant: z.uuid(), entity: z.uuid() };
 const input = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("contact_add"), ...scope, id: z.uuid(), customer: z.uuid(), name: z.string().trim().min(1).max(120), email: z.email().max(254),
+    phone: z.union([z.string().regex(/^\+[1-9]\d{7,14}$/), z.literal("")]).optional(), sms: z.literal("on").optional(), whatsapp: z.literal("on").optional(), consent: z.string().trim().max(500).optional(),
     role: z.enum(["ar", "ap", "finance", "other"]), primary: z.enum(["on"]).optional() }),
   z.object({ intent: z.literal("contact_archive"), ...scope, id: z.uuid(), customer: z.uuid() }),
   z.object({ intent: z.literal("message_propose"), ...scope, id: z.uuid(), customer: z.uuid(), contact: z.uuid(), tone: z.enum(["reminder", "firm", "final_notice"]),
-    subject: z.string().trim().min(3).max(200), body: z.string().trim().min(20).max(4000), invoices: z.string().max(1200), attach: z.enum(["on"]).optional() }),
+    channel: z.enum(["email", "sms", "whatsapp"]).default("email"), subject: z.string().trim().min(3).max(200), body: z.string().trim().min(20).max(4000), invoices: z.string().max(1200), attach: z.enum(["on"]).optional() }),
   z.object({ intent: z.literal("message_decide"), ...scope, id: z.uuid(), customer: z.uuid(), decision: z.enum(["approved", "rejected"]) }),
   z.object({ intent: z.literal("promise_record"), ...scope, id: z.uuid(), customer: z.uuid(), invoice: z.union([z.uuid(), z.literal("")]), amount: decimal,
     date: z.iso.date(), note: z.string().max(500).optional() }),
@@ -43,15 +44,15 @@ export async function POST(request: NextRequest) {
     destination.searchParams.set("tenant", data.tenant); destination.searchParams.set("entity", data.entity); destination.searchParams.set("customer", data.customer);
     const limited = await apiLimit(auth.user.id, "commands"); if (limited) return limited;
     let result: { error: { message: string } | null };
-    if (data.intent === "contact_add") result = await auth.client.rpc("add_customer_contact", { ...s, p_id: data.id, p_customer: data.customer, p_name: data.name, p_email: data.email, p_role: data.role, p_primary: data.primary === "on" });
+    if (data.intent === "contact_add") result = await auth.client.rpc("add_customer_contact", { ...s, p_id: data.id, p_customer: data.customer, p_name: data.name, p_email: data.email, p_role: data.role, p_primary: data.primary === "on", p_phone: data.phone || null, p_sms: data.sms === "on", p_whatsapp: data.whatsapp === "on", p_consent: data.consent || null });
     else if (data.intent === "contact_archive") result = await auth.client.rpc("archive_customer_contact", { ...s, p_id: data.id });
     else if (data.intent === "message_propose") {
       const invoices = uuidList(data.invoices); if (!invoices?.length) throw new Error("Invalid request");
-      result = await auth.client.rpc("propose_collection_message", { ...s, p_id: data.id, p_customer: data.customer, p_contact: data.contact, p_tone: data.tone, p_subject: data.subject, p_body: data.body, p_invoices: invoices, p_attach: data.attach === "on" });
+      result = await auth.client.rpc("propose_collection_message", { ...s, p_id: data.id, p_customer: data.customer, p_contact: data.contact, p_tone: data.tone, p_subject: data.subject, p_body: data.body, p_invoices: invoices, p_attach: data.attach === "on", p_channel: data.channel });
     } else if (data.intent === "message_decide") {
       result = await auth.client.rpc("decide_collection_message", { ...s, p_id: data.id, p_decision: data.decision });
-      // Approval and sending are separate steps; delivery runs after the response, and the cron retries.
-      if (!result.error && data.decision === "approved") after(async () => { await deliverApproved(databasePool(), emailSender()).catch(() => {}); });
+      // Approval and sending are separate steps; delivery runs after the response, and cron also processes the queue.
+      if (!result.error && data.decision === "approved") after(async () => { await deliverApproved(databasePool(), collectionSenders()).catch(() => {}); });
     } else if (data.intent === "promise_record") result = await auth.client.rpc("record_payment_promise", { ...s, p_id: data.id, p_customer: data.customer, p_invoice: data.invoice || null, p_amount: data.amount, p_date: data.date, p_note: data.note || null });
     else if (data.intent === "promise_resolve") result = await auth.client.rpc("resolve_payment_promise", { ...s, p_id: data.id, p_status: data.status, p_reason: data.reason });
     else if (data.intent === "limit_propose") result = await auth.client.rpc("propose_credit_limit", { ...s, p_id: data.id, p_customer: data.customer, p_limit: data.limit, p_reason: data.reason });

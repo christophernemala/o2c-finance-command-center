@@ -1,3 +1,4 @@
+import { twilioConfig } from "@/lib/messaging/twilio";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { access, entities, snapshot } from "@/lib/workspace";
@@ -78,7 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     const customer = typeof params.customer === "string" && uuid.test(params.customer) ? params.customer : rows[0]?.customer_id;
     const [detail, remarks] = customer ? await Promise.all([auth.client.rpc("customer_account", { ...scope, p_customer: customer, p_as_of: asOf }),
       auth.client.rpc("customer_remarks_list", { ...scope, p_customer: customer })]) : [null, null];
-    if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} userId={auth.user.id}
+    if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} smsReady={twilioConfig(process.env, "sms") !== null} whatsappReady={twilioConfig(process.env, "whatsapp") !== null} userId={auth.user.id}
       callList={callList.error ? [] : callList.data as CallListRow[]} followUps={followUps.error ? [] : followUps.data as FollowUp[]} allFollowUps={allFollowUps}
       licences={licences.error ? [] : licences.data as LicenceAlert[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
   }

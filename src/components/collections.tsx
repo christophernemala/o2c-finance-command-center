@@ -14,14 +14,15 @@ export const reasonLabel = { promised: "Promised to pay", payment_sent: "Says pa
   no_answer: "No answer", wrong_contact: "Wrong contact", escalated: "Escalated", other: "Other" } as const;
 const channelLabel = { call: "Call", email: "Email", meeting: "Meeting", sms: "SMS", whatsapp: "WhatsApp", other: "Other" } as const;
 
-export function CollectionsView({ data, worklist, account, emailReady, userId, callList, followUps, allFollowUps, licences, remarks }: { data: Snapshot; worklist: WorklistRow[];
-  account: CustomerAccount | null; emailReady: boolean; userId: string; callList: CallListRow[]; followUps: FollowUp[]; allFollowUps: boolean; licences: LicenceAlert[]; remarks: CustomerRemarks | null }) {
+export function CollectionsView({ data, worklist, account, emailReady, smsReady = false, whatsappReady = false, userId, callList, followUps, allFollowUps, licences, remarks }: { data: Snapshot; worklist: WorklistRow[];
+  account: CustomerAccount | null; emailReady: boolean; smsReady?: boolean; whatsappReady?: boolean; userId: string; callList: CallListRow[]; followUps: FollowUp[]; allFollowUps: boolean; licences: LicenceAlert[]; remarks: CustomerRemarks | null }) {
   const href = (customer: string) => `/?${new URLSearchParams({ view: "collections", tenant: data.tenant_id, entity: data.entity_id, customer })}`;
   const followUpsHref = `/?${new URLSearchParams({ view: "collections", tenant: data.tenant_id, entity: data.entity_id, ...(allFollowUps ? {} : { followups: "all" }) })}`;
   const packHref = `/api/export?${new URLSearchParams({ report: "daily", tenant: data.tenant_id, entity: data.entity_id })}`;
   const totalText = addAmounts(worklist.map(row => row.overdue));
   return <div className="space-y-6">
-    {!emailReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Email sending not configured</p><p className="mt-1">Set <code>RESEND_API_KEY</code> and <code>COLLECTIONS_FROM</code> on the server. Until then, approved messages stay queued; nothing is sent or simulated.</p></div>}
+    {!emailReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Email sending not configured</p><p className="mt-1">Set <code>RESEND_API_KEY</code> and <code>COLLECTIONS_FROM</code> on the server. Until then, approved emails stay queued.</p></div>}
+    {(!smsReady || !whatsappReady) && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning">{!smsReady && "SMS sending is not configured. "}{!whatsappReady && "WhatsApp sending is not configured. "}Approved messages for these channels stay queued.</div>}
     <section aria-label="Collections summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi label="Overdue AR" value={<KpiAmount value={totalText}/>} note={`${worklist.length} customer${worklist.length === 1 ? "" : "s"}`}/>
       <Kpi label="Broken promises" value={worklist.reduce((sum, row) => sum + row.broken_promises, 0)}/>
@@ -120,22 +121,28 @@ function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; acc
 
       <section aria-labelledby="contacts-h"><h3 id="contacts-h" className="font-semibold">Contacts</h3>
         {account.contacts.length ? <ul className="mt-2 space-y-2">{account.contacts.map(contact => <li key={contact.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line p-3">
-          <div><p className="font-medium">{contact.name} {contact.is_primary && <Badge value="info" label="Primary"/>}</p><p className="text-xs text-muted">{contact.email} · {contact.role.toUpperCase()}</p></div>
+          <div><p className="font-medium">{contact.name} {contact.is_primary && <Badge value="info" label="Primary"/>}</p><p className="text-xs text-muted">{contact.email} · {contact.role.toUpperCase()}</p>{contact.phone && <p className="mt-1 text-xs text-muted">{contact.phone} · SMS {contact.sms_opt_in ? "opted in" : "not opted in"} · WhatsApp {contact.whatsapp_opt_in ? "opted in" : "not opted in"}</p>}</div>
           {maker && <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="contact_archive"/><input type="hidden" name="id" value={contact.id}/><button className="button secondary">Remove</button></MutationForm>}</li>)}</ul>
           : <p className="mt-1 text-muted">No contact on file. Emails cannot be proposed until one is added.</p>}
         {maker && <details className="mt-3"><summary className="cursor-pointer text-link">Add a contact</summary><MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="contact_add"/><input type="hidden" name="id" value={randomUUID()}/>
           <div className="grid gap-3 sm:grid-cols-2"><label>Name<input name="name" required maxLength={120}/></label><label>Email<input name="email" type="email" required maxLength={254}/></label></div>
+          <label>Phone (optional, international format)<input name="phone" type="tel" pattern="\+[1-9][0-9]{7,14}" maxLength={16} placeholder="+971501234567"/></label>
+          <div className="flex flex-wrap gap-4">{(["sms", "whatsapp"] as const).map(channel => <label key={channel} className="flex-row items-center gap-2"><input type="checkbox" name={channel} className="!min-h-0 !w-auto"/> Customer opted in to {channelLabel[channel]}</label>)}</div>
+          <label>Consent evidence<input name="consent" minLength={5} maxLength={500} placeholder="Customer request date and reference"/></label>
+          <p className="text-xs text-muted">Phone messaging requires recorded permission for that channel. Remove this contact to withdraw queued messages and stop future outreach.</p>
           <label>Role<select name="role" defaultValue="ar"><option value="ar">AR</option><option value="ap">AP</option><option value="finance">Finance</option><option value="other">Other</option></select></label>
           <label className="flex-row items-center gap-2"><input type="checkbox" name="primary" className="!min-h-0 !w-auto"/> Primary contact</label><button className="button secondary">Add contact</button></MutationForm></details>}
       </section>
 
-      <section aria-labelledby="messages-h"><div className="flex flex-wrap items-center justify-between gap-2"><h3 id="messages-h" className="font-semibold">Collections emails</h3><a className="text-link underline-offset-2 hover:underline" href={statementHref}>Download statement (PDF)</a></div>
+      <section aria-labelledby="messages-h"><div className="flex flex-wrap items-center justify-between gap-2"><h3 id="messages-h" className="font-semibold">Collections messages</h3><a className="text-link underline-offset-2 hover:underline" href={statementHref}>Download statement (PDF)</a></div>
         {account.messages.length ? <ul className="mt-2 space-y-2">{account.messages.map(message => <li key={message.id} className="rounded-lg border border-line p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{toneLabel[message.tone]} · <Money value={message.total_overdue}/></p>
-            <Badge value={message.status === "sent" ? "posted" : message.status === "failed" || message.status === "rejected" ? "failed" : "pending"} label={message.status === "approved" ? "approved, queued" : message.status}/></div>
-          <p className="mt-1 text-xs text-muted">To {message.to} · {message.agent_run_id ? "proposed by the collections agent" : "proposed by a team member"} · {when(message.created_at)}{message.sent_at ? ` · sent ${when(message.sent_at)}` : ""}{message.attach_statement ? " · statement attached" : ""}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{channelLabel[message.channel ?? "email"]} · {toneLabel[message.tone]} · <Money value={message.total_overdue}/></p>
+            <Badge value={message.status === "sent" ? "posted" : message.status === "failed" || message.status === "rejected" ? "failed" : "pending"} label={message.status === "approved" ? "approved, queued" : message.status === "sent" && message.channel && message.channel !== "email" ? "Accepted by provider" : message.status}/></div>
+          <p className="mt-1 text-xs text-muted">To {message.to} · {message.agent_run_id ? "proposed by the collections agent" : "proposed by a team member"} · {when(message.created_at)}{message.sent_at ? ` · submitted ${when(message.sent_at)}` : ""}{message.attach_statement ? " · statement attached" : ""}</p>
+          {message.provider_id && <p className="mt-1 break-all text-xs text-muted">Provider reference: {message.provider_id}</p>}
+          {message.channel && message.channel !== "email" && <p className="mt-1 text-xs text-muted">Provider acceptance does not confirm delivery. Reconcile uncertain outcomes before submitting another message.</p>}
           {message.error && <p className="mt-1 text-xs text-danger">{message.error}</p>}
-          <details className="mt-2"><summary className="cursor-pointer text-xs text-link">Show email</summary><p className="mt-2 font-medium">{message.subject}</p><p className="mt-1 whitespace-pre-wrap leading-6">{message.body}</p></details>
+          <details className="mt-2"><summary className="cursor-pointer text-xs text-link">Show message</summary><p className="mt-2 font-medium">{message.subject}</p><p className="mt-1 whitespace-pre-wrap leading-6">{message.body}</p></details>
           {message.status === "pending" && (checker && message.maker !== userId ? <div className="mt-3 flex gap-2">{(["approved", "rejected"] as const).map(decision => <MutationForm key={decision} action="/api/collections"><Scope/><input type="hidden" name="intent" value="message_decide"/><input type="hidden" name="id" value={message.id}/><input type="hidden" name="decision" value={decision}/><button className={decision === "approved" ? "button" : "button secondary"}>{decision === "approved" ? "Approve and send" : "Reject"}</button></MutationForm>)}</div>
             : <p className="mt-2 text-xs text-muted">Waiting for an approver other than the maker.</p>)}
         </li>)}</ul> : <p className="mt-1 text-muted">No messages yet.</p>}
@@ -147,6 +154,20 @@ function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; acc
           <label>Message<textarea name="body" required minLength={20} maxLength={4000} rows={9} defaultValue={draftBody}/></label>
           <label className="flex-row items-center gap-2"><input type="checkbox" name="attach" className="!min-h-0 !w-auto" defaultChecked={oldest > 30}/> Attach statement PDF</label>
           <button className="button">Submit for approval</button></MutationForm></details>}
+        {maker && overdue.length > 0 && (["sms", "whatsapp"] as const).map(channel => {
+          const contacts = account.contacts.filter(contact => contact.phone && (channel === "sms" ? contact.sms_opt_in : contact.whatsapp_opt_in));
+          return contacts.length > 0 && <details key={channel} className="mt-3"><summary className="cursor-pointer text-link">Propose {channelLabel[channel]}</summary>
+            <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="message_propose"/><input type="hidden" name="id" value={randomUUID()}/>
+              <input type="hidden" name="channel" value={channel}/><input type="hidden" name="invoices" value={overdue.map(invoice => invoice.id).join(",")}/>
+              <label>Contact<select name="contact">{contacts.map(contact => <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}</option>)}</select></label>
+              <input type="hidden" name="tone" value={toneFor(oldest)}/>
+              <label>Internal subject<input name="subject" required minLength={3} maxLength={200} defaultValue={`Overdue invoices: ${c.account}`}/></label>
+              <label>Message<textarea name="body" required minLength={20} maxLength={1600} rows={4} defaultValue={`Please arrange payment of ${formatAed(addAmounts(overdue.map(invoice => invoice.open)))} overdue on account ${c.account}. Please contact our accounts team with your payment details.`}/></label>
+              <p className="text-xs text-muted">An independent approver reviews the exact recipient and message before sending. Statements are available by email. Phone messages are never retried automatically.</p>
+              {channel === "whatsapp" && <p className="text-xs text-muted">Free-text WhatsApp replies require the customer to have messaged your business within the past 24 hours. Proactive template messages are not supported here.</p>}
+              <button className="button">Submit for approval</button>
+            </MutationForm></details>;
+        })}
       </section>
 
       <section aria-labelledby="promises-h"><h3 id="promises-h" className="font-semibold">Payment promises</h3>
