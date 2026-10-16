@@ -1,3 +1,16 @@
+## Navy and teal theme, Geist type — 2026-10-16
+
+**Changed:** the purple palette and the Inter/Sora fonts are gone.
+- Colours: deep ink navy for text and brand, with one teal action colour (`#11736A` light, `#3FB8A8` dark). The status colours are unchanged. Surfaces are flat, with 1px hairlines.
+- Fonts: Geist for interface text, Space Grotesk for page titles and KPI values, and JetBrains Mono for amounts. Tabular figures are always on for numbers.
+- Applied in three places: `STYLEGUIDE.md`, the app's tokens in `src/app/globals.css`, its fonts in `src/app/layout.tsx`, and the slice 2 prototype.
+
+**Contrast:** every text pair in light and dark passes WCAG AA, computed from the token values. The lowest pair is 4.95:1.
+
+**Tested locally:** `npm run typecheck` passed, `npm test` passed 79/79, and `npm run build` passed. The prototype rendered all 14 screens at 390px and 1440px, in light and dark, with and without reduced motion, with no horizontal overflow and no console errors (Chromium only).
+
+**Not verified live:** the restyled app pages have not been reviewed on Vercel or in a signed-in workspace. Component-level spacing and sizes in the app still follow the old scale until the B3 UI build.
+
 ## Security hardening and pre-launch fixes — 2026-10-16
 
 **Red-team findings fixed, each with a regression test that fails on the previous code:**

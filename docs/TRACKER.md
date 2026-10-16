@@ -23,7 +23,8 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 ## In progress
 
-- [ ] Slice 2 design: prototype v2 with polish pass (`docs/design/slice2-prototype.html`), published and render-checked; awaiting owner approval
+- [x] Theme and type reset: navy ink and teal action colour, Geist / Space Grotesk / JetBrains Mono (style guide, app tokens, prototype)
+- [ ] Slice 2 design: prototype v2 in the new theme (`docs/design/slice2-prototype.html`), published and render-checked; awaiting owner confirmation of palette and fonts
 
 ## Blocked or waiting on the owner
 

@@ -1,28 +1,31 @@
 <title>O2C Collections Prototype</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
 <style>
 /* Layout: white navigation rail + scoped workspace; worklist with a detail drawer; one unified approval inbox. */
 :root {
-  --canvas: #f6f7fb; --surface: #ffffff; --surface-muted: #f1f2f8; --ink: #202635; --muted: #626c80; --border: #e4e7ef;
-  --primary: #5654d6; --primary-hover: #4947bb; --primary-soft: #eeeeff; --on-primary: #ffffff; --teal: #147d73; --teal-soft: #e6f4f2;
+  --canvas: #f7f8fa; --surface: #ffffff; --surface-muted: #eef1f5; --ink: #0b1220; --brand: #0b1220; --muted: #566072; --border: #e3e7ed;
+  --primary: #11736a; --primary-hover: #0c5e57; --primary-soft: #e3f2f0; --on-primary: #ffffff; --teal: #11736a; --teal-soft: #e3f2f0;
+  --info: #1e3a5f; --info-soft: #e8edf4;
   --success: #146b50; --success-soft: #e8f6ef; --warning: #865410; --warning-soft: #fff4dc; --danger: #b12e47; --danger-soft: #fdebf0;
-  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(32,38,53,.32);
-  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-head: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --paper: #ffffff; --paper-ink: #0b1220; --scrim: rgba(11,18,32,.32); --shadow: rgba(11,18,32,.14);
+  --font-body: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Space Grotesk", "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-money: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --canvas: #12141c; --surface: #1a1d28; --surface-muted: #222634; --ink: #e8eaf2; --muted: #a3aabb; --border: #2e3344;
-  --primary: #8b89f0; --primary-hover: #a19ff5; --primary-soft: #2a2a4a; --on-primary: #12141c; --teal: #4cc3b5; --teal-soft: #173533;
+  --canvas: #0b0f17; --surface: #111827; --surface-muted: #1a2233; --ink: #e6eaf0; --brand: #e6eaf0; --muted: #9aa4b5; --border: #243044;
+  --primary: #3fb8a8; --primary-hover: #5ccabb; --primary-soft: #12302d; --on-primary: #0b0f17; --teal: #3fb8a8; --teal-soft: #12302d;
+  --info: #a9c1e0; --info-soft: #1b2a40;
   --success: #6fd3a8; --success-soft: #16332a; --warning: #f0c06a; --warning-soft: #3a2f17; --danger: #f08a9e; --danger-soft: #3d1e27;
-  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(0,0,0,.55); color-scheme: dark } }
+  --paper: #ffffff; --paper-ink: #0b1220; --scrim: rgba(0,0,0,.55); --shadow: rgba(0,0,0,.5); color-scheme: dark } }
 :root[data-theme="dark"] {
-  --canvas: #12141c; --surface: #1a1d28; --surface-muted: #222634; --ink: #e8eaf2; --muted: #a3aabb; --border: #2e3344;
-  --primary: #8b89f0; --primary-hover: #a19ff5; --primary-soft: #2a2a4a; --on-primary: #12141c; --teal: #4cc3b5; --teal-soft: #173533;
+  --canvas: #0b0f17; --surface: #111827; --surface-muted: #1a2233; --ink: #e6eaf0; --brand: #e6eaf0; --muted: #9aa4b5; --border: #243044;
+  --primary: #3fb8a8; --primary-hover: #5ccabb; --primary-soft: #12302d; --on-primary: #0b0f17; --teal: #3fb8a8; --teal-soft: #12302d;
+  --info: #a9c1e0; --info-soft: #1b2a40;
   --success: #6fd3a8; --success-soft: #16332a; --warning: #f0c06a; --warning-soft: #3a2f17; --danger: #f08a9e; --danger-soft: #3d1e27;
-  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(0,0,0,.55); color-scheme: dark }
+  --paper: #ffffff; --paper-ink: #0b1220; --scrim: rgba(0,0,0,.55); --shadow: rgba(0,0,0,.5); color-scheme: dark }
 * { box-sizing: border-box }
 html, body { height: 100% }
 body { background: var(--canvas); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5 }
@@ -164,7 +167,6 @@ label.f input, label.f select { min-height: 44px; border: 1px solid var(--border
   .timeline li { grid-template-columns: minmax(0,1fr) }
   .hide-sm { display: none }
 }
-@media (prefers-reduced-motion: no-preference) { .toast { animation: rise .2s ease-out } @keyframes rise { from { transform: translateY(8px); opacity: .6 } } }
 /* Agent operations */
 .ops-grid { display: grid; grid-template-columns: minmax(0,320px) minmax(0,1fr); gap: 20px; align-items: stretch }
 .gauge-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px }
@@ -220,41 +222,52 @@ label.f input, label.f select { min-height: 44px; border: 1px solid var(--border
 @media (max-width: 760px) { .bar-row { grid-template-columns: 100px minmax(0,1fr) 70px } .trace li { grid-template-columns: 56px 14px minmax(0,1fr) } .trace li > :last-child { grid-column: 3 } .dock-btn { bottom: calc(76px + env(safe-area-inset-bottom, 0px)) } }
 @media (prefers-reduced-motion: reduce) { .flow-dot, .pulse-ring { display: none } }
 
-/* A2 polish: press feedback, spatial consistency, materials, accessibility preferences, size-specific type. */
-html { font-size: 100% }
-h1 { letter-spacing: -.02em; line-height: 1.15 } h2 { letter-spacing: -.01em; line-height: 1.25 } h3 { line-height: 1.3 }
-.kpi .value, .sim b { letter-spacing: -.01em; line-height: 1.2 }
-.eyebrow, .section-label, .nav-group, th { letter-spacing: .06em }
-.btn, .nav-item, .chip, .tone button, .role-switch button, .cmdk, .map-node { transition: transform 100ms ease-out, background-color 120ms ease-out }
-.btn:active:not(:disabled), .nav-item:active, .chip:active, .tone button:active, .role-switch button:active, .cmdk:active { transform: scale(.97) }
-.map-node:active { transform: scale(.97); transform-box: fill-box; transform-origin: center }
-.topbar { position: sticky; top: 0; z-index: 12; background: color-mix(in srgb, var(--surface) 78%, transparent); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); border-bottom-color: transparent; box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 60%, transparent), 0 8px 16px -12px rgba(20,24,40,.18) }
-.dock { background: color-mix(in srgb, var(--surface) 86%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); transform-origin: bottom right }
-.dock-body .table-wrap, .dock-body table, .dock-body .money { background: var(--surface) }
-.modal { transform-origin: top center }
-@media (prefers-reduced-motion: no-preference) {
-  .drawer { animation: from-right 240ms cubic-bezier(.2,.8,.2,1) }
-  .dock { animation: from-trigger 220ms cubic-bezier(.2,.8,.2,1) }
-  .modal { animation: from-top 180ms cubic-bezier(.2,.8,.2,1) }
-  @keyframes from-right { from { transform: translateX(24px); opacity: 0 } }
-  @keyframes from-trigger { from { transform: scale(.9) translateY(12px); opacity: 0 } }
-  @keyframes from-top { from { transform: scale(.96); opacity: 0 } }
-}
-@media (prefers-reduced-motion: reduce) {
-  .drawer, .dock, .modal { animation: fade 150ms ease-out }
-  @keyframes fade { from { opacity: 0 } }
-  .btn:active, .nav-item:active, .chip:active, .cmdk:active, .map-node:active { transform: none }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .topbar, .dock { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none }
-}
-@media (prefers-contrast: more) {
-  .topbar, .dock { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid var(--ink) }
-  .topbar { border-width: 0 0 1px; box-shadow: none }
-  .panel, .kpi, .modal, .btn.secondary, .cmdk { border-color: var(--ink) }
-}
 .map-split { grid-template-columns: minmax(0,1.8fr) minmax(320px,1fr) }
 @media (max-width: 1100px) { .map-split { grid-template-columns: minmax(0,1fr) } }
+
+/* A3 theme and type: navy ink, one teal action colour, Geist / Space Grotesk / JetBrains Mono, 8px grid, flat surfaces. */
+body { font-size: 14px; line-height: 24px; font-feature-settings: "ss01" }
+h1 { font-family: var(--font-head); font-size: 24px; line-height: 32px; letter-spacing: -.02em; font-weight: 600 }
+h2 { font-family: var(--font-body); font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0 }
+h3 { font-family: var(--font-body); font-size: 14px; line-height: 24px; font-weight: 600 }
+.small, .note, .kpi .note, .cust-sub { font-size: 12px; line-height: 16px }
+.money, .num, td.r, .kpi .value, .sim b { font-variant-numeric: tabular-nums }
+.kpi .value { font-family: var(--font-head); font-size: 36px; line-height: 40px; letter-spacing: -.02em; font-weight: 500 }
+.sim b { font-family: var(--font-head); font-size: 24px; line-height: 32px }
+.brand { font-family: var(--font-head); font-weight: 600 }
+.brand-mark { background: var(--brand); color: var(--surface); border-radius: 8px }
+.eyebrow, .section-label, .nav-group, th { text-transform: none; letter-spacing: 0; font-size: 12px; line-height: 16px; font-weight: 500 }
+.nav-group { padding: 16px 8px 8px; color: var(--muted) }
+.nav-item { border-radius: 8px; min-height: 40px; padding: 8px }
+.nav-item[aria-current="page"] { background: var(--surface-muted); color: var(--ink); font-weight: 600; box-shadow: inset 2px 0 0 var(--primary) }
+.nav-item .count { background: var(--ink); color: var(--surface) }
+.mobile-nav button[aria-current="page"] { color: var(--ink) }
+.proto-banner { background: var(--info-soft); color: var(--info) }
+.pill.info, .pill.ai, .cite, .step.prop .dot { background: var(--info-soft); color: var(--info) }
+.stage-track span.on, .tone button[aria-pressed="true"] { background: var(--surface-muted); color: var(--ink); border-color: var(--ink) }
+tr.row-btn[aria-selected="true"] td { background: var(--surface-muted) }
+.role-switch button[aria-pressed="true"], .steps span[aria-current="step"] { background: var(--ink); color: var(--surface) }
+.trace .k.hum { background: var(--info) }
+.topbar { position: sticky; top: 0; z-index: 12; background: var(--surface); padding-inline: 32px; padding-block: 16px }
+.content { padding-block: 32px 48px; padding-inline: 32px; gap: 24px }
+.panel, .modal, .dock { border-radius: 12px }
+.kpi, .appr, .stat { border-radius: 12px; padding: 16px 24px }
+.kpis { gap: 16px }
+.split { gap: 24px }
+.btn, .cmdk, .contact, .draft, .hold, .impact, .locked, .callout, .tabs + * .stat { border-radius: 8px }
+.panel-head { padding: 16px 24px }
+.list-row, .drawer { padding-inline: 24px }
+td { padding: 12px 16px } th { padding: 8px 16px }
+.toast, .dock-btn { box-shadow: 0 8px 24px var(--shadow) } .dock, .modal { box-shadow: 0 16px 40px var(--shadow) }
+.map-node rect { rx: 8px }
+.map-node.agent rect { stroke: var(--primary) }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px }
+@media (max-width: 760px) { .topbar, .content { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) } .kpi .value { font-size: 28px; line-height: 32px } }
+/* Motion: only the live pulse and edge flow dots animate; both are removed under reduced motion. */
+.toast { animation: none !important }
+.kpi .value { white-space: nowrap } .kpi .value .ccy { font-family: var(--font-body); font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--muted); margin-inline-end: 4px }
+@media (max-width: 760px) { .kpi .value { white-space: normal; font-size: 24px; line-height: 32px } .kpi .value .ccy { display: block; margin: 0 } }
+#view:focus { outline: none }
 </style>
 
 <div class="proto-banner" role="note">
@@ -357,7 +370,7 @@ function viewCollections() {
   <div class="page-head"><div><p class="eyebrow">Work / Collections</p><h1>Collections</h1><p class="muted">Ranked by overdue AED and age. The collections agent refreshed this list at 08:00 GST.</p></div>
     <div class="actions"><button type="button" class="btn secondary" data-toast="Collections agent queued. Steps stream in AI agents.">${icon("bot")}Run collections agent</button></div></div>
   <section class="kpis" aria-label="Collections summary">
-    <div class="kpi"><span class="muted small">Overdue AR</span><span class="value">AED 312,425.25</span><span class="note">3 customers · 6 invoices</span></div>
+    <div class="kpi"><span class="muted small">Overdue AR</span><span class="value"><span class="ccy">AED</span> 312,425.25</span><span class="note">3 customers · 6 invoices</span></div>
     <div class="kpi"><span class="muted small">Broken promises</span><span class="value">1</span><span class="note">AED 88,250.00 promised by 30/09</span></div>
     <div class="kpi"><span class="muted small">Open disputes</span><span class="value">1</span><span class="note">Excluded from dunning and auto-match</span></div>
     <div class="kpi"><span class="muted small">Emails awaiting approval</span><span class="value">${pendingCount}</span><span class="note">${pendingCount ? "Needs an AR manager" : "Outbox clear"}</span></div>
@@ -557,7 +570,7 @@ function viewOps() {
     <div class="kpi"><span class="muted small">Run success</span><span class="value">9 / 10</span><span class="note">1 failed: Collections handoff</span></div>
     <div class="kpi"><span class="muted small">Median run time</span><span class="value">48 s</span><span class="note">p95 2m 10s</span></div>
     <div class="kpi"><span class="muted small">Pending approvals</span><span class="value">4</span><span class="note">Oldest 3h 12m</span></div>
-    <div class="kpi"><span class="muted small">Auto-posted today</span><span class="value">AED 38,420.00</span><span class="note">of AED 50,000.00 daily limit</span></div>
+    <div class="kpi"><span class="muted small">Auto-posted today</span><span class="value"><span class="ccy">AED</span> 38,420.00</span><span class="note">of AED 50,000.00 daily limit</span></div>
   </section>
   <div class="ops-grid">
     <section class="panel gauge-card" aria-labelledby="hs-h"><h2 id="hs-h" style="align-self:flex-start">Health score</h2>${gauge(91)}<span class="pill ok">Healthy</span>

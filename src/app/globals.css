@@ -2,12 +2,13 @@
 
 :root, [data-theme] {
   color-scheme: light;
-  --canvas: #f6f7fb; --surface: #ffffff; --surface-muted: #f1f2f8;
-  --ink: #202635; --muted: #626c80; --border: #e4e7ef;
-  --primary: #5654d6; --primary-hover: #4947bb; --primary-soft: #eeeeff; --accent-teal: #147d73;
-  --link: #5654d6; --focus: #5654d6;
+  --canvas: #f7f8fa; --surface: #ffffff; --surface-muted: #eef1f5;
+  --ink: #0b1220; --brand: #0b1220; --muted: #566072; --border: #e3e7ed;
+  --primary: #11736a; --primary-hover: #0c5e57; --primary-soft: #e3f2f0; --accent-teal: #11736a;
+  --info: #1e3a5f; --info-soft: #e8edf4;
+  --link: #11736a; --focus: #11736a;
   --success: #146b50; --success-soft: #e8f6ef; --warning: #865410; --warning-soft: #fff4dc;
-  --danger: #b12e47; --danger-soft: #fdebf0; --rail: #ffffff; --rail-text: #626c80;
+  --danger: #b12e47; --danger-soft: #fdebf0; --rail: #ffffff; --rail-text: #566072;
 }
 @theme inline {
   --color-canvas: var(--canvas); --color-surface: var(--surface); --color-surface-muted: var(--surface-muted);
@@ -16,12 +17,13 @@
   --color-success: var(--success); --color-success-soft: var(--success-soft);
   --color-warning: var(--warning); --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger); --color-danger-soft: var(--danger-soft); --color-accent-teal: var(--accent-teal);
-  --color-link: var(--link);
+  --color-link: var(--link); --color-brand: var(--brand); --color-info: var(--info); --color-info-soft: var(--info-soft);
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
-h1, h2, h3 { font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif; }
-.money, .tabular-nums { font-family: var(--font-money), ui-monospace, SFMono-Regular, Consolas, monospace; }
+h1 { font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
+h2, h3 { font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+.money, .tabular-nums { font-family: var(--font-money), ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
