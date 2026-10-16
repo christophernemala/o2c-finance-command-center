@@ -30,8 +30,11 @@ fallback. Soft background illumination and shallow shadows support hierarchy.
 
 ## Typography, spacing and shape
 
-Keep bundled Geist for body, Space Grotesk for headings and JetBrains Mono for exact
-amounts. Currency is AED; use `formatAed` and decimal strings. Never abbreviate away
+Use bundled Inter for body, controls and KPI values; Calistoga (400, without synthetic
+bold) for page titles and large account-entry headlines; JetBrains Mono for exact
+amounts. Panel titles stay Inter semibold. Keep the O2C wordmark in Inter bold.
+The display face never appears in dense tables, buttons or monetary values.
+All fonts are locally served with their SIL Open Font Licenses; builds do not fetch fonts. Currency is AED; use `formatAed` and decimal strings. Never abbreviate away
 exact amounts or animate a monetary value. Use sentence-case labels and explicit
 action names such as “Download daily AR workbook” and “Review allocation proposals”.
 
@@ -70,3 +73,13 @@ Every visible control has a real destination, selection, export or authenticated
 server action. Agents can read, draft and propose; current SQL policies govern any
 posting. Confidence percentages alone never authorize an action. Missing forecasts,
 health methodologies, provider setup and source records stay explicitly unavailable.
+
+## Minimalist modern refinement
+
+Retain the existing Apple-blue palette; the external reference does not replace it.
+Use shared radius and action-gradient tokens for buttons, with reduced-motion-safe
+press feedback, visible focus, and separate disabled/secondary states. Section labels
+use restrained monospace pills. Dark navy is reserved for the account-entry capability
+panel; financial evidence remains opaque white. Auth artwork is a locally served
+Adobe-generated illustration with blank space; all product copy remains real HTML.
+The existing interactive bank scene is available from a labeled disclosure.

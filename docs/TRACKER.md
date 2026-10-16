@@ -41,6 +41,8 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] Banking login and detailed registration, Three.js scene with fallback/reduced motion, private access requests and invitation activation; Google/single-tenant Microsoft OIDC with explicit linking and preserved MFA. Local TypeScript, 151 tests and production build passed. See `docs/AUTH_SETUP.md`; live provider and browser checks remain pending.
 
+- [x] Minimalist modern typography and shared controls: locally bundled Calistoga/Inter, preserved JetBrains Mono figures and Apple-blue palette, shared gradient/radius/shadow tokens, locally optimized robot artwork with real HTML copy, and an on-demand bank scene. TypeScript, 151 tests, production build and login/signup/image HTTP checks passed; browser visual review pending.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

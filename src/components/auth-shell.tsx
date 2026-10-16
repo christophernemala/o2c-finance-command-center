@@ -1,16 +1,18 @@
 import Link from "next/link";
+import { getImageProps } from "next/image";
 import type { ReactNode } from "react";
 import { Layers3, ShieldCheck } from "lucide-react";
 
-import { AuthVisual } from "./auth-visual";
+import { AuthSceneDisclosure } from "./auth-scene-disclosure";
 
 export function AuthShell({ children, wide=false }: { children: ReactNode; wide?: boolean }) {
+  const { props: robotImageProps } = getImageProps({ src: "/images/finance-robot.png", alt: "", width: 2048, height: 1593, sizes: "(min-width: 1024px) 44vw, 100vw" });
   return <main id="main" className={`auth-layout ${wide?"auth-layout-wide":""}`}>
     <section className="login-art relative flex flex-col justify-between overflow-hidden px-6 py-6 sm:px-12 lg:px-16 lg:py-10">
       <header className="auth-brand relative z-10 w-fit max-w-full text-ink" aria-label="O2C finance command center">
         <div className="flex items-center gap-4"><span className="auth-mark relative inline-flex shrink-0 rounded-2xl bg-surface p-3 text-link"><Layers3 size={28} aria-hidden="true"/></span><div className="min-w-0"><p className="auth-wordmark text-4xl leading-none font-black tracking-tighter">O2C</p><p className="mt-2 text-[10px] leading-5 font-medium uppercase tracking-[.2em] text-muted">Finance command center</p></div></div>
       </header>
-      <div className="auth-story relative"><p className="eyebrow">Receivables. Cash. Human judgment.</p><h2 className="mt-4 text-4xl leading-tight font-semibold tracking-tight xl:text-5xl">Your finance team,<br/><span className="text-link">working in sync.</span></h2><p className="mt-4 max-w-md text-base leading-7 text-muted">O2C brings receivables, cash matching, collection follow-ups and finance agents into one accountable workspace.</p><AuthVisual/>
+      <div className="auth-story relative"><p className="eyebrow">Receivables. Cash. Human judgment.</p><h2 className="auth-display mt-4">Your finance team,<br/><span className="text-link">working in sync.</span></h2><p className="mt-4 max-w-md text-base leading-7 text-muted">O2C brings receivables, cash matching, collection follow-ups and finance agents into one accountable workspace.</p><figure className="auth-hero-media"><img {...robotImageProps} alt="" className="auth-robot-image"/><figcaption>AI assistance. Human review.</figcaption></figure><AuthSceneDisclosure/>
         <div className="auth-capabilities">{["Investigate balances and overdue accounts", "Prepare collection drafts and cash proposals", "Review independently before sending or posting"].map(text=><p key={text}><ShieldCheck size={17} className="text-link" aria-hidden="true"/>{text}</p>)}</div>
       </div>
       <p className="relative hidden text-xs text-muted lg:block">Finance operations with a clear audit trail — Built for finance teams</p>

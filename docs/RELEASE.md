@@ -1,3 +1,21 @@
+## Minimalist modern typography and controls — 2026-10-16
+
+Applied the supplied design direction while retaining liquid white and Apple blue.
+Bundled Inter handles body/UI/KPIs, Calistoga handles display titles, and JetBrains
+Mono preserves exact figures. Shared CSS tokens govern control/panel radii, primary
+gradients and button shadows; focus, disabled and reduced-motion states remain.
+Account entry uses locally served Adobe-generated robot artwork with real HTML
+product text and a navy capability panel. The Three.js scene remains accessible
+through an explicit disclosure. No financial records, policies or backend routes
+change. No new npm runtime dependencies.
+
+Local verification: TypeScript, all 151 tests and the production build passed.
+Production HTTP checks returned 200 for login, signup, the local robot asset and
+its responsive optimized image. The 1080px WebP response was 17,378 bytes versus
+the 1,607,054-byte source PNG. The closed interactive scene creates no canvas.
+The action-gradient endpoints have 6.09:1 and 4.59:1 contrast with white text.
+Browser/mobile visual review remains pending; HTTP checks do not establish it.
+
 ## Banking entry screens and work identity — 2026-10-16
 
 Login and detailed registration use the white/blue glass direction with a Three.js
