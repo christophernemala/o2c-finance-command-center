@@ -31,9 +31,10 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] Customer segments (category, region; CSV or single edit) and outstanding by category, region and customer with drill-down; reporting-agent tool; daily-pack sheets.
 
+- [x] Credit and debit notes: propose (maker, admin, or agent for small short payments), independent human approval, separate posting; credit notes as non-cash allocations, debit notes as receivables; short-payment list; guardrails enforced in SQL.
+
 ## In progress
 
-- [ ] Credit and debit notes (draft, independent approval, posting, allocation; agent proposes for short payments and overpayments).
 - [ ] SMS / WhatsApp outreach through Twilio, on the same human-approved outbox.
 
 ## Blocked or waiting on the owner

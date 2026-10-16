@@ -86,6 +86,24 @@ export const tools: AgentTool[] = [
     },
   }),
   tool({
+    name: "get_short_payment_candidates", writes: false, actors: ["agent", "copilot"],
+    description: "Invoices that received a payment but still have a small open remainder at or below the tolerance (AED decimal string), are not disputed and have no credit note pending. Use to find short payments such as bank charges deducted by the payer.",
+    schema: z.strictObject({ tolerance: z.string().regex(/^(0|[1-9]\d{0,2})(\.\d{1,2})?$/) }),
+    run: (input, context) => call(context, "short_payment_candidates", { p_tolerance: input.tolerance }),
+  }),
+  tool({
+    name: "propose_credit_note", writes: true, actors: ["agent"],
+    description: "Propose a credit note that clears a short-payment remainder on one invoice (reason short_payment or bank_charges). The amount may not exceed the invoice open amount. reference is the credit note number the finance team will issue in the source system, e.g. 'CN-pending-INV-1001'. Creates a pending note for an independent human approver; it never posts.",
+    schema: z.strictObject({ customer_id: uuid, invoice_id: uuid, amount: decimal, reason: z.enum(["short_payment", "bank_charges"]), reference: z.string().min(1).max(60), memo: z.string().min(10).max(1000) }),
+    async run(input, context) {
+      const id = randomUUID();
+      await call(context, "propose_adjustment_note", { p_id: id, p_kind: "credit", p_customer: input.customer_id, p_invoice: input.invoice_id, p_amount: positiveAmount(input.amount),
+        p_reason: input.reason, p_memo: input.memo, p_reference: input.reference, p_due: null });
+      await context.record?.("proposal", { note_id: id, kind: "credit_note", amount: input.amount, invoice_id: input.invoice_id, reason: input.reason });
+      return { note_id: id, status: "pending" };
+    },
+  }),
+  tool({
     name: "auto_post_if_policy_allows", writes: true, actors: ["agent"],
     description: "Ask PostgreSQL to post one of your pending proposals under the entity's auto-execution policy. It posts only exact reference-and-amount matches within the per-item and daily AED limits approved by two humans; otherwise the proposal stays pending for a human and the reason is returned. Call only for exact-tier matches.",
     schema: z.strictObject({ approval_id: uuid }),

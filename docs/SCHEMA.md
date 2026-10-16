@@ -2,9 +2,55 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 15 · public tables: 34 · tables with RLS: 34
+Migrations: 16 · public tables: 36 · tables with RLS: 36
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
+
+## adjustment_journals
+
+RLS: enabled · policies: scope_read (SELECT)
+References: adjustment_notes
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| note_id | uuid | no |
+| amount | numeric(15,2) | no |
+| debit_account | text | no |
+| credit_account | text | no |
+| created_at | timestamp with time zone | no |
+
+## adjustment_notes
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_runs, customers, invoices, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| kind | text | no |
+| invoice_id | uuid | yes |
+| invoice_version | integer | yes |
+| amount | numeric(15,2) | no |
+| reason | text | no |
+| memo | text | no |
+| reference | text | no |
+| due_date | date | yes |
+| status | text | no |
+| maker | uuid | no |
+| checker | uuid | yes |
+| poster | uuid | yes |
+| agent_run_id | uuid | yes |
+| debit_invoice_id | uuid | yes |
+| version | integer | no |
+| created_at | timestamp with time zone | no |
+| decided_at | timestamp with time zone | yes |
+| posted_at | timestamp with time zone | yes |
 
 ## agent_guardrail_versions
 
@@ -165,7 +211,7 @@ References: agent_runs, entities
 ## allocations
 
 RLS: enabled · policies: scope_read (SELECT)
-References: approvals, invoices, receipts
+References: adjustment_notes, approvals, invoices, receipts
 
 | Column | Type | Null |
 |---|---|---|
@@ -173,10 +219,11 @@ References: approvals, invoices, receipts
 | tenant_id | uuid | no |
 | entity_id | uuid | no |
 | invoice_id | uuid | no |
-| receipt_id | uuid | no |
-| approval_id | uuid | no |
+| receipt_id | uuid | yes |
+| approval_id | uuid | yes |
 | amount | numeric(15,2) | no |
 | created_at | timestamp with time zone | no |
+| note_id | uuid | yes |
 
 ## approvals
 
@@ -520,6 +567,8 @@ References: customers
 | dispute | text | no |
 | collection | text | no |
 | version | integer | no |
+| document_type | text | no |
+| source_note_id | uuid | yes |
 
 ## journals
 
@@ -630,6 +679,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | add_customer_contact | definer |
 | add_customer_remark | definer |
 | add_trade_licence | definer |
+| adjustment_notes_list | definer |
 | agent_ar_overview | definer |
 | agent_auto_post | definer |
 | agent_cash_candidates | definer |
@@ -657,6 +707,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | customer_statement | definer |
 | daily_call_list | definer |
 | decide_action | definer |
+| decide_adjustment_note | definer |
 | decide_agent_policy | definer |
 | decide_collection_message | definer |
 | decide_credit_limit | definer |
@@ -669,7 +720,9 @@ RLS: enabled · policies: tenant_read (SELECT)
 | my_follow_ups | definer |
 | outstanding_breakdown | definer |
 | place_customer_hold | definer |
+| post_adjustment_note | definer |
 | propose_action | definer |
+| propose_adjustment_note | definer |
 | propose_agent_policy | definer |
 | propose_collection_message | definer |
 | propose_credit_limit | definer |
@@ -685,6 +738,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | run_agent_job | definer |
 | set_agent_schedule | definer |
 | set_customer_segments | definer |
+| short_payment_candidates | definer |
 | simulate_guardrail | definer |
 | source_entity_access | invoker |
 | stage_import | definer |

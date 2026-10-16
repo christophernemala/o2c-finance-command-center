@@ -197,6 +197,17 @@ Migration `202610160006_customer_segments.sql`. Screen `/?view=customers` (`src/
 - `outstanding_breakdown(as_of, dimension, category, region)` groups open posted invoices by `category`, `region` or `customer`, with aging buckets by days past due (current ≤ 0, 1–30, 31–60, 61–90, over 90), disputed amount and share of the total. Filters narrow it for drill-down. Amounts are decimal strings.
 - The reporting agent and the copilot read it through the `get_outstanding_breakdown` tool. The daily collections pack adds "By category" and "By region" sheets.
 
+## Credit and debit notes
+
+Migration `202610160007_adjustment_notes.sql`. Screen `/?view=notes` (`src/components/notes.tsx`), writes through `POST /api/notes` (intents `note_propose`, `note_decide`, `note_post`).
+
+- `adjustment_notes` mirror documents issued in the source system: `reference` (the document number) is required and unique per entity and kind among non-rejected notes. The app does not issue tax credit notes.
+- **Propose:** makers and admins, or the agent within a run. The agent may only propose credit notes with reason `short_payment` or `bank_charges`, never debit notes; Block-stage `deny_tool` and `max_amount` guardrails on `propose_credit_note` are enforced inside the routine. A credit note must name an invoice of the customer and may not exceed its open amount; the invoice version is captured. A debit note needs a due date and a reference not already used by a receivable.
+- **Decide:** a human approver or admin other than the maker, on the current version. Approving a credit note fails if the invoice changed since proposal.
+- **Post:** a separate call by a human maker, approver or admin, on the approved current version, while the approver still holds the approver or admin role. A credit note re-checks the invoice version and open amount, inserts a non-cash allocation (`allocations.note_id`, with `receipt_id` and `approval_id` null), bumps the invoice version and writes `adjustment_journals` (debit `sales_adjustments`, credit `accounts_receivable`). A debit note inserts a receivable (`invoices.document_type='debit_note'`, `source_note_id`) dated the Dubai business date, and journals debit `accounts_receivable`, credit `sales_adjustments`. Replays return the same journal.
+- Because a credit note is an allocation, every open-balance calculation (worklist, statements, AR pack, aging, auto-post checks) includes it without separate code. Receipt residuals are unaffected. In the CEI basis, credit notes reduce ending AR like collections do.
+- `short_payment_candidates(tolerance)` lists invoices that received a payment, are not disputed, have no note pending, and have an open remainder at or below the tolerance. The cash application agent reads it with tolerance 50.00 and proposes credit notes; overpayments are recorded as findings only.
+
 ## Copilot
 
 `/api/copilot` streams server-sent events. It runs as the signed-in user, so RLS

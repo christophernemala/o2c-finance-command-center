@@ -50,6 +50,9 @@ const routines = {
   remarks_logged: ["p_tenant", "p_entity", "p_date"],
   set_customer_segments: ["p_tenant", "p_entity", "p_id", "p_rows"],
   outstanding_breakdown: ["p_tenant", "p_entity", "p_as_of", "p_dimension", "p_category", "p_region"], customer_segments: ["p_tenant", "p_entity"],
+  propose_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_kind", "p_customer", "p_invoice", "p_amount", "p_reason", "p_memo", "p_reference", "p_due"],
+  decide_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version", "p_decision"], post_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version"],
+  adjustment_notes_list: ["p_tenant", "p_entity", "p_status"], short_payment_candidates: ["p_tenant", "p_entity", "p_tolerance"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
 const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation", "p_rows"]);

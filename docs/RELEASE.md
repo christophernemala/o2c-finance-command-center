@@ -1,3 +1,33 @@
+## Credit and debit notes — 2026-10-16
+
+**Added:**
+- **Migration** `202610160007_adjustment_notes.sql`. It adds the `adjustment_notes` and `adjustment_journals` tables, non-cash allocations (`allocations.note_id`), `invoices.document_type` and `source_note_id`, and routines to propose, decide, post and list notes, plus short-payment candidates.
+- **Notes screen and `POST /api/notes`.** Proposing, deciding and posting are three separate calls.
+- **Agent tools.** `get_short_payment_candidates` and `propose_credit_note` for the cash application agent, which only proposes short-payment and bank-charge credit notes. Guardrails can name `propose_credit_note`, including a SQL-enforced `max_amount` cap.
+- **Run trace.** Now shows credit note proposals.
+
+**Scope boundary:** these are AR ledger adjustments that mirror documents issued in the source system. The app does not issue VAT credit notes or e-invoices. Refunds of overpayments are not built; the agent records them as findings.
+
+**Tested locally:**
+- `npm run typecheck` and `npm run build` pass.
+- `npm test` passes 132/132, including 8 new note tests. They cover:
+  - ledger validation;
+  - maker/checker;
+  - the separate posting step;
+  - posting replays;
+  - stale invoice evidence;
+  - debit note receivables;
+  - agent limits and guardrail caps;
+  - direct-write refusal;
+  - the screen's role gating.
+- **PostgreSQL 16** (fresh cluster):
+  - 16 migrations applied, and a second run applied none.
+  - `test:postgres` passed 8/8 and `test:postgres:http` passed 5/5.
+  - RLS is on all 36 public tables.
+  - No anonymous-executable definers, and no `o2c_private` routine is executable by `authenticated`.
+
+**Not verified live:** no hosted migration, and no live agent run.
+
 ## Customer segments and outstanding breakdown — 2026-10-16
 
 **Added:**

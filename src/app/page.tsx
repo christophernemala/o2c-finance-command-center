@@ -16,11 +16,13 @@ import { CollectionsView } from "@/components/collections";
 import { emailConfig } from "@/lib/email/resend";
 import { breakdownDimensions, type Breakdown, type BreakdownDimension, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type LicenceAlert, type Segments, type WorklistRow } from "@/types/collections";
 import { CustomersView } from "@/components/customers";
+import { NotesView } from "@/components/notes";
+import type { AdjustmentNote, ShortPayment } from "@/types/collections";
 import { agentKinds, type AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
 const viewTitles: Record<Workspace, string> = {
-  overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
+  overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", notes: "Credit & debit notes", receivables: "Receivables",
   reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
   ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
 };
@@ -86,6 +88,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     const [breakdown, segments] = await Promise.all([auth.client.rpc("outstanding_breakdown", { ...scope, p_as_of: asOf, p_dimension: dimension, p_category: segment("category"), p_region: segment("region") }),
       auth.client.rpc("customer_segments", scope)]);
     if (!breakdown.error && !segments.error) analysis = <CustomersView data={data} breakdown={breakdown.data as Breakdown} segments={segments.data as Segments}/>;
+  }
+  if (view === "notes") {
+    const [notes, short] = await Promise.all([auth.client.rpc("adjustment_notes_list", { ...scope, p_status: "all" }), auth.client.rpc("short_payment_candidates", { ...scope, p_tolerance: "50.00" })]);
+    if (!notes.error && !short.error) analysis = <NotesView data={data} notes={notes.data as AdjustmentNote[]} shortPayments={short.data as ShortPayment[]} userId={auth.user.id}/>;
   }
   if (view === "incidents") {
     const incidents = await auth.client.rpc("agent_incidents_list", { ...scope, p_status: "all" });

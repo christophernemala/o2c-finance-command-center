@@ -46,3 +46,12 @@ export interface Breakdown {
   rows: (BreakdownAmounts & { label: string; account: string | null; customer_id: string | null; customers: number; invoices: number; share_percent: string | null })[];
 }
 export interface Segments { categories: string[]; regions: string[]; unassigned: number; customers: number }
+export const noteReasons = ["short_payment", "bank_charges", "pricing", "discount", "returns", "damaged", "late_payment_fee", "other"] as const;
+export type NoteReason = typeof noteReasons[number];
+export interface AdjustmentNote {
+  id: string; kind: "credit" | "debit"; customer_id: string; customer: string; account: string; invoice_id: string | null; invoice: string | null;
+  invoice_open: string | null; invoice_current: boolean; amount: string; reason: NoteReason; memo: string; reference: string; due_date: string | null;
+  status: "pending" | "approved" | "rejected" | "posted"; maker: string; checker: string | null; poster: string | null; agent_run_id: string | null;
+  version: number; created_at: string; decided_at: string | null; posted_at: string | null;
+}
+export interface ShortPayment { invoice_id: string; invoice: string; customer_id: string; customer: string; account: string; gross: string; open: string; paid: string }
