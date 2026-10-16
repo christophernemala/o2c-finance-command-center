@@ -52,7 +52,7 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       const receipt=await applicant.request("/signup?message=requested");assert.ok((await receipt.text()).includes("Your request has been received"));
       assert.equal((await admin.query("select company from auth.registration_requests where email=$1",[requestEmail])).rows[0].company,"HTTP registration company");
       assert.equal((await admin.query("select id from auth.users where email=$1",[requestEmail])).rows.length,0);
-      assert.equal((await applicant.request("/api/auth/oidc/google",{})).status,503);
+      assert.equal((await applicant.request("/api/auth/oidc/google",{intent:"signin"})).status,503);
       const invalidCallback=await applicant.request("/api/auth/oidc/google/callback?state=invalid");assert.equal(invalidCallback.status,303);assert.equal(new URL(invalidCallback.headers.get("location")!).pathname,"/login");
     });
     const tenant = randomUUID(); const email = `http-${randomUUID()}@example.test`;
