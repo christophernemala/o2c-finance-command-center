@@ -6,6 +6,7 @@ import { agentDefinitions, agentKickoff, agentSystemPrompt } from "./agents";
 import { runLoop, serializeResult, type ModelCaller } from "./loop";
 import { usageCost } from "./pricing";
 import { tools, type ToolContext } from "./tools";
+import { parseGuardrails } from "./guardrails";
 
 const preview = (value: unknown, limit = 6000) => { const json = serializeResult(value); return json.length > limit ? `${json.slice(0, limit)}…` : json; };
 
@@ -36,14 +37,21 @@ export async function executeRun(runId: string, deps: { pool: SqlPool; config: A
   const context: ToolContext = { client, tenant: run.tenant_id, entity: run.entity_id, asOf: run.as_of, actor: "agent", runId: run.id, findings: [],
     record: (type, detail) => step(type, null, detail) };
   try {
+    // Fail closed: a run never proceeds without the entity's guardrails loaded.
+    const active = await client.rpc("agent_guardrails_active", { p_tenant: run.tenant_id, p_entity: run.entity_id, p_agent_kind: run.kind });
+    if (active.error) throw new Error("Guardrails unavailable");
+    const guardrails = parseGuardrails(active.data);
     const result = await runLoop({
+      guardrails,
       call: deps.call, model: deps.config.model, effort: deps.config.agentEffort, maxTurns: definition.maxTurns,
       system: agentSystemPrompt(definition), tools: tools.filter(entry => definition.tools.includes(entry.name)), context,
       messages: [{ role: "user", content: agentKickoff({ asOf: run.as_of, entity: run.entity_id, trigger: run.trigger }) }],
       onEvent: async event => {
         if (event.type === "thinking") await step("thinking", null, { text: event.text.slice(0, 8000) });
         else if (event.type === "message") await step("message", null, { text: event.text.slice(0, 20000) });
-        else if (event.type === "tool_call") await step("tool_call", event.tool, { input: event.input });
+        else if (event.type === "tool_call") await step("tool_call", event.tool, { input: event.input, input_hash: event.input_hash });
+        else if (event.type === "guardrail") await step("guardrail", event.tool, { rule_id: event.hit.rule.id, rule: event.hit.rule.name, kind: event.hit.rule.kind,
+          stage: event.hit.rule.stage, version: event.hit.rule.version, action: event.hit.action, reason: event.hit.reason });
         else await step("tool_result", event.tool, { ok: event.ok, output: preview(event.output) }, event.duration_ms);
       },
     });

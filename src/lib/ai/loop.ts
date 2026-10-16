@@ -2,13 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Effort } from "./config";
 import { emptyUsage, type TokenUsage } from "./pricing";
 import { toolDefinitions, type AgentTool, type ToolContext } from "./tools";
+import { blockFor, evaluateGuardrails, inputHash, type Guardrail, type GuardrailHit } from "./guardrails";
 
 type Params = Anthropic.Beta.Messages.MessageCreateParamsNonStreaming;
 export type ModelCaller = (params: Params, onText?: (delta: string) => void) => Promise<Anthropic.Beta.BetaMessage>;
 export type LoopEvent =
   | { type: "thinking"; text: string }
   | { type: "message"; text: string }
-  | { type: "tool_call"; id: string; tool: string; input: unknown }
+  | { type: "tool_call"; id: string; tool: string; input: unknown; input_hash: string }
+  | { type: "guardrail"; tool: string; hit: GuardrailHit }
   | { type: "tool_result"; id: string; tool: string; ok: boolean; output: unknown; duration_ms: number };
 export interface LoopResult { status: "succeeded" | "failed"; text: string; error?: string; usage: TokenUsage; model: string; turns: number }
 
@@ -34,10 +36,12 @@ export function serializeResult(value: unknown) {
 export async function runLoop(options: {
   call: ModelCaller; model: string; effort: Effort; system: string; tools: AgentTool[]; context: ToolContext;
   messages: Anthropic.Beta.BetaMessageParam[]; maxTurns: number; onEvent: (event: LoopEvent) => Promise<void>; onText?: (delta: string) => void;
+  guardrails?: Guardrail[];
 }): Promise<LoopResult> {
   const usage = emptyUsage(); let served = options.model; let finalText = "";
   const definitions = toolDefinitions(options.tools);
   const registry = new Map(options.tools.map(entry => [entry.name, entry]));
+  const seen = new Map<string, number>();
   for (let turn = 1; turn <= options.maxTurns; turn++) {
     const message = await options.call({
       model: options.model, max_tokens: 16000,
@@ -66,9 +70,15 @@ export async function runLoop(options: {
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     // Sequential execution keeps the persisted step order identical to the effect order in PostgreSQL.
     for (const use of calls) {
-      await options.onEvent({ type: "tool_call", id: use.id, tool: use.name, input: use.input });
+      const hash = inputHash(use.name, use.input); const identical = (seen.get(hash) ?? 0) + 1; seen.set(hash, identical);
+      await options.onEvent({ type: "tool_call", id: use.id, tool: use.name, input: use.input, input_hash: hash });
       const started = Date.now(); let ok = true; let output: unknown;
-      try {
+      // Guardrails run before the tool: monitor and warn are recorded, block stops the call.
+      const hits = evaluateGuardrails(options.guardrails ?? [], use.name, use.input, identical);
+      for (const hit of hits) await options.onEvent({ type: "guardrail", tool: use.name, hit });
+      const blocked = blockFor(hits);
+      if (blocked) { ok = false; output = blocked; }
+      else try {
         const entry = registry.get(use.name); if (!entry) throw new Error(`Unknown tool ${use.name}`);
         const parsed = entry.schema.safeParse(use.input);
         if (!parsed.success) throw new Error(`Invalid input: ${parsed.error.issues.map(issue => `${issue.path.join(".") || "input"} ${issue.message}`).join("; ")}`);

@@ -1,3 +1,39 @@
+## Agent operations backend: guardrails, incidents and read models — 2026-10-16
+
+**Added:**
+- Migration `202610160002_agent_operations.sql`. It adds three tables: guardrails, guardrail versions and incidents.
+- Guardrail lifecycle with maker/checker on every stage change.
+- Simulation by replay of recorded tool calls.
+- Six incident detectors.
+- Operations read models: overview with health score, agent-to-tool edges, and edge failures.
+- Guardrail evaluation in the tool loop, which fails closed if rules cannot be loaded.
+- A trigger that enforces Block-stage amount and deny rules on agent proposals sent by any path.
+- New `/api/agents` intents: `guardrail_create`, `guardrail_stage`, `guardrail_decide`, `incident_resolve`.
+- The cron route also sweeps for incidents.
+- See `docs/ARCHITECTURE.md`, section "Agent operations".
+
+**Tested locally:**
+- `npm run typecheck` and `npm run build` pass.
+- `npm test` passes 88/88, including 10 new tests:
+  - every stage change needs an independent checker;
+  - agents cannot change guardrails;
+  - a Block-stage cap stops an agent proposal sent by direct RPC, and does not affect humans;
+  - simulation counts match a fixture;
+  - each detector opens once, and running detection again opens nothing;
+  - the health score equals the hand-computed 56;
+  - edges match the fixture;
+  - the tool loop never runs a blocked call;
+  - rules evaluate in the fixed order, and inputs hash canonically.
+- **PostgreSQL 16** (fresh cluster):
+  - `db:migrate` applied 11 migrations, and a second run applied none.
+  - `test:postgres` passed 8/8 and `test:postgres:http` passed 5/5.
+  - RLS is on all 27 public tables.
+  - Anonymous users cannot execute any `SECURITY DEFINER` routine in `public` or `o2c_private`.
+
+**Not verified live:** no hosted database migration and no live agent run.
+
+**Not built yet:** the operations screens (overview, agent map, traces, incidents, guardrails, insights). The `require_contact` rule waits for the customer contacts table in slice 2.
+
 ## Navy and teal theme, Geist type — 2026-10-16
 
 **Changed:** the purple palette and the Inter/Sora fonts are gone.

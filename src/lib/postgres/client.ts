@@ -23,9 +23,17 @@ const routines = {
   copilot_history: ["p_tenant", "p_entity", "p_thread"], copilot_threads_list: ["p_tenant", "p_entity"],
   copilot_attach: ["p_tenant", "p_entity", "p_id", "p_name", "p_media_type", "p_content"],
   copilot_file: ["p_tenant", "p_entity", "p_id"],
+  propose_guardrail: ["p_tenant", "p_entity", "p_id", "p_name", "p_kind", "p_agent_kind", "p_params", "p_simulation"],
+  propose_guardrail_stage: ["p_tenant", "p_entity", "p_id", "p_version", "p_stage", "p_simulation"],
+  decide_guardrail_stage: ["p_tenant", "p_entity", "p_id", "p_version", "p_decision"],
+  simulate_guardrail: ["p_tenant", "p_entity", "p_kind", "p_agent_kind", "p_params", "p_days"],
+  resolve_agent_incident: ["p_tenant", "p_entity", "p_id"],
+  agent_guardrails_active: ["p_tenant", "p_entity", "p_agent_kind"], agent_guardrails_list: ["p_tenant", "p_entity"],
+  agent_incidents_list: ["p_tenant", "p_entity", "p_status"], agent_ops_overview: ["p_tenant", "p_entity", "p_hours"],
+  agent_edges: ["p_tenant", "p_entity", "p_hours"], edge_failures: ["p_tenant", "p_entity", "p_agent_kind", "p_tool", "p_hours"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
-const jsonParameters = new Set(["p_payload", "p_detail", "p_trace"]);
+const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation"]);
 export type Routine = keyof typeof routines;
 export interface ImportBatch extends Record<string, unknown> { id: string; kind: string; file_name: string; digest: string; payload: Record<string, string>[]; rows: number; status: string; maker: string }
 export function financeClient(pool: SqlPool, session: () => string | undefined) {
@@ -68,6 +76,9 @@ export function agentControl(pool: SqlPool) {
   return {
     async claim(run: string, sessionHash: string) {
       return transaction(pool, async connection => (await connection.query<{ value: ClaimedRun | null }>("select o2c_private.claim_agent_run($1,$2) as value", [run, sessionHash])).rows[0]?.value ?? null);
+    },
+    async detectIncidents() {
+      return transaction(pool, async connection => (await connection.query<{ value: number }>("select o2c_private.detect_all_agent_incidents() as value")).rows[0]?.value ?? 0);
     },
     async scheduleDue(asOf: string) {
       return transaction(pool, async connection => (await connection.query<{ value: string }>("select o2c_private.schedule_due_runs($1) as value", [asOf])).rows.map(row => row.value));

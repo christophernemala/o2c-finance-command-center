@@ -23,8 +23,11 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 ## In progress
 
+- [ ] Agent operations screens (B3): overview, agent map, traces, incidents, guardrails, insights
+
 - [x] Theme and type reset: navy ink and teal action colour, Geist / Space Grotesk / JetBrains Mono (style guide, app tokens, prototype)
-- [ ] Slice 2 design: prototype v2 in the new theme (`docs/design/slice2-prototype.html`), published and render-checked; awaiting owner confirmation of palette and fonts
+- [x] Slice 2 design: prototype v2 in the new theme (owner said to proceed)
+- [x] Agent operations backend (B1): guardrails with maker/checker stages, simulation, incident detectors, operations read models
 
 ## Blocked or waiting on the owner
 

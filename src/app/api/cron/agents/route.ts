@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
       if (Date.now() - started > 200_000) break;
       if (await executeRun(run, deps)) executed.push(run);
     }
-    return Response.json({ queued: queued.length, executed: executed.length, remaining: queued.length - executed.length }, { headers: { "Cache-Control": "no-store" } });
+    // Stuck runs produce no finish call, so the sweep is what catches them.
+    const incidents = await agentControl(deps.pool).detectIncidents();
+    return Response.json({ queued: queued.length, executed: executed.length, remaining: queued.length - executed.length, incidents }, { headers: { "Cache-Control": "no-store" } });
   } catch { return Response.json({ error: "Scheduler unavailable" }, { status: 503 }); }
 }

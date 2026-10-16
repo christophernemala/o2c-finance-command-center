@@ -95,6 +95,57 @@ and no human approver (a CHECK constraint enforces this). Posting reuses
 routine returns `awaiting_approval` with the reason, and the proposal stays in
 the Approval inbox.
 
+## Agent operations: guardrails and incidents
+
+Migration `202610160002_agent_operations.sql`; evaluation in `src/lib/ai/guardrails.ts`.
+
+### Guardrails
+
+| Kind | Parameters | Stops |
+|---|---|---|
+| `deny_tool` | `tool` | Any call to that tool |
+| `max_amount` | `tool` (`propose_receipt` or `propose_allocation`), `limit` (AED decimal) | A proposal above the limit |
+| `require_field` | `tool`, `field` | A call where the field is missing or empty |
+| `max_identical_calls` | `limit` (1-20) | The call after `limit` identical calls in one run |
+
+- **Scope.** A rule applies to one agent kind or to all agents. It does not apply to the copilot, which already acts with the signed-in user's own permissions.
+- **Stages.** A rule is created in **Monitor**, which records hits and changes nothing. Moving it to **Warn**, **Block** or **Rolled back** adds a new version row. That version takes effect only when an approver or admin other than its maker activates it. Version history is kept, and only one version is active at a time.
+- **Evaluation.** The runner loads the active rules before the first model turn. If they cannot be loaded, the run fails rather than running unguarded. Before every tool call, rules are checked in a fixed order: `deny_tool`, then `max_amount`, then `require_field`, then `max_identical_calls`.
+  - Each hit is recorded as a `guardrail` step.
+  - Monitor and Warn record the hit, and the tool still runs.
+  - Block skips the tool. The agent receives `{ blocked_by, rule_id, stage, reason }` as an error result, so it can adjust its next step.
+- **Identical calls.** "Identical" means the same tool with the same input, compared as canonical JSON with keys sorted. The SHA-256 of that JSON is stored on each `tool_call` step.
+- **Database enforcement.** Block-stage `deny_tool` and `max_amount` rules are also enforced by a trigger on `approvals` for any proposal that carries an `agent_run_id`. A direct RPC by the agent identity cannot bypass them.
+- **Simulation.** `simulate_guardrail` replays recorded tool calls from the last N days in SQL, with no model calls. It reports how many calls the rule would have acted on, failures it would have caught, false positives (calls that later succeeded), and the cost of the affected runs. The API stores this 30-day snapshot with every new rule and every stage proposal, so the checker sees what the maker saw.
+
+### Incidents
+
+`o2c_private.detect_agent_incidents` runs at the end of every agent run and from the cron sweep. Each incident opens at most once per kind and run.
+
+| Kind | Rule | Severity |
+|---|---|---|
+| `loop` | The same tool with the same input three or more times in one run | Warning |
+| `tool_error_spike` | At least three failed tool results, and at least half of the run's results | Warning |
+| `stuck_run` | Still running with no step recorded for 10 minutes | Critical |
+| `model_stop` | Failed because the model declined, hit its output limit, or hit the turn cap | Warning |
+| `run_failed` | Any other failed run | Critical |
+| `guardrail_block` | A Block-stage rule stopped a call | Info |
+
+Incident cost is the run's `cost_usd`, the same figure the overview sums. Approvers and admins resolve incidents.
+
+### Operations read models
+
+- **`agent_ops_overview(hours)`:** runs (finished, succeeded, running, median and p95 duration), pending approvals and the oldest one's age, AED auto-posted today, model cost in total and per agent, tool error rate, open incidents, and the health score.
+- **Health score.** It is a weighted mean of four inputs:
+  - run success × 30;
+  - approval age × 20 (100 up to 4 hours, falling linearly to 0 at 48 hours);
+  - open incidents × 20 (100, minus 40 per critical and 15 per warning, not below 0);
+  - tool success × 15.
+
+  The total is divided by 85, the sum of these weights. Send success (weight 15) joins the formula when outbound email ships. There is no score until at least one run has finished.
+- **`agent_edges(hours)`:** call count, successes and median latency for each pair of agent and tool.
+- **`edge_failures(agent, tool, hours)`:** recent failed calls with the input the agent sent, for the context comparison.
+
 ## Copilot
 
 `/api/copilot` streams server-sent events. It runs as the signed-in user, so RLS

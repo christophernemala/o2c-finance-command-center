@@ -2,9 +2,66 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 10 · public tables: 24 · tables with RLS: 24
+Migrations: 11 · public tables: 27 · tables with RLS: 27
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
+
+## agent_guardrail_versions
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_guardrails, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| guardrail_id | uuid | no |
+| version | integer | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| stage | text | no |
+| status | text | no |
+| simulation | jsonb | yes |
+| maker | uuid | no |
+| checker | uuid | yes |
+| created_at | timestamp with time zone | no |
+| decided_at | timestamp with time zone | yes |
+
+## agent_guardrails
+
+RLS: enabled · policies: scope_read (SELECT)
+References: entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| name | text | no |
+| kind | text | no |
+| agent_kind | text | yes |
+| params | jsonb | no |
+| created_by | uuid | no |
+| created_at | timestamp with time zone | no |
+
+## agent_incidents
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_runs, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| kind | text | no |
+| severity | text | no |
+| agent_kind | text | yes |
+| run_id | uuid | no |
+| tool | text | yes |
+| detail | jsonb | no |
+| cost_usd | numeric(12,6) | yes |
+| opened_at | timestamp with time zone | no |
+| resolved_at | timestamp with time zone | yes |
+| resolved_by | uuid | yes |
 
 ## agent_jobs
 
@@ -426,8 +483,13 @@ RLS: enabled · policies: tenant_read (SELECT)
 | agent_auto_post | definer |
 | agent_cash_candidates | definer |
 | agent_console | definer |
+| agent_edges | definer |
 | agent_finish_run | definer |
+| agent_guardrails_active | definer |
+| agent_guardrails_list | definer |
+| agent_incidents_list | definer |
 | agent_invoices | definer |
+| agent_ops_overview | definer |
 | agent_record_step | definer |
 | agent_run_detail | definer |
 | commit_import | definer |
@@ -438,15 +500,21 @@ RLS: enabled · policies: tenant_read (SELECT)
 | copilot_threads_list | definer |
 | decide_action | definer |
 | decide_agent_policy | definer |
+| decide_guardrail_stage | definer |
+| edge_failures | definer |
 | enqueue_agent_job | definer |
 | execute_action | definer |
 | member_role | definer |
 | propose_action | definer |
 | propose_agent_policy | definer |
+| propose_guardrail | definer |
+| propose_guardrail_stage | definer |
 | report_ar_pack | definer |
 | request_agent_run | definer |
+| resolve_agent_incident | definer |
 | run_agent_job | definer |
 | set_agent_schedule | definer |
+| simulate_guardrail | definer |
 | source_entity_access | invoker |
 | stage_import | definer |
 | workspace_access | invoker |
