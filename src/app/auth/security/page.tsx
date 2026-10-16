@@ -1,3 +1,4 @@
+import { SocialSignin } from "@/components/social-signin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/postgres/server";
@@ -27,6 +28,7 @@ export default async function Security({ searchParams }: { searchParams: Promise
           <label className="mt-5">Authenticator code<input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} required/></label><button className="button mt-5 w-full">Verify and enable</button></MutationForm></>
       : <><p className="mt-5 leading-6 text-muted">Add an authenticator app to protect your work account with a second factor.</p>
         <MutationForm action="/api/auth/enroll"><input type="hidden" name="intent" value="enroll"/><button className="button mt-5 w-full">Set up authenticator</button></MutationForm></>}
+    <section className="mt-8 border-t border-line pt-6"><h2 className="mb-4 font-semibold">Connect your work identity</h2><SocialSignin link/></section>
     <Link href="/" className="mt-6 block text-link">Return to workspace</Link>
   </AuthShell>;
 }

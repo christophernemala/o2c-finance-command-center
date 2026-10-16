@@ -1,3 +1,22 @@
+## Banking entry screens and work identity — 2026-10-16
+
+Login and detailed registration use the white/blue glass direction with a Three.js
+bank/agent scene, SVG fallback, pause and reduced-motion support. Registration stores
+private administrator-reviewed requests; it does not automatically provision tenants
+or send invitations. Existing invited password activation collects complete details.
+
+Google and single-tenant Microsoft OIDC routes support invitation activation and
+explicit account linking, with PKCE, nonce, signature verification, one-use state,
+session rotation and preserved MFA. Buttons are disabled without provider credentials.
+Email matching alone cannot create a link or financial membership. New dependencies
+are Three.js and openid-client, with Three.js types used only during development.
+
+Deploy migration `202610160009_registration_oidc.sql` before enabling these routes.
+See [AUTH_SETUP.md](AUTH_SETUP.md) for credentials, callbacks and administrator review.
+Local `npm run verify` passed TypeScript, 151 tests and a production build; the
+high-severity dependency audit found zero vulnerabilities. Live provider consent and
+browser/mobile visual review are pending. CI PostgreSQL results are recorded separately.
+
 ## Reproducible font builds — 2026-10-16
 
 The push workflow at commit `68806d5` failed in Turbopack's generated Space Grotesk

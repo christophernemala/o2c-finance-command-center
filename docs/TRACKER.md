@@ -39,6 +39,8 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] CI font-build repair: bundle the existing typefaces with `next/font/local`, source digests and licenses. Local verification passed all 142 tests and a build with Google font loading blocked.
 
+- [x] Banking login and detailed registration, Three.js scene with fallback/reduced motion, private access requests and invitation activation; Google/single-tenant Microsoft OIDC with explicit linking and preserved MFA. Local TypeScript, 151 tests and production build passed. See `docs/AUTH_SETUP.md`; live provider and browser checks remain pending.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

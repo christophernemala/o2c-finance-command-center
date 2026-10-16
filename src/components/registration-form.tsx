@@ -1,0 +1,18 @@
+import Link from "next/link";
+import { randomUUID } from "node:crypto";
+import { MutationForm } from "./mutation-form";
+export function RegistrationForm({available,invitedEmail}:{available:boolean;invitedEmail?:string}){
+ return <MutationForm action={invitedEmail?"/api/auth/signup":"/api/auth/register"}>
+  <input type="hidden" name="id" value={randomUUID()}/><fieldset disabled={!available} className="registration-fields">
+  <div className="grid gap-4 sm:grid-cols-2"><label>Full name<input name="full_name" autoComplete="name" required minLength={2} maxLength={120} placeholder="Your full name"/></label><label>Work email<input name="email" type="email" autoComplete="email" required maxLength={254} defaultValue={invitedEmail} readOnly={!!invitedEmail} placeholder="you@company.com"/></label></div>
+  <div className="grid gap-4 sm:grid-cols-2"><label>Company name<input name="company" autoComplete="organization" required minLength={2} maxLength={160} placeholder="Registered company name"/></label><label>Job title<input name="job_title" autoComplete="organization-title" required minLength={2} maxLength={80} placeholder="Finance manager"/></label></div>
+  <div className="grid gap-4 sm:grid-cols-2"><label>Work phone<input name="phone" type="tel" autoComplete="tel" required pattern="\+[1-9][0-9]{7,14}" maxLength={16} placeholder="+971501234567"/><span className="text-xs font-normal text-muted">Include the international country code.</span></label><label>Country<input name="country" autoComplete="country-name" required minLength={2} maxLength={80} placeholder="United Arab Emirates"/></label></div>
+  <div className="grid gap-4 sm:grid-cols-2"><label>Company size<select name="company_size" required defaultValue=""><option value="" disabled>Number of employees</option>{["1–10","11–50","51–200","201–1000","1001+"].map(size=><option value={size} key={size}>{size} employees</option>)}</select></label><label>Your main finance workflow<select name="interest" required defaultValue="collections"><option value="collections">Recover overdue receivables</option><option value="cash_application">Match and allocate incoming cash</option><option value="ar_reporting">Analyze receivables and reporting</option><option value="treasury_review">Review cashflow and treasury</option></select></label></div>
+  <label>What would you like to improve?<textarea name="description" rows={3} minLength={10} maxLength={1000} required placeholder="Describe your collection, reconciliation or reporting process."/></label>
+  {invitedEmail&&<div className="grid gap-4 sm:grid-cols-2"><label>Create password<input name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={256}/></label><label>Confirm password<input name="confirm" type="password" autoComplete="new-password" required minLength={12} maxLength={256}/></label><p className="text-xs text-muted sm:col-span-2">Use at least 12 characters. Your administrator controls workspace permissions.</p></div>}
+  <label className="flex items-start gap-3 text-sm font-normal"><input type="checkbox" name="consent" value="yes" required/><span>Use these details to review my workspace access request. I have read the <Link href="/privacy" className="text-link underline">privacy notice</Link>.</span></label>
+  <button className="button w-full">{invitedEmail?"Activate my work account":"Request my finance workspace"} <span aria-hidden="true">→</span></button>
+  <p className="text-center text-xs leading-5 text-muted">{invitedEmail?"Your verified invitation activates this account.":"Registration requests are reviewed by an administrator. Submitting does not grant access to financial records."}</p>
+  </fieldset>
+ </MutationForm>;
+}

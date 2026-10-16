@@ -14,6 +14,7 @@ const key = randomBytes(32);
 const serverEnv: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: "production", AUTH_LOGIN_IP_SOURCE: "loopback", AUTH_SITE_URL: origin,
   DATABASE_URL: runtime.toString(), MFA_ENCRYPTION_KEY: key.toString("base64"),
   UPSTASH_REDIS_REST_URL: "https://o2c-http-test.upstash.io", UPSTASH_REDIS_REST_TOKEN: "test-only-token", AUTH_RATE_LIMIT_SECRET: randomBytes(32).toString("base64"),
+  GOOGLE_CLIENT_ID:"", GOOGLE_CLIENT_SECRET:"", MICROSOFT_CLIENT_ID:"", MICROSOFT_CLIENT_SECRET:"", MICROSOFT_TENANT_ID:"",
   O2C_HTTP_TEST: "1", NODE_OPTIONS: `--import tsx --import ${new URL("./http-redis-stub.ts", import.meta.url).pathname}` };
 const admin = new Pool({ connectionString: adminUrl.toString() });
 const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "4187"], { env: serverEnv, stdio: ["ignore", "pipe", "pipe"] });
@@ -42,6 +43,18 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       await delay(100);
     }
     assert.ok(ready, "Local Next.js server started");
+    await t.test("detailed registration stores a private request and verifies its receipt; providers fail closed", async () => {
+      const applicant=browser();const requestEmail=`registration-${randomUUID()}@example.test`;
+      const details={id:randomUUID(),full_name:"HTTP registration applicant",email:requestEmail,company:"HTTP registration company",job_title:"Credit controller",phone:"+971501234567",country:"United Arab Emirates",company_size:"11–50",interest:"collections",description:"Test-only collections access request",consent:"yes"};
+      assert.equal((await applicant.request("/api/auth/register",details,"https://attacker.example")).status,403);
+      const spoofed=await browser().request("/signup?message=requested");assert.ok(!(await spoofed.text()).includes("Your request has been received"));
+      const submitted=await applicant.request("/api/auth/register",details);assert.equal(submitted.status,303);
+      const receipt=await applicant.request("/signup?message=requested");assert.ok((await receipt.text()).includes("Your request has been received"));
+      assert.equal((await admin.query("select company from auth.registration_requests where email=$1",[requestEmail])).rows[0].company,"HTTP registration company");
+      assert.equal((await admin.query("select id from auth.users where email=$1",[requestEmail])).rows.length,0);
+      assert.equal((await applicant.request("/api/auth/oidc/google",{})).status,503);
+      const invalidCallback=await applicant.request("/api/auth/oidc/google/callback?state=invalid");assert.equal(invalidCallback.status,303);assert.equal(new URL(invalidCallback.headers.get("location")!).pathname,"/login");
+    });
     const tenant = randomUUID(); const email = `http-${randomUUID()}@example.test`;
     await admin.query("insert into public.tenants(id,name) values($1,'test-only HTTP tenant')", [tenant]);
     await admin.query("insert into public.entities(tenant_id,name) values($1,'test-only HTTP entity')", [tenant]);
@@ -67,7 +80,12 @@ test("standalone Next.js invitation, login cookies, MFA and logout over HTTP", a
       assert.equal(confirm.status, 303); assert.equal(new URL(confirm.headers.get("location")!).pathname, "/signup");
       assert.equal(confirm.headers.get("referrer-policy"), "strict-origin");
       assert.ok(confirm.headers.getSetCookie().some(cookie => /HttpOnly/i.test(cookie)));
-      const activation = await page.request("/api/auth/signup", { password, confirm: password });
+      const incomplete = await page.request("/api/auth/signup", { password, confirm: password });
+      assert.equal(new URL(incomplete.headers.get("location")!).searchParams.get("error"), "details");
+      const activation = await page.request("/api/auth/signup", { password, confirm: password,
+        id: randomUUID(), full_name: "HTTP test applicant", email, company: "HTTP test company", job_title: "Finance manager",
+        phone: "+971501234567", country: "United Arab Emirates", company_size: "11–50", interest: "collections",
+        description: "Test-only receivables workflow", consent: "yes" });
       assert.equal(activation.status, 303); assert.equal(new URL(activation.headers.get("location")!).pathname, "/login");
       assert.equal(page.cookies.has("o2c-session"), false);
       const repeat = await browser().request(url.pathname + url.search);
