@@ -36,12 +36,18 @@ const routines = {
   propose_collection_message: ["p_tenant", "p_entity", "p_id", "p_customer", "p_contact", "p_tone", "p_subject", "p_body", "p_invoices", "p_attach"],
   decide_collection_message: ["p_tenant", "p_entity", "p_id", "p_decision"],
   record_payment_promise: ["p_tenant", "p_entity", "p_id", "p_customer", "p_invoice", "p_amount", "p_date", "p_note"],
+  resolve_payment_promise: ["p_tenant", "p_entity", "p_id", "p_status", "p_reason"],
   propose_credit_limit: ["p_tenant", "p_entity", "p_id", "p_customer", "p_limit", "p_reason"],
   decide_credit_limit: ["p_tenant", "p_entity", "p_id", "p_decision"],
   place_customer_hold: ["p_tenant", "p_entity", "p_id", "p_customer", "p_reason"],
   release_customer_hold: ["p_tenant", "p_entity", "p_id", "p_reason"],
   collections_worklist: ["p_tenant", "p_entity", "p_as_of"], customer_account: ["p_tenant", "p_entity", "p_customer", "p_as_of"],
   customer_statement: ["p_tenant", "p_entity", "p_customer", "p_as_of"],
+  add_customer_remark: ["p_tenant", "p_entity", "p_id", "p_customer", "p_invoice", "p_reason", "p_channel", "p_note", "p_next", "p_promise_amount", "p_promise_date"],
+  add_trade_licence: ["p_tenant", "p_entity", "p_id", "p_customer", "p_number", "p_authority", "p_expiry"],
+  my_follow_ups: ["p_tenant", "p_entity", "p_as_of", "p_all"], daily_call_list: ["p_tenant", "p_entity", "p_as_of", "p_limit"],
+  licence_alerts: ["p_tenant", "p_entity", "p_as_of", "p_days"], customer_remarks_list: ["p_tenant", "p_entity", "p_customer"],
+  remarks_logged: ["p_tenant", "p_entity", "p_date"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
 const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation"]);
@@ -91,8 +97,8 @@ export function agentControl(pool: SqlPool) {
     async claimMessages(limit: number) {
       return transaction(pool, async connection => (await connection.query<{ value: ClaimedMessage[] }>("select o2c_private.claim_collection_messages($1) as value", [limit])).rows[0]?.value ?? []);
     },
-    async completeMessage(id: string, ok: boolean, providerId: string | null, error: string | null) {
-      return transaction(pool, async connection => (await connection.query<{ value: string }>("select o2c_private.complete_collection_message($1,$2,$3,$4) as value", [id, ok, providerId, error])).rows[0]?.value);
+    async completeMessage(id: string, attempt: number, ok: boolean, providerId: string | null, error: string | null) {
+      return transaction(pool, async connection => (await connection.query<{ value: string }>("select o2c_private.complete_collection_message($1,$2,$3,$4,$5) as value", [id, attempt, ok, providerId, error])).rows[0]?.value);
     },
     async messageStatement(id: string) {
       return transaction(pool, async connection => (await connection.query<{ value: unknown }>("select o2c_private.message_statement($1) as value", [id])).rows[0]?.value ?? null);

@@ -26,9 +26,14 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 - [x] Agent operations screens: Agent operations (health, KPIs, agent-to-tool map, context comparison, cost), Incidents, Guardrails (server-side simulation preview, maker/checker stage changes). Run traces stay in AI agents.
 - [x] Slice 2: collections email outbox (Resend, sent only after independent approval), contacts, payment promises, maker/checker credit limits, agent-placed and human-released credit holds, PDF statements, Collections screen. A missing contact is refused in SQL, which replaces the planned `require_contact` guardrail.
 
+- [x] Collections workbench: remarks (append-only), follow-ups due, deterministic daily call list, trade-licence alerts, daily collections pack (Excel).
+- [x] Review fixes on slice 2: ledger re-check at approval and send, one open message per customer, contact archive withdraws queued messages, attempt-bound outbox completion, statement limited to approved invoices, ledger-derived promise status plus manual resolution, deny rules enforced in SQL for agent messages and holds, idempotent replays without duplicate audit events.
+
 ## In progress
 
-- [ ] Nothing in progress. Next work waits on live verification (below).
+- [ ] Category / account / region outstanding breakdowns.
+- [ ] Credit and debit notes (draft, independent approval, posting, allocation; agent proposes for short payments and overpayments).
+- [ ] SMS / WhatsApp outreach through Twilio, on the same human-approved outbox.
 
 ## Blocked or waiting on the owner
 

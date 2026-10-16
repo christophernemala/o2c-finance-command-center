@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 12 · public tables: 32 · tables with RLS: 32
+Migrations: 14 · public tables: 34 · tables with RLS: 34
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -397,6 +397,44 @@ References: agent_runs, customers, entities, users
 | released_at | timestamp with time zone | yes |
 | release_reason | text | yes |
 
+## customer_remarks
+
+RLS: enabled · policies: scope_read (SELECT)
+References: customers, entities, invoices, payment_promises, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| invoice_id | uuid | yes |
+| reason | text | no |
+| channel | text | no |
+| note | text | no |
+| next_follow_up | date | yes |
+| promise_id | uuid | yes |
+| created_by | uuid | no |
+| created_at | timestamp with time zone | no |
+
+## customer_trade_licences
+
+RLS: enabled · policies: scope_read (SELECT)
+References: customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| licence_number | text | no |
+| authority | text | no |
+| expiry_date | date | no |
+| archived | boolean | no |
+| created_by | uuid | no |
+| created_at | timestamp with time zone | no |
+
 ## customers
 
 RLS: enabled · policies: scope_read (SELECT)
@@ -588,6 +626,8 @@ RLS: enabled · policies: tenant_read (SELECT)
 | Routine | Security |
 |---|---|
 | add_customer_contact | definer |
+| add_customer_remark | definer |
+| add_trade_licence | definer |
 | agent_ar_overview | definer |
 | agent_auto_post | definer |
 | agent_cash_candidates | definer |
@@ -610,7 +650,9 @@ RLS: enabled · policies: tenant_read (SELECT)
 | copilot_history | definer |
 | copilot_threads_list | definer |
 | customer_account | definer |
+| customer_remarks_list | definer |
 | customer_statement | definer |
+| daily_call_list | definer |
 | decide_action | definer |
 | decide_agent_policy | definer |
 | decide_collection_message | definer |
@@ -619,7 +661,9 @@ RLS: enabled · policies: tenant_read (SELECT)
 | edge_failures | definer |
 | enqueue_agent_job | definer |
 | execute_action | definer |
+| licence_alerts | definer |
 | member_role | definer |
+| my_follow_ups | definer |
 | place_customer_hold | definer |
 | propose_action | definer |
 | propose_agent_policy | definer |
@@ -629,9 +673,11 @@ RLS: enabled · policies: tenant_read (SELECT)
 | propose_guardrail_stage | definer |
 | record_payment_promise | definer |
 | release_customer_hold | definer |
+| remarks_logged | definer |
 | report_ar_pack | definer |
 | request_agent_run | definer |
 | resolve_agent_incident | definer |
+| resolve_payment_promise | definer |
 | run_agent_job | definer |
 | set_agent_schedule | definer |
 | simulate_guardrail | definer |

@@ -7,11 +7,33 @@ export interface CustomerAccount {
   customer: { id: string; name: string; account: string };
   invoices: { id: string; number: string; issued_at: string; due_date: string; gross: string; open: string; days_overdue: number; dispute: string }[];
   contacts: { id: string; name: string; email: string; role: "ar" | "ap" | "finance" | "other"; is_primary: boolean }[];
-  promises: { id: string; invoice_id: string | null; amount: string; promised_date: string; status: "open" | "kept" | "cancelled" | "broken"; note: string | null }[];
+  promises: { id: string; invoice_id: string | null; amount: string; promised_date: string; status: "open" | "kept" | "cancelled" | "broken"; resolvable: boolean; note: string | null }[];
   hold: { id: string; reason: string; placed_by_kind: "agent" | "human"; placed_by: string; placed_at: string } | null;
   credit_limit: { id: string; limit: string; decided_at: string } | null;
   pending_limit: { id: string; limit: string; reason: string; maker: string } | null;
   messages: { id: string; tone: "reminder" | "firm" | "final_notice"; subject: string; body: string; to: string; total_overdue: string; invoice_ids: string[];
     attach_statement: boolean; status: "pending" | "approved" | "rejected" | "sending" | "sent" | "failed"; maker: string; checker: string | null;
     agent_run_id: string | null; error: string | null; created_at: string; sent_at: string | null }[];
+}
+export const remarkReasons = ["promised", "payment_sent", "partial_payment", "dispute", "no_answer", "wrong_contact", "escalated", "other"] as const;
+export const remarkChannels = ["call", "email", "meeting", "sms", "whatsapp", "other"] as const;
+export type RemarkReason = typeof remarkReasons[number];
+export type RemarkChannel = typeof remarkChannels[number];
+export interface CallListRow {
+  customer_id: string; customer: string; account: string; overdue: string; oldest_days: number; broken_promises: number; on_hold: boolean;
+  contacts: number; score: string; why: string; last_note: string | null;
+}
+export interface FollowUp {
+  customer_id: string; customer: string; account: string; due: string; days_late: number; last_reason: RemarkReason; last_note: string; owner: string; remark_id: string;
+}
+export interface LicenceAlert {
+  id: string; customer_id: string; customer: string; account: string; licence_number: string; authority: string; expiry_date: string; days_left: number; expired: boolean;
+}
+export interface CustomerRemarks {
+  remarks: { id: string; invoice_id: string | null; reason: RemarkReason; channel: RemarkChannel; note: string; next_follow_up: string | null; promise_id: string | null; created_by: string; created_at: string }[];
+  licences: { id: string; licence_number: string; authority: string; expiry_date: string }[];
+}
+export interface LoggedRemark {
+  customer: string; account: string; invoice: string | null; reason: RemarkReason; channel: RemarkChannel; note: string; next_follow_up: string | null;
+  promise_amount: string | null; promise_date: string | null; created_by: string; created_at: string;
 }

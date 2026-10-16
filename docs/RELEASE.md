@@ -1,3 +1,33 @@
+## Collections workbench and slice 2 review fixes — 2026-10-16
+
+**Added:**
+- **Migration** `202610160004_collections_workbench.sql`: `customer_remarks` (append-only) and `customer_trade_licences`, with routines `add_customer_remark`, `add_trade_licence`, `daily_call_list`, `my_follow_ups`, `licence_alerts`, `customer_remarks_list` and `remarks_logged`.
+- **Collections screen:** today's call list with each score and its reasons, follow-ups due (mine or everyone's), trade-licence alerts, a remarks timeline and form on the customer panel, licences on the customer panel, and "mark kept or cancelled" on promises.
+- **Daily collections pack:** `GET /api/export?report=daily`, an Excel workbook with six sheets.
+- **`Panel`** gains an optional `action` slot.
+
+**Fixed (from an internal code review of the slice 2 commits; migration `202610160005_collections_hardening.sql`):**
+- **High:** an approved email was not re-checked before sending. Invoices and total are now re-checked at approval ("Stale evidence") and before claiming; a changed message fails instead of sending.
+- **High:** promises could never be kept, so every past-due promise counted as broken and could trigger an agent credit hold. Status is now derived from the ledger, and people can mark a promise kept or cancelled.
+- **High:** Block-stage deny rules on `propose_collection_message` and `place_credit_hold` were enforced only in TypeScript. They are now enforced in those routines for the agent.
+- **Medium:** outbox completion is bound to the claimed attempt; a message stuck on its third attempt becomes `failed`; one failed completion no longer strands the rest of the batch.
+- **Medium:** one open message per customer (unique index), and archiving a contact withdraws its queued messages.
+- **Medium:** the attached statement lists only the invoices the checker approved.
+- **Low:** replaying `record_payment_promise` or `propose_credit_limit` no longer writes a second audit event, and a different amount is an idempotency conflict.
+
+**Tested locally:**
+- `npm run typecheck` and `npm run build` pass.
+- `npm test` passes 119/119. That includes 19 new tests: 7 for the workbench in PGlite, 3 for the workbench UI and daily pack, and 9 for the review fixes in PGlite.
+- **PostgreSQL 16** (fresh cluster):
+  - 14 migrations applied, and a second run applied none.
+  - `test:postgres` passed 8/8 and `test:postgres:http` passed 5/5.
+  - RLS is on all 34 public tables.
+  - No `SECURITY DEFINER` routine is executable by `anon`.
+  - No `o2c_private` routine is executable by `authenticated`.
+- **Visual check:** the Collections screen with sample props at 1440px and 390px. No sideways scrolling, no errors (Chromium).
+
+**Not verified live:** no hosted migration, and no live email or agent run.
+
 ## Slice 2: collections and credit — 2026-10-16
 
 **Added:**

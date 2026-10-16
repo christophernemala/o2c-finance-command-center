@@ -14,7 +14,7 @@ import { GuardrailsView, IncidentsView, OperationsOverview } from "@/components/
 import { compareFields } from "@/lib/ai/context-compare";
 import { CollectionsView } from "@/components/collections";
 import { emailConfig } from "@/lib/email/resend";
-import type { CustomerAccount, WorklistRow } from "@/types/collections";
+import type { CallListRow, CustomerAccount, CustomerRemarks, FollowUp, LicenceAlert, WorklistRow } from "@/types/collections";
 import { agentKinds, type AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
@@ -67,11 +67,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       incidents={incidents.data as Incident[]} edge={edge} failures={failed} fields={edge && failed[0] ? compareFields(edge.tool, failed[0].input, failed[0].error) : []}/>;
   }
   if (view === "collections") {
-    const worklist = await auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf });
+    const allFollowUps = params.followups === "all";
+    const [worklist, callList, followUps, licences] = await Promise.all([auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf }),
+      auth.client.rpc("daily_call_list", { ...scope, p_as_of: asOf, p_limit: 15 }), auth.client.rpc("my_follow_ups", { ...scope, p_as_of: asOf, p_all: allFollowUps }),
+      auth.client.rpc("licence_alerts", { ...scope, p_as_of: asOf, p_days: 30 })]);
     const rows = (worklist.error ? [] : worklist.data) as WorklistRow[];
     const customer = typeof params.customer === "string" && uuid.test(params.customer) ? params.customer : rows[0]?.customer_id;
-    const detail = customer ? await auth.client.rpc("customer_account", { ...scope, p_customer: customer, p_as_of: asOf }) : null;
-    if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} userId={auth.user.id}/>;
+    const [detail, remarks] = customer ? await Promise.all([auth.client.rpc("customer_account", { ...scope, p_customer: customer, p_as_of: asOf }),
+      auth.client.rpc("customer_remarks_list", { ...scope, p_customer: customer })]) : [null, null];
+    if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} userId={auth.user.id}
+      callList={callList.error ? [] : callList.data as CallListRow[]} followUps={followUps.error ? [] : followUps.data as FollowUp[]} allFollowUps={allFollowUps}
+      licences={licences.error ? [] : licences.data as LicenceAlert[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
   }
   if (view === "incidents") {
     const incidents = await auth.client.rpc("agent_incidents_list", { ...scope, p_status: "all" });

@@ -153,21 +153,39 @@ Migration `202610160003_collections_credit.sql`. Sender in `src/lib/collections/
 | Record | Rule |
 |---|---|
 | `customer_contacts` | Makers and admins add and archive contacts. Email addresses are validated and stored in lowercase. Each customer has at most one primary contact. |
-| `collection_messages` | Proposed by a maker, an admin or the collections agent within its run. There is no free-text recipient: the email goes to one of the customer's live contacts. The invoices must be overdue, undisputed and open, and belong to that customer. The total is recomputed from the ledger. An approver or admin other than the maker must approve before anything is sent. |
-| `payment_promises` | Makers and admins record them. A promise is shown as **broken** when its date has passed and it is still open; this is computed when read, with no job. |
+| `collection_messages` | Proposed by a maker, an admin or the collections agent within its run. There is no free-text recipient: the email goes to one of the customer's live contacts. The invoices must be overdue, undisputed and open, and belong to that customer. The total is recomputed from the ledger. An approver or admin other than the maker must approve before anything is sent. A customer has at most one message pending, approved or sending (unique index). The invoices and total are re-checked against the ledger at approval and again at sending; if anything changed, approval is refused ("Stale evidence") or the message fails instead of sending. Archiving a contact withdraws messages queued for it. |
+| `payment_promises` | Makers and admins record them, directly or through a "promised" remark. Status is derived when read by `o2c_private.promise_state`: an invoice promise is **kept** once that invoice is fully paid (and treated as cancelled if the invoice was voided); an account promise is kept once nothing is overdue; otherwise it is **broken** after its date. A maker, approver or admin can also mark a promise kept or cancelled with a reason (`resolve_payment_promise`, audited). The worklist, the account view and the credit risk agent all read the same derived status. |
 | `credit_limits` | A maker or admin proposes a limit, and a different approver or admin activates it. One active and one pending limit per customer. |
 | `customer_holds` | A maker, approver, admin or the agent (within a run) may place a hold, and `placed_by_kind` records which. Only a **human** approver or admin who did not place the hold may release it. The agent has no release tool. |
 
 **Send pipeline.** The steps are approve, claim, build, send, complete.
 - Approving a message schedules delivery after the response (`after()`). The daily cron retries.
 - `o2c_private.claim_collection_messages` moves messages from `approved` to `sending` using `FOR UPDATE SKIP LOCKED`. Two senders never take the same message.
-- If the message asks for one, the sender builds the statement from the ledger at send time.
+- Before claiming, approved messages whose evidence is no longer current are marked `failed` with the reason.
+- If the message asks for one, the sender builds the statement from the ledger at send time, listing only the message's approved invoices.
 - It calls Resend with the message id as the `Idempotency-Key`.
-- `complete_collection_message` records `sent` with the provider id.
-- A failed send returns to the queue until the third attempt, then becomes `failed`. A message stuck in `sending` for 15 minutes goes back to the queue.
+- `complete_collection_message` records `sent` with the provider id. It must name the claimed attempt number, so a late worker whose claim was reclaimed cannot overwrite a newer attempt.
+- A failed send returns to the queue until the third attempt, then becomes `failed`. A message stuck in `sending` for 15 minutes goes back to the queue, or becomes `failed` if that was the third attempt.
 - Without `RESEND_API_KEY` and `COLLECTIONS_FROM`, nothing is claimed.
 
+**Guardrails on direct RPC.** Block-stage `deny_tool` rules for `propose_collection_message` and `place_credit_hold` are enforced inside those routines when the caller is the agent (`o2c_private.assert_agent_tool_allowed`), not only in the TypeScript loop. Human callers are unaffected.
+
 **Statements.** `GET /api/statements/:customerId` returns an open-items statement as a PDF, under the signed-in user's RLS scope. It lists every open posted invoice with amount, paid and open, plus total open and total overdue. Amounts are formatted from decimal strings.
+
+## Collections workbench
+
+Migrations `202610160004_collections_workbench.sql` and `202610160005_collections_hardening.sql`. Screen: the top of `/?view=collections`. Daily pack: `GET /api/export?report=daily`, built in `src/lib/daily-pack.ts`.
+
+| Record or read | Rule |
+|---|---|
+| `customer_remarks` | Append-only (update and delete are rejected by trigger). Makers, approvers and admins log an outcome (`promised`, `payment_sent`, `partial_payment`, `dispute`, `no_answer`, `wrong_contact`, `escalated`, `other`), a channel, a note, an optional invoice and an optional next follow-up date within a year. A "promised" remark needs an amount and date and creates the payment promise in the same transaction; only makers and admins may record promises. Idempotent on the caller's id. |
+| `customer_trade_licences` | Makers and admins record a licence number, issuing authority and expiry. Recording the same number again archives the earlier record. |
+| `daily_call_list` | Overdue customers ranked by `overdue AED × (1 + min(oldest days, 360) / 90) × (1 + min(broken promises, 3) × 0.5)`, rounded to fils, with the parts shown as text. Customers whose latest remark sets a future follow-up, or was logged today (Dubai date), are left out. Deterministic: no model involved. |
+| `my_follow_ups` | Customers whose latest remark's follow-up date has arrived; the signed-in user's by default, everyone's on request. |
+| `licence_alerts` | Active licences expired or expiring within a window (0–365 days). |
+| `remarks_logged` | Remarks logged on one Dubai business date, for the daily pack. |
+
+The daily pack workbook has six sheets: Summary (with the score formula), Call list, Follow-ups due, Remarks today, Trade licences and Worklist. Amounts stay decimal strings and are validated at the boundary.
 
 ## Copilot
 
