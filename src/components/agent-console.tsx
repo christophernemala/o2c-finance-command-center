@@ -26,13 +26,13 @@ export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }
     {!aiReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-5 text-sm text-warning"><p className="font-semibold">AI provider not configured</p><p className="mt-1">Set <code>ANTHROPIC_API_KEY</code> on the server to enable agents and the copilot. Runs requested now are recorded and fail with this reason; no results are simulated.</p></div>}
     <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">{agentKinds.map(kind => {
       const info = catalogue[kind]; const latest = consoleData.runs.find(run => run.kind === kind); const cadence = consoleData.schedules[kind] ?? "manual";
-      return <article key={kind} className="flex flex-col rounded-[22px] border border-line bg-surface p-5 shadow-xs">
+      return <article id={`agent-${kind}`} key={kind} className="flex flex-col rounded-[22px] border border-line bg-surface p-5 shadow-xs">
         <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-primary-soft p-3 text-link"><info.icon size={22} aria-hidden="true"/></span>{latest ? <Badge value={latest.status}/> : <Badge value="idle"/>}</div>
         <h3 className="mt-4 font-semibold">{info.name} agent</h3><p className="mt-1 text-sm text-muted">{info.does}</p>
         <p className="mt-3 text-xs leading-5 text-muted"><strong className="text-ink">Autonomy:</strong> {info.autonomy}</p>
         <p className="mt-3 flex items-center gap-2 text-xs text-muted"><CalendarClock size={14} aria-hidden="true"/>{cadence === "daily" ? "Runs daily at 08:00 GST" : "Manual runs only"}{latest && <> · last {when(latest.created_at)}</>}</p>
         <div className="mt-auto space-y-2 pt-5">
-          {canRun && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="run"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={randomUUID()}/><button className="button w-full"><Bot size={16} aria-hidden="true"/>Run now</button></MutationForm>}
+          {canRun && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="run"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={randomUUID()}/><button className="button w-full"><Bot size={16} aria-hidden="true"/>Run {info.name.toLowerCase()} agent</button></MutationForm>}
           {admin && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="schedule"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="cadence" value={cadence === "daily" ? "manual" : "daily"}/><button className="button secondary w-full">{cadence === "daily" ? "Switch to manual" : "Schedule daily"}</button></MutationForm>}
         </div>
       </article>;

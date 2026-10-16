@@ -1,4 +1,19 @@
-# O2C design sources
+# Current working design — 2026-10-16
+
+The implementation on PR #6 is the current design target: liquid white, iOS blue,
+glass navigation, interactive chart modes, account-aging filters and the connected
+collections workbench. See [STYLEGUIDE.md](../../STYLEGUIDE.md) for the current tokens
+and interaction rules. This is a responsive web app, not a native iOS build or a
+Power BI embedding. No mock financial records are added to application routes.
+
+Use the authenticated Overview, Collections, Customers and 13-week cashflow screens
+to review the implemented direction. Preview deployment and live-data verification
+are tracked in [RELEASE.md](../RELEASE.md).
+
+The materials below are historical references; their teal theme and prototype
+sample balances are superseded and are not loaded by the application.
+
+# Historical O2C design sources
 
 ## Slice 2 prototype (agent operations, collections) — awaiting owner approval
 [slice2-prototype.html](slice2-prototype.html) is the interactive prototype, also published at https://claude.ai/artifact/QHec351kb1r7qBWU3TYnsw.

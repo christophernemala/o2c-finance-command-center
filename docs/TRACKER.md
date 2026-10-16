@@ -35,6 +35,8 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] SMS and WhatsApp replies through Twilio on the human-approved outbox: recorded channel consent, snapshotted phone recipients, channel-aware claims, no automatic phone retries, provider references and Collections forms. Local verification passed 138 tests, typecheck and build. WhatsApp replies require an active 24-hour service window; proactive templates remain future work.
 
+- [x] Liquid white/iOS-blue workspace: glass chrome, native interactive charts with Framer Motion, customer segment visuals, forecast week selection, searchable/sortable collections workbench and explicit action labels. Verified locally with 142 tests, TypeScript, build and dependency audit; browser visual sign-off remains pending.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Decimal from "decimal.js";
+import { FinanceCharts } from "./finance-charts";
 import { randomUUID } from "node:crypto";
 import type { Snapshot } from "@/types/workspace";
 import type { Breakdown, BreakdownDimension, Segments } from "@/types/collections";
@@ -21,7 +23,17 @@ export function CustomersView({ data, breakdown, segments }: { data: Snapshot; b
   const maker = ["maker", "admin"].includes(data.role);
   const Scope = () => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="id" value={randomUUID()}/></>;
   const filters = [breakdown.category && `category ${breakdown.category}`, breakdown.region && `region ${breakdown.region}`].filter(Boolean).join(", ");
+  const chartRows = breakdown.rows.slice(0, 8).map(row => ({ label: row.label, value: row.open }));
+  if (breakdown.rows.length > 8) {
+    const Exact = Decimal.clone({ precision: 40 });
+    chartRows.push({ label: `Remaining ${breakdown.rows.length - 8} ${breakdown.dimension === "customer" ? "accounts" : "segments"}`, value: breakdown.rows.slice(8).reduce((sum, row) => sum.plus(row.open), new Exact(0)).toFixed(2) });
+  }
   return <div className="space-y-6">
+    <FinanceCharts key={`${data.tenant_id}/${data.entity_id}/${breakdown.dimension}/${filters}`} title="Segment exposure and invoice aging" charts={[
+      { key: "segment_exposure", title: `Outstanding by ${dimensionLabel[breakdown.dimension].toLowerCase()}`, unit: "AED", description: "Largest segment balances; remaining segments are combined. Use the table below to drill into source accounts.", series: chartRows },
+      { key: "aging", title: "Aging in this selection", unit: "AED", description: "Non-overlapping invoice age bands for the current segment filters.", series: buckets.map(([key, label]) => ({ label: label === "Current" ? "Current" : `${label} days`, value: breakdown.total[key] })) },
+    ]}/>
+
     <Panel title="Outstanding by segment" subtitle={`Open posted invoices as of ${breakdown.as_of}, aged by days past due.${filters ? ` Filtered to ${filters}.` : ""}`}
       action={filters ? <Link className="text-sm text-link underline-offset-2 hover:underline" href={link(breakdown.dimension === "customer" ? "category" : breakdown.dimension)}>Clear filter</Link> : undefined}>
       <nav aria-label="Group by" className="flex flex-wrap gap-2 px-6 pt-4">{(["category", "region", "customer"] as const).map(dimension =>

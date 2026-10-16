@@ -18,6 +18,12 @@ External galleries are references; they do not override finance controls.
 | Import review | Exact mapping, rejected rows, control total, digest and commit state | Invalid files cannot stage; independent checker commits preserved rows atomically |
 | Audit explorer | Actor, operation, timestamp, affected record and evidence | Domain operations append evidence in the same database transaction |
 
+The owner-approved visual direction is liquid white with iOS blue actions and glass
+navigation, as defined in `STYLEGUIDE.md`. Finance values and approval evidence stay
+on opaque surfaces. Chart selection changes analytical focus only. Collection risk
+filters classify whole accounts by their oldest unpaid invoice; invoice aging charts
+remain separate and use non-overlapping invoice balance bands.
+
 Scope switches use authenticated server navigation. Remount tenant/entity client
 forms so a previous file preview cannot cross into the new workspace. No monetary
 records are stored in local storage. Independently authorize every protected read/write.

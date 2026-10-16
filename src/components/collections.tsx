@@ -5,6 +5,7 @@ import { remarkChannels, remarkReasons, type CallListRow, type CustomerAccount, 
 import { addAmounts, formatAed } from "@/lib/money";
 import { Panel, Empty, Money, Badge, KpiAmount } from "./ui";
 import { MutationForm } from "./mutation-form";
+import { CollectionsExplorer } from "./collections-explorer";
 
 const when = (value: string | null) => value ? new Date(value).toLocaleString("en-AE", { timeZone: "Asia/Dubai", dateStyle: "medium", timeStyle: "short" }) : "—";
 const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
@@ -21,7 +22,8 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
   const packHref = `/api/export?${new URLSearchParams({ report: "daily", tenant: data.tenant_id, entity: data.entity_id })}`;
   const totalText = addAmounts(worklist.map(row => row.overdue));
   return <div className="space-y-6">
-    {!emailReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Email sending not configured</p><p className="mt-1">Set <code>RESEND_API_KEY</code> and <code>COLLECTIONS_FROM</code> on the server. Until then, approved emails stay queued.</p></div>}
+    <div className="workbench-toolbar"><div><p className="eyebrow">Collections workbench</p><h2 className="mt-1 text-xl font-semibold">Outstanding accounts and collection actions</h2></div><div className="flex flex-wrap gap-2"><Link className="button secondary" href={`/?${new URLSearchParams({ view: "agents", tenant: data.tenant_id, entity: data.entity_id })}#agent-collections`}>Open collections agent</Link><Link className="button secondary" href={`/?${new URLSearchParams({ view: "approvals", tenant: data.tenant_id, entity: data.entity_id })}`}>Review allocation proposals</Link><a className="button" href={packHref}>Download daily AR workbook</a></div></div>
+    {!emailReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Email sending not configured</p><p className="mt-1">Approved emails stay queued until an administrator connects your email sender.</p></div>}
     {(!smsReady || !whatsappReady) && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning">{!smsReady && "SMS sending is not configured. "}{!whatsappReady && "WhatsApp sending is not configured. "}Approved messages for these channels stay queued.</div>}
     <section aria-label="Collections summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi label="Overdue AR" value={<KpiAmount value={totalText}/>} note={`${worklist.length} customer${worklist.length === 1 ? "" : "s"}`}/>
@@ -29,7 +31,8 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
       <Kpi label="On credit hold" value={worklist.filter(row => row.on_hold).length}/>
       <Kpi label="Without an AR contact" value={worklist.filter(row => row.contacts === 0).length} note="Cannot be emailed until a contact is added"/>
     </section>
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+    <CollectionsExplorer key={`${data.tenant_id}/${data.entity_id}`} rows={worklist} tenant={data.tenant_id} entity={data.entity_id} selectedCustomer={account?.customer.id} sidebar={
+    <div className="space-y-5">
       <Panel title="Today's call list" subtitle="Ranked by overdue AED, weighted by age and broken promises. Customers with a future follow-up, or a remark logged today, are left out."
         action={<a className="button secondary" href={packHref}>Daily pack (Excel)</a>}>
         {callList.length ? <ol className="divide-y divide-line">{callList.map((row, index) => <li key={row.customer_id} className="flex flex-wrap items-start justify-between gap-3 px-6 py-3 text-sm">
@@ -53,26 +56,15 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
         </Panel>
       </div>
     </div>
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-      <Panel title="Worklist" subtitle={`Customers with overdue invoices as of ${data.as_of}, ranked by overdue AED.`}>
-        {worklist.length ? <div className="overflow-auto"><table><caption className="sr-only">Collections worklist</caption><thead><tr><th scope="col">Customer</th><th scope="col" className="text-right">Overdue</th><th scope="col" className="text-right">Oldest</th><th scope="col">Next step</th></tr></thead><tbody>
-          {worklist.map(row => <tr key={row.customer_id} aria-selected={account?.customer.id === row.customer_id}>
-            <td><Link className="font-medium text-link underline-offset-2 hover:underline" href={href(row.customer_id)}>{row.customer}</Link><p className="mt-1 text-xs text-muted">{row.account}</p>
-              <div className="mt-1 flex flex-wrap gap-1">{row.on_hold && <Badge value="failed" label="On hold"/>}{row.broken_promises > 0 && <Badge value="failed" label={`${row.broken_promises} broken promise${row.broken_promises === 1 ? "" : "s"}`}/>}
-                {row.disputed_invoices > 0 && <Badge value="review" label="Dispute open"/>}{row.contacts === 0 && <Badge value="neutral" label="No contact"/>}</div></td>
-            <td className="money text-right"><Money value={row.overdue}/><p className="text-xs text-muted">{row.overdue_invoices} invoice{row.overdue_invoices === 1 ? "" : "s"}</p></td>
-            <td className="money text-right">{row.oldest_days}d</td>
-            <td>{row.last_message === "pending" ? <Badge value="pending" label="Email awaiting approval"/> : <Badge value={toneFor(row.oldest_days) === "final_notice" ? "failed" : toneFor(row.oldest_days) === "firm" ? "review" : "info"} label={toneLabel[toneFor(row.oldest_days)]}/>}</td>
-          </tr>)}
-        </tbody></table></div> : <Empty title="No overdue customers">Import invoices to build the worklist. Customers appear here once an open invoice passes its due date.</Empty>}
-      </Panel>
-      {account ? <CustomerPanel data={data} account={account} userId={userId} remarks={remarks}/> : <Panel title="Customer"><Empty title="Select a customer">Choose a customer in the worklist to see contacts, promises, credit and messages.</Empty></Panel>}
-    </div>
+    }/>
+    <section id="customer-workspace" className="scroll-mt-28" aria-label="Selected customer collection workspace">
+      {account ? <CustomerPanel data={data} account={account} userId={userId} remarks={remarks}/> : <Panel title="Customer account"><Empty title="Select a customer">Choose an outstanding account to review contacts, promises, credit and messages.</Empty></Panel>}
+    </section>
   </div>;
 }
 
 function Kpi({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
-  return <div className="rounded-xl border border-line bg-surface px-6 py-4"><p className="text-xs font-medium text-muted">{label}</p><p className="kpi-value mt-2 !text-3xl">{value}</p>{note && <p className="mt-1 text-xs text-muted">{note}</p>}</div>;
+  return <div className="metric-tile px-6 py-4"><p className="text-xs font-medium text-muted">{label}</p><p className="kpi-value mt-2 !text-3xl">{value}</p>{note && <p className="mt-1 text-xs text-muted">{note}</p>}</div>;
 }
 
 function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; account: CustomerAccount; userId: string; remarks: CustomerRemarks | null }) {
@@ -122,6 +114,7 @@ function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; acc
       <section aria-labelledby="contacts-h"><h3 id="contacts-h" className="font-semibold">Contacts</h3>
         {account.contacts.length ? <ul className="mt-2 space-y-2">{account.contacts.map(contact => <li key={contact.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line p-3">
           <div><p className="font-medium">{contact.name} {contact.is_primary && <Badge value="info" label="Primary"/>}</p><p className="text-xs text-muted">{contact.email} · {contact.role.toUpperCase()}</p>{contact.phone && <p className="mt-1 text-xs text-muted">{contact.phone} · SMS {contact.sms_opt_in ? "opted in" : "not opted in"} · WhatsApp {contact.whatsapp_opt_in ? "opted in" : "not opted in"}</p>}</div>
+          {contact.phone && <a className="button secondary" href={`tel:${contact.phone}`}>Call {contact.name}</a>}
           {maker && <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="contact_archive"/><input type="hidden" name="id" value={contact.id}/><button className="button secondary">Remove</button></MutationForm>}</li>)}</ul>
           : <p className="mt-1 text-muted">No contact on file. Emails cannot be proposed until one is added.</p>}
         {maker && <details className="mt-3"><summary className="cursor-pointer text-link">Add a contact</summary><MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="contact_add"/><input type="hidden" name="id" value={randomUUID()}/>

@@ -1,3 +1,38 @@
+## Liquid white interactive finance workspace — 2026-10-16
+
+The owner's iOS-inspired white/blue direction replaces teal. Navigation and scope
+controls use translucent glass; charts, balances, tables and approval evidence use
+opaque white surfaces. `STYLEGUIDE.md` and `DESIGN.md` define the updated contract.
+
+The overview now uses a report-canvas layout with working finance shortcuts and
+six interactive analytical tiles. Bar, donut and exact-figure modes preserve the
+full-entity read model. Segment selection exposes exact values. Customer segment
+charts retain real category/region drill links. Approved cash forecasts support
+week selection and show the preserved opening, receipts, payments and closing cash.
+
+Collections has a three-column desktop workbench, responsive account-aging cards,
+customer/account search, exact overdue sorting and a real priorities rail. Six
+non-overlapping bands group accounts by oldest invoice; amounts represent the
+whole-account overdue balance, explicitly distinguished from invoice-aging totals.
+Contact phone links open the user's dialler; no call result is fabricated. Existing
+contact, promise, message, credit, export and approval actions use their current
+server routines. Agents keep the existing independently activated policy limits.
+
+Framer Motion is a new runtime dependency for interaction feedback; `happy-dom` is
+test-only and checks actual React control events. Missing records, forecasts and
+providers remain unavailable; no application sample records or scores were added.
+This is a responsive web redesign with native charts, not a native iOS app or an
+embedded Power BI integration. No database migration is required by this redesign.
+The earlier Twilio migration is still required if it has not been applied.
+
+Verified locally: `npm run verify` passed TypeScript, all 142 tests and the production
+build; `npm audit --audit-level=high` found zero vulnerabilities. Tests include
+chart modes and focus, aging filter/reset, exact sorting and forecast selection.
+Measured main text/status contrast pairs range from 5.36:1 to 15.54:1.
+
+Not verified: current desktop/mobile screenshots, Safari rendering, a signed-in
+hosted workspace and live provider actions. Browser visual sign-off remains pending.
+
 ## Twilio SMS and WhatsApp — 2026-10-16
 
 Added migration `202610160008_messaging.sql`, Twilio adapters, configured-channel

@@ -1,74 +1,72 @@
-# O2C visual system
+# O2C liquid white visual system
 
-Original O2C product design. Do not copy third-party branding or assets.
-Approved 2026-10-16: deep ink navy with a single teal action colour. This replaces the
-earlier purple palette and the Inter/Sora type pairing entirely.
+Updated 2026-10-16 from the owner's explicit request: iOS-inspired liquid white,
+blue actions, glass navigation, interactive finance graphics and Framer Motion.
+This supersedes the navy/teal treatment. Keep the existing O2C identity and workflows.
 
-## Colour tokens
+## Colour and materials
 
-Semantic CSS variables in `src/app/globals.css` map into Tailwind utilities. Components
-use tokens only; palette literals do not appear in components.
+| Token | Value | Purpose |
+|---|---|---|
+| `--canvas` | `#F3F6FC` | Cool white workspace |
+| `--surface` | `#FFFFFF` | Opaque charts, balances, tables, approval evidence |
+| `--surface-muted` | `#EEF3FB` | Table heads, control tracks, secondary surfaces |
+| `--ink` | `#14243E` | Main text |
+| `--muted` | `#52647D` | Secondary text |
+| `--border` | `#DBE5F3` | Panel divisions |
+| `--primary` / `--link` | `#075DCC` | Actions, selection, links and keyboard focus |
+| `--primary-hover` | `#064DA9` | Hovered primary action |
+| `--primary-soft` | `#E9F1FF` | Active controls and acknowledged statuses |
+| `--success` | `#075DCC` | Confirmed/posted status, always accompanied by text |
+| `--warning` / soft | `#885515` / `#FFF5E5` | Waiting, aging and review |
+| `--danger` / soft | `#B72D4D` / `#FFF0F3` | Failure, critical items and credit holds |
+| `--glass` | `#FFFFFFC9` | Translucent header and scope controls |
 
-| Token | Light | Dark (reserved) | Role |
-|---|---|---|---|
-| `--canvas` | `#F7F8FA` | `#0B0F17` | Page background, flat |
-| `--surface` | `#FFFFFF` | `#111827` | Panels, rail, cards |
-| `--surface-muted` | `#EEF1F5` | `#1A2233` | Table headers, active nav fill, tracks |
-| `--ink` / `--brand` | `#0B1220` | `#E6EAF0` | Text, brand mark, selected states |
-| `--muted` | `#566072` | `#9AA4B5` | Secondary text |
-| `--border` | `#E3E7ED` | `#243044` | 1px hairlines |
-| `--primary` (action) | `#11736A` | `#3FB8A8` | The only action colour: buttons, links, focus, live pulse |
-| `--primary-hover` | `#0C5E57` | `#5CCABB` | Button hover |
-| `--primary-soft` | `#E3F2F0` | `#12302D` | Action tint |
-| `--info` / `--info-soft` | `#1E3A5F` / `#E8EDF4` | `#A9C1E0` / `#1B2A40` | Info and AI-labelled pills |
-| `--success` / `-soft` | `#146B50` / `#E8F6EF` | `#6FD3A8` / `#16332A` | Matched, posted |
-| `--warning` / `-soft` | `#865410` / `#FFF4DC` | `#F0C06A` / `#3A2F17` | Warn stage, limits |
-| `--danger` / `-soft` | `#B12E47` / `#FDEBF0` | `#F08A9E` / `#3D1E27` | Missing, failed, holds |
+There is no green or teal status/action colour. Charts use a five-tone blue family
+with textual legends and exact figures, so colour never carries a value alone.
+Glass is reserved for navigation and chrome. Money, evidence and financial forms
+remain on opaque white surfaces. Browsers without backdrop-filter keep the white
+fallback. Soft background illumination and shallow shadows support hierarchy.
 
-- Teal is the single accent. Navy carries the brand. Do not add a second accent hue.
-- Every text pair passes WCAG AA (4.5:1). The lowest pairs are primary on primary-soft
-  (light 4.95, dark 5.81) and danger on danger-soft (light 5.47). Re-measure any new pair.
-- Dark mode uses the lighter teal `#3FB8A8` for text and fills, because `#11736A` fails on
-  `#0B0F17`. The app currently resolves every `data-theme` to light; dark values are
-  reserved for when a theme control ships.
-- Surfaces are flat: no gradients, textures or imagery behind data. Shadows only on
-  floating layers (dock, modal, toast). Financial evidence stays on opaque surfaces.
-- Status text always accompanies colour; no colour-only approvals.
+## Typography, spacing and shape
 
-## Type
+Keep bundled Geist for body, Space Grotesk for headings and JetBrains Mono for exact
+amounts. Currency is AED; use `formatAed` and decimal strings. Never abbreviate away
+exact amounts or animate a monetary value. Use sentence-case labels and explicit
+action names such as “Download daily AR workbook” and “Review allocation proposals”.
 
-Fonts are bundled by `next/font` at build time and served from this application, so the
-browser makes no third-party font requests.
+Panels: 20px radius; controls: 12–13px; risk cards: 16px. Use a 4/8px spacing rhythm,
+20–24px panel gaps and 16px mobile gutters. Keep tables horizontally scrollable
+inside their panel. Main action targets are at least 44px; chart-mode controls
+are 36px on desktop and 44px on phones. Focus outlines remain clearly visible.
 
-| Role | Font | Size / line-height | Weight |
-|---|---|---|---|
-| Labels, metadata | Geist (variable), fallback Inter | 12 / 16 px | 500 |
-| Body | Geist | 14 / 24 px | 400 |
-| Section titles | Geist | 16 / 24 px | 600 |
-| Page titles | Space Grotesk | 24 / 32 px, -0.02em | 600 |
-| KPI values | Space Grotesk, tabular-nums | 36 / 40 px, -0.02em (24 px on phones) | 500 |
-| Amounts, ids, traces, tool calls | JetBrains Mono, tabular-nums | 12-14 px | 400-500 |
+## Workspace hierarchy
 
-- `tabular-nums` is always on for currency and numbers. Never truncate monetary values;
-  scroll long amount columns horizontally.
-- Labels use sentence case, not uppercase.
+The finance overview is a report canvas: scoped KPI tiles, four working shortcuts,
+six interactive analytical tiles, then source records and review priorities.
+Charts offer bar, donut and exact-table views, segment selection and exact-value
+inspection. They use the full-entity read model, not the first page of invoices.
+Customer charts preserve category/region filters and retain the real drill links.
 
-## Layout and spacing
+Collections uses account-aging filters on the left, a searchable/sortable outstanding
+account table in the centre, and real priorities, follow-ups and licence alerts on
+the right. The selected customer workspace contains the existing authenticated
+contact, promise, message, credit and approval controls. Account-aging amounts are
+whole-account overdue balances grouped by oldest invoice; they are not invoice-age
+bucket totals. Six non-overlapping bands replace overlapping 90+/120+/180+ totals.
 
-- 8px grid: 8 / 16 / 24 / 32 / 48. Content padding 32px (16px on phones), section gap 24px.
-- Generous whitespace: one idea per panel, quiet pacing.
-- Radius: panels and cards 12px, controls 8px, pills fully round.
-- Controls and navigation targets at least 44px; form controls 48px.
-- Text links use `--link` (teal). Keyboard focus is a visible `--focus` outline.
+At narrower widths, the priorities move below the table, aging becomes a card grid,
+and navigation collapses into the existing mobile menu. No fixed-width desktop
+shell should cause page-level horizontal scrolling.
 
-## Motion
+## Motion and interaction
 
-- Only two animations: the live pulse on running agent nodes and the dots moving along
-  agent-map edges. Both are removed under `prefers-reduced-motion: reduce`.
-- No animated money, no slide-ins, no decorative motion.
+Framer Motion supports pressed-state feedback, risk-card hover, donut selection
+and weekly forecast focus. Motion changes focus and emphasis; it never confirms a
+financial write. Respect `prefers-reduced-motion`. Do not animate financial totals,
+add decorative loops, or hide initial content behind an entrance animation.
 
-## Checks before release
-
-Test responsive layout (390px and 1440px), keyboard use, contrast, and empty, loading and
-error states. A real authenticated workspace review is still required before visual
-release approval. The reference prototype is `docs/design/slice2-prototype.html`.
+Every visible control has a real destination, selection, export or authenticated
+server action. Agents can read, draft and propose; current SQL policies govern any
+posting. Confidence percentages alone never authorize an action. Missing forecasts,
+health methodologies, provider setup and source records stay explicitly unavailable.
