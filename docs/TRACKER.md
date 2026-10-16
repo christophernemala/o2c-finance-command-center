@@ -23,11 +23,11 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 ## In progress
 
-- [ ] Agent operations screens (B3): overview, agent map, traces, incidents, guardrails, insights
 
 - [x] Theme and type reset: navy ink and teal action colour, Geist / Space Grotesk / JetBrains Mono (style guide, app tokens, prototype)
 - [x] Slice 2 design: prototype v2 in the new theme (owner said to proceed)
 - [x] Agent operations backend (B1): guardrails with maker/checker stages, simulation, incident detectors, operations read models
+- [x] Agent operations screens: Agent operations (health, KPIs, agent-to-tool map, context comparison, cost), Incidents, Guardrails (server-side simulation preview, maker/checker stage changes). Run traces stay in AI agents.
 
 ## Blocked or waiting on the owner
 
@@ -38,5 +38,7 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 - [ ] **Figma.** Needs an Editor seat to build the design system in Figma.
 
 ## Next
+
+- [ ] Slice 2 (B2): collections outbox with Resend, contacts, promises, credit limits and holds, PDF statements; `require_contact` guardrail
 
 - [ ] Slice 2 build: collections outbox and Resend, disputes and promises, credit limits and holds, PDF statements, guardrails and incidents

@@ -10,9 +10,13 @@ import { Copilot } from "@/components/copilot";
 import { Reports } from "@/components/reports";
 import { aiConfig } from "@/lib/ai/config";
 import { validateArPack } from "@/lib/ar-pack";
+import { GuardrailsView, IncidentsView, OperationsOverview } from "@/components/operations";
+import { compareFields } from "@/lib/ai/context-compare";
+import { agentKinds, type AgentKind } from "@/types/agents";
+import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
 const viewTitles: Record<Workspace, string> = {
-  overview: "Overview", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
+  overview: "Overview", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
   reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
   ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
 };
@@ -48,6 +52,35 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     const result = await auth.client.rpc("agent_console", scope);
     if (!result.error) analysis = <AgentConsole data={data} consoleData={result.data as AgentConsoleData} aiReady={aiReady} userId={auth.user.id}
       selectedRun={typeof params.run === "string" && uuid.test(params.run) ? params.run : undefined}/>;
+  }
+  if (view === "operations") {
+    const [overview, edges, incidents] = await Promise.all([auth.client.rpc("agent_ops_overview", { ...scope, p_hours: 24 }), auth.client.rpc("agent_edges", { ...scope, p_hours: 24 }),
+      auth.client.rpc("agent_incidents_list", { ...scope, p_status: "open" })]);
+    const [agent, tool] = typeof params.edge === "string" ? params.edge.split(":") : [];
+    const edge = agentKinds.includes(agent as AgentKind) && /^[a-z_]{1,60}$/.test(tool ?? "") ? { agent: agent as AgentKind, tool } : undefined;
+    const failures = edge ? await auth.client.rpc("edge_failures", { ...scope, p_agent_kind: edge.agent, p_tool: edge.tool, p_hours: 24 }) : null;
+    const failed = (failures && !failures.error ? failures.data : []) as EdgeFailure[];
+    if (!overview.error && !edges.error && !incidents.error) analysis = <OperationsOverview data={data} overview={overview.data as OpsOverview} edges={edges.data as Edge[]}
+      incidents={incidents.data as Incident[]} edge={edge} failures={failed} fields={edge && failed[0] ? compareFields(edge.tool, failed[0].input, failed[0].error) : []}/>;
+  }
+  if (view === "incidents") {
+    const incidents = await auth.client.rpc("agent_incidents_list", { ...scope, p_status: "all" });
+    if (!incidents.error) analysis = <IncidentsView data={data} incidents={incidents.data as Incident[]}/>;
+  }
+  if (view === "guardrails") {
+    const text = (key: string, fallback = "") => typeof params[key] === "string" ? (params[key] as string).slice(0, 120) : fallback;
+    const draft = { name: text("name"), kind: text("kind", "max_amount"), agent_kind: text("agent_kind", "all"), tool: text("tool", "propose_receipt"), field: text("field"), limit: text("limit") };
+    const rules = await auth.client.rpc("agent_guardrails_list", scope);
+    let simulation: Simulation | null | "invalid" = null;
+    if (typeof params.kind === "string") {
+      const ruleParams = draft.kind === "deny_tool" ? { tool: draft.tool } : draft.kind === "max_amount" ? { tool: draft.tool, limit: draft.limit }
+        : draft.kind === "require_field" ? { tool: draft.tool, field: draft.field } : { limit: draft.limit };
+      const result = await auth.client.rpc("simulate_guardrail", { ...scope, p_kind: draft.kind, p_agent_kind: draft.agent_kind === "all" ? null : draft.agent_kind, p_params: ruleParams, p_days: 30 });
+      simulation = result.error ? "invalid" : result.data as Simulation;
+      if (!draft.name) draft.name = draft.kind === "max_amount" ? `Cap ${draft.tool} at AED ${draft.limit}` : draft.kind === "require_field" ? `${draft.tool} requires ${draft.field}`
+        : draft.kind === "deny_tool" ? `Deny ${draft.tool}` : `At most ${draft.limit} identical calls`;
+    }
+    if (!rules.error) analysis = <GuardrailsView data={data} rules={rules.data as GuardrailRecord[]} userId={auth.user.id} draft={draft} simulation={simulation}/>;
   }
   if (view === "copilot") {
     const thread = typeof params.thread === "string" && uuid.test(params.thread) ? params.thread : randomUUID();

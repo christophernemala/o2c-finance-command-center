@@ -23,6 +23,8 @@
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; font-size: 14px; }
 h1 { font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
 h2, h3 { font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+.kpi-value { font-family: var(--font-heading), var(--font-body), sans-serif; font-size: 36px; line-height: 40px; letter-spacing: -.02em; font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .kpi-value { font-size: 24px; line-height: 32px; } }
 .money, .tabular-nums { font-family: var(--font-money), ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }

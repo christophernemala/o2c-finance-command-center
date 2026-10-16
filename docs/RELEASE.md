@@ -1,3 +1,31 @@
+## Agent operations screens — 2026-10-16
+
+**Added:** three workspaces, built as server components with no new client JavaScript.
+- **Agent operations:**
+  - KPI row: run success, median and p95 run time, pending approvals and the oldest one's age, AED auto-posted today.
+  - The health score with its inputs and weights. With no finished runs it reads "Not enough runs yet".
+  - An agent-to-tool handoff map. Line width shows volume and red marks failures.
+  - A context comparison for the selected handoff, comparing the tool schema with the input of the last failed call.
+  - Open incidents and model cost by agent.
+- **Incidents:** the incident list with "Investigate", which opens the run trace. Approvers and admins see a resolve button.
+- **Guardrails:**
+  - Define a rule, then simulate it over 30 days. The simulation runs on the server through a GET form.
+  - Create the rule in Monitor.
+  - The tracked list shows version history, stage proposals, and approve/reject for a different approver.
+
+Panels use the new 12px radius, and KPI values use Space Grotesk at 36px.
+
+**Tested locally:**
+- `npm test` passes 92/92, including four new render tests:
+  - empty states, never an estimated score;
+  - recorded health and the context comparison;
+  - viewers get no proposal forms, and makers cannot approve their own change;
+  - only approvers and admins can resolve incidents.
+- Typecheck and build pass.
+- The three screens were rendered with sample props and the compiled CSS at 1440px and 390px. No sideways scrolling and no errors in Chromium.
+
+**Not verified:** the screens have not been seen in a signed-in workspace against live data. A separate traces screen and an insights screen were not built: run traces stay in AI agents, and cost and latency by agent and tool are on Agent operations.
+
 ## Agent operations backend: guardrails, incidents and read models — 2026-10-16
 
 **Added:**
