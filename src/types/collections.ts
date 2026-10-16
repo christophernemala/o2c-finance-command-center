@@ -37,3 +37,12 @@ export interface LoggedRemark {
   customer: string; account: string; invoice: string | null; reason: RemarkReason; channel: RemarkChannel; note: string; next_follow_up: string | null;
   promise_amount: string | null; promise_date: string | null; created_by: string; created_at: string;
 }
+export const breakdownDimensions = ["category", "region", "customer"] as const;
+export type BreakdownDimension = typeof breakdownDimensions[number];
+export interface BreakdownAmounts { open: string; current: string; d1_30: string; d31_60: string; d61_90: string; d90_plus: string; disputed: string }
+export interface Breakdown {
+  dimension: BreakdownDimension; as_of: string; category: string | null; region: string | null;
+  total: BreakdownAmounts & { customers: number; invoices: number };
+  rows: (BreakdownAmounts & { label: string; account: string | null; customer_id: string | null; customers: number; invoices: number; share_percent: string | null })[];
+}
+export interface Segments { categories: string[]; regions: string[]; unassigned: number; customers: number }

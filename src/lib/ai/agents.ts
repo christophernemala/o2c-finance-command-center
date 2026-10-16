@@ -49,10 +49,10 @@ Never propose the same bank line or receipt twice in one run.`,
   reporting: {
     kind: "reporting", name: "Reporting agent", maxTurns: 8,
     summary: "Produces the AR management summary: aging, countback DSO, CEI, concentration and actions.",
-    tools: ["get_ar_kpi_pack", "list_invoices", "record_finding"],
+    tools: ["get_ar_kpi_pack", "get_outstanding_breakdown", "list_invoices", "record_finding"],
     goal: `Goal: write the AR management report.
-1. Call get_ar_kpi_pack.
-2. Write the final report in Markdown with sections: Headline (3 bullets), Position (open, overdue, disputed, unapplied in AED), Aging table, KPIs (DSO countback days and 30-day CEI with the basis), Top debtors, Actions for this week.
+1. Call get_ar_kpi_pack, then get_outstanding_breakdown by category and by region.
+2. Write the final report in Markdown with sections: Headline (3 bullets), Position (open, overdue, disputed, unapplied in AED), Aging table, KPIs (DSO countback days and 30-day CEI with the basis), Outstanding by category and region (skip a table whose only row is Unassigned, and say segments are not set), Top debtors, Actions for this week.
 3. record_finding for each anomaly (for example DSO unavailable, CEI below 80%, or more than 30% of AR over 90 days).
 The report replaces the 180-word limit: keep it under 450 words.`,
   },

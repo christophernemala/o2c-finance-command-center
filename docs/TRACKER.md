@@ -29,9 +29,10 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 - [x] Collections workbench: remarks (append-only), follow-ups due, deterministic daily call list, trade-licence alerts, daily collections pack (Excel).
 - [x] Review fixes on slice 2: ledger re-check at approval and send, one open message per customer, contact archive withdraws queued messages, attempt-bound outbox completion, statement limited to approved invoices, ledger-derived promise status plus manual resolution, deny rules enforced in SQL for agent messages and holds, idempotent replays without duplicate audit events.
 
+- [x] Customer segments (category, region; CSV or single edit) and outstanding by category, region and customer with drill-down; reporting-agent tool; daily-pack sheets.
+
 ## In progress
 
-- [ ] Category / account / region outstanding breakdowns.
 - [ ] Credit and debit notes (draft, independent approval, posting, allocation; agent proposes for short payments and overpayments).
 - [ ] SMS / WhatsApp outreach through Twilio, on the same human-approved outbox.
 

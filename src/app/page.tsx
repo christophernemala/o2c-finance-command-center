@@ -14,7 +14,8 @@ import { GuardrailsView, IncidentsView, OperationsOverview } from "@/components/
 import { compareFields } from "@/lib/ai/context-compare";
 import { CollectionsView } from "@/components/collections";
 import { emailConfig } from "@/lib/email/resend";
-import type { CallListRow, CustomerAccount, CustomerRemarks, FollowUp, LicenceAlert, WorklistRow } from "@/types/collections";
+import { breakdownDimensions, type Breakdown, type BreakdownDimension, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type LicenceAlert, type Segments, type WorklistRow } from "@/types/collections";
+import { CustomersView } from "@/components/customers";
 import { agentKinds, type AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
@@ -78,6 +79,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} userId={auth.user.id}
       callList={callList.error ? [] : callList.data as CallListRow[]} followUps={followUps.error ? [] : followUps.data as FollowUp[]} allFollowUps={allFollowUps}
       licences={licences.error ? [] : licences.data as LicenceAlert[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
+  }
+  if (view === "customers") {
+    const dimension = breakdownDimensions.includes(params.dimension as BreakdownDimension) ? params.dimension as BreakdownDimension : "category";
+    const segment = (key: string) => typeof params[key] === "string" && (params[key] as string).length <= 60 ? params[key] as string : null;
+    const [breakdown, segments] = await Promise.all([auth.client.rpc("outstanding_breakdown", { ...scope, p_as_of: asOf, p_dimension: dimension, p_category: segment("category"), p_region: segment("region") }),
+      auth.client.rpc("customer_segments", scope)]);
+    if (!breakdown.error && !segments.error) analysis = <CustomersView data={data} breakdown={breakdown.data as Breakdown} segments={segments.data as Segments}/>;
   }
   if (view === "incidents") {
     const incidents = await auth.client.rpc("agent_incidents_list", { ...scope, p_status: "all" });

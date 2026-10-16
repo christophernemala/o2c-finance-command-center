@@ -39,4 +39,10 @@ test("daily pack keeps amounts as decimal strings and rejects malformed rows", (
   assert.equal(book["Call list"][0]["Overdue AED"], "1000.00"); assert.equal(book["Call list"][0].Score, "2111.11");
   assert.throws(() => validateDailyPack({ ...pack, callList: [{ ...pack.callList[0], overdue: 1000 }] }), /Invalid/);
   assert.throws(() => validateDailyPack({ ...pack, remarks: null }), /Invalid remarks/);
+  const amounts = { open: "99.50", current: "0.00", d1_30: "99.50", d31_60: "0.00", d61_90: "0.00", d90_plus: "0.00", disputed: "0.00" };
+  const byCategory = { dimension: "category", as_of: "2026-10-16", category: null, region: null, total: { ...amounts, customers: 1, invoices: 1 },
+    rows: [{ ...amounts, label: "Unassigned", account: null, customer_id: null, customers: 1, invoices: 1, share_percent: "100.00" }] };
+  const withSegments = dailyPackWorkbook(validateDailyPack({ ...pack, byCategory }));
+  assert.deepEqual(withSegments["By category"][0], { Category: "Unassigned", Customers: "1", "Open AED": "99.50", "Current AED": "0.00", "1-30 AED": "99.50", "31-60 AED": "0.00", "61-90 AED": "0.00", "90+ AED": "0.00", "Disputed AED": "0.00", "Share %": "100.00" });
+  assert.throws(() => validateDailyPack({ ...pack, byRegion: { ...byCategory, total: { ...byCategory.total, open: 99.5 } } }), /Invalid/);
 });

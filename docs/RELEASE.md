@@ -1,3 +1,14 @@
+## Customer segments and outstanding breakdown — 2026-10-16
+
+**Added:**
+- **Migration** `202610160006_customer_segments.sql`: optional `category` and `region` on customers; routines `set_customer_segments`, `outstanding_breakdown` and `customer_segments`.
+- **Customers screen:** outstanding by category, region or customer, with aging buckets, disputed amounts and share of total. Drill from a category or region to its customers, and from a customer to their collections account. Makers set segments by CSV upload or one customer at a time.
+- **`POST /api/customers`**, with intents `segments_upload` (CSV, 256 KB, all-or-nothing) and `segment_set`.
+- **Agent tool** `get_outstanding_breakdown` (read-only), used by the reporting agent and available to the copilot.
+- **Daily collections pack:** new "By category" and "By region" sheets.
+
+**Tested locally:** see the verification block below. No live data has been segmented.
+
 ## Collections workbench and slice 2 review fixes — 2026-10-16
 
 **Added:**

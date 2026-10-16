@@ -48,9 +48,11 @@ const routines = {
   my_follow_ups: ["p_tenant", "p_entity", "p_as_of", "p_all"], daily_call_list: ["p_tenant", "p_entity", "p_as_of", "p_limit"],
   licence_alerts: ["p_tenant", "p_entity", "p_as_of", "p_days"], customer_remarks_list: ["p_tenant", "p_entity", "p_customer"],
   remarks_logged: ["p_tenant", "p_entity", "p_date"],
+  set_customer_segments: ["p_tenant", "p_entity", "p_id", "p_rows"],
+  outstanding_breakdown: ["p_tenant", "p_entity", "p_as_of", "p_dimension", "p_category", "p_region"], customer_segments: ["p_tenant", "p_entity"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
-const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation"]);
+const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation", "p_rows"]);
 export type Routine = keyof typeof routines;
 export interface ImportBatch extends Record<string, unknown> { id: string; kind: string; file_name: string; digest: string; payload: Record<string, string>[]; rows: number; status: string; maker: string }
 export function financeClient(pool: SqlPool, session: () => string | undefined) {

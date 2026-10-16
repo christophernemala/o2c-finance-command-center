@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 14 · public tables: 34 · tables with RLS: 34
+Migrations: 15 · public tables: 34 · tables with RLS: 34
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -447,6 +447,8 @@ References: entities
 | entity_id | uuid | no |
 | account | text | no |
 | name | text | no |
+| category | text | yes |
+| region | text | yes |
 
 ## ecl_runs
 
@@ -651,6 +653,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | copilot_threads_list | definer |
 | customer_account | definer |
 | customer_remarks_list | definer |
+| customer_segments | definer |
 | customer_statement | definer |
 | daily_call_list | definer |
 | decide_action | definer |
@@ -664,6 +667,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | licence_alerts | definer |
 | member_role | definer |
 | my_follow_ups | definer |
+| outstanding_breakdown | definer |
 | place_customer_hold | definer |
 | propose_action | definer |
 | propose_agent_policy | definer |
@@ -680,6 +684,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | resolve_payment_promise | definer |
 | run_agent_job | definer |
 | set_agent_schedule | definer |
+| set_customer_segments | definer |
 | simulate_guardrail | definer |
 | source_entity_access | invoker |
 | stage_import | definer |

@@ -115,6 +115,12 @@ export const tools: AgentTool[] = [
     run: (_, context) => call(context, "collections_worklist", { p_as_of: context.asOf }),
   }),
   tool({
+    name: "get_outstanding_breakdown", writes: false, actors: ["agent", "copilot"],
+    description: "Outstanding AR grouped by customer category, region or customer, with aging buckets (current, 1-30, 31-60, 61-90, 90+ days past due), disputed amount and share of total. Customers without a category or region appear as 'Unassigned'. Optionally filter to one category and/or region.",
+    schema: z.strictObject({ dimension: z.enum(["category", "region", "customer"]), category: z.string().min(1).max(60).optional(), region: z.string().min(1).max(60).optional() }),
+    run: (input, context) => call(context, "outstanding_breakdown", { p_as_of: context.asOf, p_dimension: input.dimension, p_category: input.category ?? null, p_region: input.region ?? null }),
+  }),
+  tool({
     name: "get_customer_account", writes: false, actors: ["agent", "copilot"],
     description: "One customer's account: open invoices with days overdue and dispute state, contacts (use a contact id when proposing a message), payment promises (broken when the date passed unpaid), any credit hold, the active and pending credit limit, and the last 20 collections messages.",
     schema: z.strictObject({ customer_id: uuid }),

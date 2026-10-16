@@ -187,6 +187,16 @@ Migrations `202610160004_collections_workbench.sql` and `202610160005_collection
 
 The daily pack workbook has six sheets: Summary (with the score formula), Call list, Follow-ups due, Remarks today, Trade licences and Worklist. Amounts stay decimal strings and are validated at the boundary.
 
+## Customer segments and outstanding breakdown
+
+Migration `202610160006_customer_segments.sql`. Screen `/?view=customers` (`src/components/customers.tsx`), writes through `POST /api/customers`, CSV parsing in `src/lib/segments.ts`.
+
+- `customers.category` and `customers.region` are optional text (1–60 characters; "Unassigned" is reserved for the empty group).
+- `set_customer_segments` (makers and admins) takes 1–2,000 `{account, category, region}` rows. Every account must exist in the entity and appear once, or nothing changes. One audit event records the row count and a digest; a retry with the same id and rows is a no-op, different rows are an idempotency conflict. An empty value clears the field.
+- The CSV parser requires the exact header `account,category,region` and refuses values starting with `=`, `+`, `-` or `@` (spreadsheet formula injection).
+- `outstanding_breakdown(as_of, dimension, category, region)` groups open posted invoices by `category`, `region` or `customer`, with aging buckets by days past due (current ≤ 0, 1–30, 31–60, 61–90, over 90), disputed amount and share of the total. Filters narrow it for drill-down. Amounts are decimal strings.
+- The reporting agent and the copilot read it through the `get_outstanding_breakdown` tool. The daily collections pack adds "By category" and "By region" sheets.
+
 ## Copilot
 
 `/api/copilot` streams server-sent events. It runs as the signed-in user, so RLS
