@@ -84,7 +84,7 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
     return data.result;
   }
   return {
-    async reserveApi(userId: string, scope: "commands" | "agents" | "export"): Promise<{ allowed: boolean; retryAfter: number }> {
+    async reserveApi(userId: string, scope: "commands" | "agents" | "copilot" | "export"): Promise<{ allowed: boolean; retryAfter: number }> {
       const key = `o2c:{api}:${scope}:${digest(userId)}`;
       const script = `
 local time = redis.call('TIME')

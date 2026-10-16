@@ -2,30 +2,6 @@ import { strToU8, zipSync } from "fflate";
 
 type WorkbookSheets = Record<string, Record<string, unknown>[]>;
 
-export function downloadWorkbook(fileName: string, sheets: WorkbookSheets) {
-  if (Object.values(sheets).every((rows) => rows.length === 0)) {
-    window.alert("No rows are available for this export. Clear the search filter and try again.");
-    return false;
-  }
-  try {
-    const bytes = buildWorkbookBytes(sheets);
-    const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    const link = document.createElement("a");
-    const rowCount = Object.values(sheets).reduce((total, rows) => total + rows.length, 0);
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    window.dispatchEvent(new CustomEvent("o2c-export-complete", { detail: { fileName, rowCount, sheetCount: Object.keys(sheets).length } }));
-    return true;
-  } catch (error) {
-    window.alert(`The workbook could not be created: ${error instanceof Error ? error.message : "Unknown export error"}`);
-    return false;
-  }
-}
-
 export function buildWorkbookBytes(sheets: WorkbookSheets) {
   const entries: Record<string, Uint8Array> = {};
   const sheetNames = Object.keys(sheets);

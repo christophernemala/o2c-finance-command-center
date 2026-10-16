@@ -1,6 +1,6 @@
 import "server-only";
 import { createLoginLimiter, loginLimiterConfig } from "./login-limiter";
-export async function apiLimit(userId: string, scope: "commands" | "agents" | "export"): Promise<Response | null> {
+export async function apiLimit(userId: string, scope: "commands" | "agents" | "copilot" | "export"): Promise<Response | null> {
   try {
     const settings = loginLimiterConfig(); if (!settings) throw new Error("Protection unavailable");
     const result = await createLoginLimiter(settings).reserveApi(userId, scope);
