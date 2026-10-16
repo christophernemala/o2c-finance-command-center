@@ -1,0 +1,719 @@
+<title>O2C Collections Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600&display=swap">
+<style>
+/* Layout: white navigation rail + scoped workspace; worklist with a detail drawer; one unified approval inbox. */
+:root {
+  --canvas: #f6f7fb; --surface: #ffffff; --surface-muted: #f1f2f8; --ink: #202635; --muted: #626c80; --border: #e4e7ef;
+  --primary: #5654d6; --primary-hover: #4947bb; --primary-soft: #eeeeff; --on-primary: #ffffff; --teal: #147d73; --teal-soft: #e6f4f2;
+  --success: #146b50; --success-soft: #e8f6ef; --warning: #865410; --warning-soft: #fff4dc; --danger: #b12e47; --danger-soft: #fdebf0;
+  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(32,38,53,.32);
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-money: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --canvas: #12141c; --surface: #1a1d28; --surface-muted: #222634; --ink: #e8eaf2; --muted: #a3aabb; --border: #2e3344;
+  --primary: #8b89f0; --primary-hover: #a19ff5; --primary-soft: #2a2a4a; --on-primary: #12141c; --teal: #4cc3b5; --teal-soft: #173533;
+  --success: #6fd3a8; --success-soft: #16332a; --warning: #f0c06a; --warning-soft: #3a2f17; --danger: #f08a9e; --danger-soft: #3d1e27;
+  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(0,0,0,.55); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --canvas: #12141c; --surface: #1a1d28; --surface-muted: #222634; --ink: #e8eaf2; --muted: #a3aabb; --border: #2e3344;
+  --primary: #8b89f0; --primary-hover: #a19ff5; --primary-soft: #2a2a4a; --on-primary: #12141c; --teal: #4cc3b5; --teal-soft: #173533;
+  --success: #6fd3a8; --success-soft: #16332a; --warning: #f0c06a; --warning-soft: #3a2f17; --danger: #f08a9e; --danger-soft: #3d1e27;
+  --paper: #ffffff; --paper-ink: #202635; --scrim: rgba(0,0,0,.55); color-scheme: dark }
+* { box-sizing: border-box }
+html, body { height: 100% }
+body { background: var(--canvas); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5 }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; margin: 0; text-wrap: balance }
+h1 { font-size: 26px; letter-spacing: -.01em } h2 { font-size: 16px } h3 { font-size: 14px }
+p { margin: 0 }
+.money, .num { font-family: var(--font-money); font-variant-numeric: tabular-nums; white-space: nowrap }
+button, input, select, textarea { font: inherit; color: inherit }
+button { cursor: pointer }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px }
+.muted { color: var(--muted) } .small { font-size: 12px }
+.proto-banner { background: var(--teal-soft); color: var(--teal); font-size: 12px; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.proto-banner strong { font-weight: 600 }
+.role-switch { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px }
+.role-switch button { border: 0; background: transparent; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted) }
+.role-switch button[aria-pressed="true"] { background: var(--primary); color: var(--on-primary) }
+.app { display: grid; grid-template-columns: 236px minmax(0,1fr); min-height: calc(100% - 37px) }
+.rail { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 4px }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px; font-family: var(--font-head); font-size: 18px }
+.brand-mark { width: 26px; height: 26px; border-radius: 8px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-size: 13px }
+.nav-group { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 14px 10px 6px }
+.nav-item { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 10px; border-radius: 12px; border: 0; background: transparent; text-align: start; width: 100%; color: var(--muted) }
+.nav-item:hover { background: var(--surface-muted); color: var(--ink) }
+.nav-item[aria-current="page"] { background: var(--primary-soft); color: var(--primary); font-weight: 600 }
+.nav-item .count { margin-inline-start: auto; background: var(--primary); color: var(--on-primary); border-radius: 999px; font-size: 11px; padding: 0 7px; font-weight: 600 }
+.ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.main { min-width: 0; display: flex; flex-direction: column }
+.topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; background: var(--surface); border-bottom: 1px solid var(--border); padding-block: 12px; padding-inline: 28px }
+.scope { display: flex; flex-direction: column } .scope b { font-weight: 600 }
+.cmdk { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 260px; max-width: 420px; height: 40px; border: 1px solid var(--border); border-radius: 12px; background: var(--canvas); padding: 0 12px; color: var(--muted); text-align: start }
+.cmdk kbd { margin-inline-start: auto; font-family: var(--font-money); font-size: 11px; border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; background: var(--surface) }
+.content { padding-block: 24px 48px; padding-inline: 28px; display: flex; flex-direction: column; gap: 20px; max-width: 1480px; width: 100% }
+.page-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end }
+.eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: 14px; border: 1px solid transparent; background: var(--primary); color: var(--on-primary); font-weight: 600 }
+.btn:hover { background: var(--primary-hover) }
+.btn.secondary { background: var(--surface); color: var(--ink); border-color: var(--border) }
+.btn.secondary:hover { background: var(--surface-muted) }
+.btn.ghost { background: transparent; color: var(--primary); border-color: transparent; min-height: 36px; padding: 6px 10px }
+.btn.danger { background: var(--surface); color: var(--danger); border-color: var(--border) }
+.btn:disabled { opacity: .5; cursor: not-allowed }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; min-width: 0 }
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border) }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px }
+.kpi .value { font-size: 22px; font-family: var(--font-money) }
+.kpi .note { font-size: 12px; color: var(--muted) }
+.pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 500; white-space: nowrap }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor }
+.pill.ok { background: var(--success-soft); color: var(--success) } .pill.warn { background: var(--warning-soft); color: var(--warning) }
+.pill.bad { background: var(--danger-soft); color: var(--danger) } .pill.info { background: var(--primary-soft); color: var(--primary) }
+.pill.neutral { background: var(--surface-muted); color: var(--muted) } .pill.ai { background: var(--teal-soft); color: var(--teal) }
+.split { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 20px; align-items: start }
+.table-wrap { overflow-x: auto }
+table { width: 100%; border-collapse: collapse }
+th { text-align: start; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); background: var(--surface-muted); padding: 10px 14px; font-weight: 600 }
+td { padding: 12px 14px; border-top: 1px solid var(--border); vertical-align: middle }
+th.r, td.r { text-align: end }
+tr.row-btn { cursor: pointer } tr.row-btn:hover td { background: var(--surface-muted) }
+tr.row-btn[aria-selected="true"] td { background: var(--primary-soft) }
+.cust-name { font-weight: 600 } .cust-sub { font-size: 12px; color: var(--muted) }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px }
+.drawer { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px }
+.hold { display: flex; gap: 10px; align-items: flex-start; background: var(--danger-soft); color: var(--danger); border-radius: 14px; padding: 12px 14px }
+.section-label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px }
+.contact { display: flex; justify-content: space-between; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px }
+.draft { border: 1px solid var(--border); border-radius: 14px; overflow: hidden }
+.draft-head { background: var(--surface-muted); padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center }
+.draft-body { padding: 12px; white-space: pre-wrap; line-height: 1.6 }
+.locked { background: var(--canvas); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-family: var(--font-money); font-size: 12px }
+.tone { display: inline-flex; gap: 4px; flex-wrap: wrap }
+.tone button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 12px }
+.tone button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft) }
+.actions { display: flex; flex-wrap: wrap; gap: 8px }
+.tabs { display: flex; gap: 4px; overflow-x: auto; padding: 0 12px; border-bottom: 1px solid var(--border) }
+.tab { border: 0; background: transparent; padding: 12px 10px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap }
+.tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600 }
+.list { display: flex; flex-direction: column }
+.list-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--border) }
+.list-row:first-child { border-top: 0 }
+.empty { padding: 32px 20px; text-align: center; color: var(--muted) }
+.card-stack { display: flex; flex-direction: column; gap: 14px; padding: 16px }
+.appr { border: 1px solid var(--border); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--surface) }
+.appr-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between }
+.impact { background: var(--surface-muted); border-radius: 12px; padding: 10px 12px; font-size: 13px }
+.impact b { font-weight: 600 }
+.ack { display: flex; gap: 10px; align-items: flex-start; font-size: 13px }
+.ack input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--primary) }
+.filters { display: flex; flex-wrap: wrap; gap: 6px }
+.chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 12px }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink) }
+.limit-bar { height: 8px; background: var(--surface-muted); border-radius: 999px; overflow: hidden; margin-top: 8px }
+.limit-bar span { display: block; height: 100%; background: var(--warning) }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px }
+.stat { border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px }
+.timeline { list-style: none; margin: 0; padding: 0 20px 16px; display: flex; flex-direction: column }
+.timeline li { display: grid; grid-template-columns: 90px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border) }
+.timeline li:first-child { border-top: 0 }
+.pdf-stage { background: var(--surface-muted); padding: 20px; display: flex; justify-content: center; overflow-x: auto }
+.pdf { background: var(--paper); color: var(--paper-ink); width: 595px; min-width: 595px; padding: 36px 40px; box-shadow: 0 6px 24px rgba(20,24,40,.12); font-size: 11px; border-radius: 4px }
+.pdf h4 { font-family: var(--font-head); font-size: 16px; margin: 0 }
+.pdf table th { background: #f1f2f8; color: #626c80; font-size: 9px; padding: 6px 8px }
+.pdf table td { border-top: 1px solid #e4e7ef; padding: 6px 8px; font-size: 10px }
+.pdf .ag { display: grid; grid-template-columns: repeat(6,1fr); gap: 4px; margin-top: 14px }
+.pdf .ag div { background: #f6f7fb; border-radius: 4px; padding: 6px; font-size: 9px }
+.pdf .ag b { display: block; font-family: var(--font-money); font-size: 10px; margin-top: 2px }
+.agents { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px }
+.agent { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 8px }
+.step { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border) }
+.step:first-child { border-top: 0 }
+.step .dot { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex: none; background: var(--surface-muted); color: var(--muted); font-size: 11px }
+.step.find .dot { background: var(--warning-soft); color: var(--warning) } .step.prop .dot { background: var(--primary-soft); color: var(--primary) } .step.post .dot { background: var(--success-soft); color: var(--success) }
+.chat { display: flex; flex-direction: column; gap: 12px; padding: 18px }
+.bubble { max-width: 640px; border-radius: 16px; padding: 12px 14px; line-height: 1.6 }
+.bubble.user { align-self: flex-end; background: var(--primary); color: var(--on-primary) }
+.bubble.ai { background: var(--surface); border: 1px solid var(--border) }
+.cite { display: inline-flex; gap: 4px; align-items: center; background: var(--primary-soft); color: var(--primary); border-radius: 8px; padding: 1px 7px; font-size: 12px; border: 0 }
+.followups { display: flex; flex-wrap: wrap; gap: 6px }
+.toast { position: fixed; z-index: 30; inset-inline-end: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--surface); border-radius: 14px; padding: 12px 16px; max-width: min(420px, calc(100vw - 40px)); box-shadow: 0 10px 30px rgba(0,0,0,.2) }
+.modal-scrim { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: flex; justify-content: center; align-items: flex-start; padding: calc(80px + env(safe-area-inset-top, 0px)) 16px 16px }
+.modal { width: min(560px, 100%); background: var(--surface); border-radius: 18px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.25) }
+.modal input { width: 100%; border: 0; border-bottom: 1px solid var(--border); padding: 16px 18px; background: transparent; font-size: 15px }
+.modal input:focus-visible { outline: none }
+.cmd-row { display: flex; gap: 10px; align-items: center; width: 100%; border: 0; background: transparent; padding: 10px 18px; text-align: start }
+.cmd-row:hover, .cmd-row:focus-visible { background: var(--surface-muted); outline: none }
+.mobile-nav { display: none }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px }
+label.f { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500 }
+label.f input, label.f select { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; background: var(--surface) }
+@media (max-width: 1100px) { .agents { grid-template-columns: repeat(2, minmax(0,1fr)) } .kpis { grid-template-columns: repeat(2, minmax(0,1fr)) } .split { grid-template-columns: minmax(0,1fr) } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0,1fr) }
+  .rail { display: none }
+  .mobile-nav { display: flex; position: sticky; bottom: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--border); padding-block: 6px calc(6px + env(safe-area-inset-bottom, 0px)); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); justify-content: space-around }
+  .mobile-nav button { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); min-height: 44px; min-width: 56px }
+  .mobile-nav button[aria-current="page"] { color: var(--primary); font-weight: 600 }
+  .topbar, .content { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+  .agents, .grid2, .form-grid { grid-template-columns: minmax(0,1fr) }
+  .timeline li { grid-template-columns: minmax(0,1fr) }
+  .hide-sm { display: none }
+}
+@media (prefers-reduced-motion: no-preference) { .toast { animation: rise .2s ease-out } @keyframes rise { from { transform: translateY(8px); opacity: .6 } } }
+/* Agent operations */
+.ops-grid { display: grid; grid-template-columns: minmax(0,320px) minmax(0,1fr); gap: 20px; align-items: stretch }
+.gauge-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px }
+.gauge-legend { width: 100%; display: grid; gap: 6px; font-size: 12px }
+.gauge-legend div { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); padding-top: 6px }
+.map-wrap { overflow-x: auto; padding: 8px 12px 4px }
+.map-wrap svg { display: block; min-width: 620px; width: 100%; height: auto }
+.map-node rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5 }
+.map-node.agent rect { stroke: var(--primary) }
+.map-node.warn rect { stroke: var(--warning); stroke-width: 2.5 }
+.map-node.road rect { fill: var(--surface-muted); stroke-dasharray: 5 4 }
+.map-node text { fill: var(--ink); font-family: var(--font-body); font-size: 12px }
+.map-node .sub { fill: var(--muted); font-size: 10.5px }
+.map-node.road text { fill: var(--muted) }
+.map-edge { fill: none; stroke: var(--muted); opacity: .55 }
+.map-edge.bad { stroke: var(--danger); opacity: .9 }
+.map-edge.road { stroke-dasharray: 4 5; opacity: .35 }
+.edge-hit { fill: none; stroke: transparent; stroke-width: 18; cursor: pointer }
+.edge-hit:focus-visible { stroke: var(--primary-soft) }
+.edge-label { fill: var(--muted); font-size: 10.5px; font-family: var(--font-money) }
+.edge-label.bad { fill: var(--danger) }
+.flow-dot { fill: var(--teal) }
+.pulse-ring { fill: none; stroke: var(--teal); stroke-width: 2; opacity: 0 }
+.stream { font-family: var(--font-money); font-size: 12px; display: flex; flex-direction: column; gap: 4px; padding: 12px 20px 16px; border-top: 1px solid var(--border) }
+.stream div { display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted) } .stream b { color: var(--ink); font-weight: 500 }
+.cmp td:last-child { white-space: nowrap }
+.cmp td { padding: 10px 12px } .cmp .num { font-size: 13px }
+.callout { border-inline-start: 3px solid var(--danger); background: var(--danger-soft); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: 13px }
+.steps { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 20px 0 }
+.steps span { font-size: 12px; border-radius: 999px; padding: 4px 10px; background: var(--surface-muted); color: var(--muted) }
+.steps span[aria-current="step"] { background: var(--primary); color: var(--on-primary) }
+.sim { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px }
+.sim div { border: 1px solid var(--border); border-radius: 14px; padding: 12px }
+.sim b { display: block; font-family: var(--font-money); font-size: 20px; margin-top: 4px }
+.stage-track { display: flex; gap: 4px; flex-wrap: wrap }
+.stage-track span { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--surface-muted); color: var(--muted) }
+.stage-track span.on { background: var(--primary-soft); color: var(--primary); font-weight: 600 }
+.bars { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px }
+.bar-row { display: grid; grid-template-columns: 140px minmax(0,1fr) 90px; gap: 10px; align-items: center; font-size: 13px }
+.bar-track { height: 10px; background: var(--surface-muted); border-radius: 999px; overflow: hidden }
+.bar-track span { display: block; height: 100%; background: var(--primary); border-radius: 999px }
+.trace { list-style: none; margin: 0; padding: 8px 20px 16px }
+.trace li { display: grid; grid-template-columns: 70px 20px minmax(0,1fr) auto; gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--border) }
+.trace li:first-child { border-top: 0 }
+.trace .t { font-family: var(--font-money); font-size: 11px; color: var(--muted); padding-top: 2px }
+.trace .k { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); margin-top: 5px }
+.trace .k.tool { background: var(--primary) } .trace .k.ok { background: var(--success) } .trace .k.bad { background: var(--danger) } .trace .k.hum { background: var(--teal) }
+.dock-btn { position: fixed; z-index: 15; inset-inline-end: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 999px; box-shadow: 0 8px 24px rgba(20,24,40,.18) }
+.dock { position: fixed; z-index: 16; inset-inline-end: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 16px 40px rgba(20,24,40,.2); overflow: hidden }
+.dock-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border) }
+.dock-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px }
+@media (max-width: 1100px) { .ops-grid { grid-template-columns: minmax(0,1fr) } .sim { grid-template-columns: minmax(0,1fr) } }
+@media (max-width: 760px) { .bar-row { grid-template-columns: 100px minmax(0,1fr) 70px } .trace li { grid-template-columns: 56px 14px minmax(0,1fr) } .trace li > :last-child { grid-column: 3 } .dock-btn { bottom: calc(76px + env(safe-area-inset-bottom, 0px)) } }
+@media (prefers-reduced-motion: reduce) { .flow-dot, .pulse-ring { display: none } }
+
+/* A2 polish: press feedback, spatial consistency, materials, accessibility preferences, size-specific type. */
+html { font-size: 100% }
+h1 { letter-spacing: -.02em; line-height: 1.15 } h2 { letter-spacing: -.01em; line-height: 1.25 } h3 { line-height: 1.3 }
+.kpi .value, .sim b { letter-spacing: -.01em; line-height: 1.2 }
+.eyebrow, .section-label, .nav-group, th { letter-spacing: .06em }
+.btn, .nav-item, .chip, .tone button, .role-switch button, .cmdk, .map-node { transition: transform 100ms ease-out, background-color 120ms ease-out }
+.btn:active:not(:disabled), .nav-item:active, .chip:active, .tone button:active, .role-switch button:active, .cmdk:active { transform: scale(.97) }
+.map-node:active { transform: scale(.97); transform-box: fill-box; transform-origin: center }
+.topbar { position: sticky; top: 0; z-index: 12; background: color-mix(in srgb, var(--surface) 78%, transparent); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); border-bottom-color: transparent; box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 60%, transparent), 0 8px 16px -12px rgba(20,24,40,.18) }
+.dock { background: color-mix(in srgb, var(--surface) 86%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); transform-origin: bottom right }
+.dock-body .table-wrap, .dock-body table, .dock-body .money { background: var(--surface) }
+.modal { transform-origin: top center }
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { animation: from-right 240ms cubic-bezier(.2,.8,.2,1) }
+  .dock { animation: from-trigger 220ms cubic-bezier(.2,.8,.2,1) }
+  .modal { animation: from-top 180ms cubic-bezier(.2,.8,.2,1) }
+  @keyframes from-right { from { transform: translateX(24px); opacity: 0 } }
+  @keyframes from-trigger { from { transform: scale(.9) translateY(12px); opacity: 0 } }
+  @keyframes from-top { from { transform: scale(.96); opacity: 0 } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .dock, .modal { animation: fade 150ms ease-out }
+  @keyframes fade { from { opacity: 0 } }
+  .btn:active, .nav-item:active, .chip:active, .cmdk:active, .map-node:active { transform: none }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, .dock { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none }
+}
+@media (prefers-contrast: more) {
+  .topbar, .dock { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid var(--ink) }
+  .topbar { border-width: 0 0 1px; box-shadow: none }
+  .panel, .kpi, .modal, .btn.secondary, .cmdk { border-color: var(--ink) }
+}
+.map-split { grid-template-columns: minmax(0,1.8fr) minmax(320px,1fr) }
+@media (max-width: 1100px) { .map-split { grid-template-columns: minmax(0,1fr) } }
+</style>
+
+<div class="proto-banner" role="note">
+  <span><strong>Prototype data.</strong> Customers, amounts and messages below are invented examples for design review only. They never appear in the product.</span>
+  <span style="display:inline-flex;align-items:center;gap:8px">Viewing as
+    <span class="role-switch" role="group" aria-label="Prototype role">
+      <button type="button" id="role-maker" aria-pressed="true">Credit controller</button>
+      <button type="button" id="role-approver" aria-pressed="false">AR manager</button>
+    </span>
+  </span>
+</div>
+
+<div class="app">
+  <nav class="rail" aria-label="Workspaces" id="rail"></nav>
+  <div class="main">
+    <header class="topbar">
+      <div class="scope"><span class="small muted">Gulf Trading Group · Prototype tenant</span><b>Dubai Operations LLC <span class="small muted">AED</span></b></div>
+      <button type="button" class="cmdk" id="open-cmdk"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search customers, invoices or ask Copilot</span><kbd>⌘K</kbd></button>
+      <span class="small muted hide-sm" id="who"></span>
+    </header>
+    <main class="content" id="view" tabindex="-1"></main>
+    <nav class="mobile-nav" aria-label="Workspaces" id="mobile-nav"></nav>
+  </div>
+</div>
+<div id="toast-host"></div>
+<div id="modal-host"></div>
+<div id="dock-host"></div>
+
+<script>
+(() => {
+const ICONS = {
+  home: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
+  chat: '<path d="M4 5h16v11H8l-4 4z"/>',
+  coll: '<path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/>',
+  cust: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.6c1.8.7 3 2.5 3.5 5.4"/>',
+  cash: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+  inbox: '<path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
+  bot: '<rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  ledger: '<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  warn: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  pulse: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
+  map: '<circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 6h9M6.3 8.2l4.4 7.6M17.7 8.2l-4.4 7.6"/>',
+  trace: '<path d="M4 6h10M4 12h16M4 18h7"/><circle cx="17" cy="6" r="2"/><circle cx="14" cy="18" r="2"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  shield: '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+};
+const icon = (name) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+const NAV = [
+  { group: "Operations", items: [["ops","Overview","pulse"],["map","Agent map","map"],["traces","Traces","trace"],["incidents","Incidents","bell"],["guardrails","Guardrails","shield"],["insights","Insights","spark"]] },
+  { group: "Work", items: [["collections","Collections","coll"],["customer","Customers","cust"],["cash","Cash application","cash"],["inbox","Approvals","inbox"]] },
+  { group: "AI", items: [["agents","Agent console","bot"],["copilot","Copilot","chat"]] },
+  { group: "Insight", items: [["reports","Reports","chart"]] },
+  { group: "Records", items: [["ledger","Receivables ledger","ledger"]] },
+];
+const MOBILE = [["ops","Ops","pulse"],["collections","Collect","coll"],["inbox","Approve","inbox"],["incidents","Alerts","bell"]];
+
+// ---- Prototype data (examples only) ----
+const fmt = (s) => { const [i, f] = s.split("."); return "AED " + i.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + f; };
+const customers = [
+  { id: "c1", name: "Al Noor Building Materials", acct: "CUS-1042", overdue: "184250.00", open: "212900.50", days: 97, stage: "final_notice", flags: ["Promise broken"], limit: "250000.00", hold: true,
+    contacts: [{ name: "Reem Haddad", email: "ar@alnoor.example", role: "AR", primary: true }],
+    invoices: [["INV-23081","2026-06-30","96000.00","Overdue 107d",""],["INV-23214","2026-07-31","88250.00","Overdue 76d","Promise broken"],["INV-23560","2026-10-31","28650.50","Current",""]] },
+  { id: "c2", name: "Marina Hospitality Group", acct: "CUS-0877", overdue: "96400.00", open: "141400.00", days: 54, stage: "firm", flags: ["Dispute open"], limit: "300000.00", hold: false,
+    contacts: [{ name: "Accounts payable", email: "ap@marinahg.example", role: "AP", primary: true }],
+    invoices: [["INV-23190","2026-08-21","52400.00","Overdue 55d","Dispute open"],["INV-23302","2026-09-10","44000.00","Overdue 35d",""],["INV-23611","2026-11-05","45000.00","Current",""]] },
+  { id: "c3", name: "Desert Rose Clinics", acct: "CUS-1288", overdue: "31775.25", open: "31775.25", days: 18, stage: "reminder", flags: ["Promise 20/10"], limit: "80000.00", hold: false,
+    contacts: [],
+    invoices: [["INV-23477","2026-09-27","31775.25","Overdue 18d","Promise 20/10/2026"]] },
+];
+const state = { view: "ops", edge: "col-out", gStep: 1, gKind: "require_contact", simulated: false, dock: false, role: "maker", selected: "c1", custTab: "overview", tone: "final_notice", inboxFilter: "all", outboxTab: "pending", submitted: false, sent: false, holdReleased: false };
+const outbox = [];
+const approvals = [
+  { id: "a1", type: "Cash", maker: "ai", title: "Allocate receipt FT26-88412 to INV-23302", amount: "44000.00", evidence: "Bank reference INV-23302 equals invoice number; amount equals open balance.", impact: "Debit unapplied cash / credit accounts receivable", status: "pending" },
+  { id: "a2", type: "Credit limit", maker: "sara", title: "Raise Desert Rose Clinics limit", amount: "120000.00", evidence: "Twelve months on time; signed PO pipeline AED 95k.", impact: "Limit AED 80,000.00 → AED 120,000.00", status: "pending" },
+];
+const nameOf = (m) => m === "ai" ? "AI agent" : m === "sara" ? "Sara (controller)" : m === "you-maker" ? "You (controller)" : "Omar (AR manager)";
+const pillFor = (s) => s === "final_notice" ? '<span class="pill bad">Final notice</span>' : s === "firm" ? '<span class="pill warn">Firm</span>' : '<span class="pill info">Reminder</span>';
+const flagPill = (f) => `<span class="pill ${/broken|Dispute/.test(f) ? (/Dispute/.test(f) ? "warn" : "bad") : "neutral"}">${f}</span>`;
+
+function toast(msg) { const host = document.getElementById("toast-host"); host.innerHTML = `<div class="toast" role="status">${msg}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => host.innerHTML = "", 3600); }
+function nav() {
+  const pending = approvals.filter(a => a.status === "pending").length + outbox.filter(m => m.status === "pending").length;
+  document.getElementById("rail").innerHTML = `<div class="brand"><span class="brand-mark">o2c</span>Command Center</div>` + NAV.map(g => `<div class="nav-group">${g.group}</div>` + g.items.map(([id, label, ic]) =>
+    `<button type="button" class="nav-item" data-go="${id}" ${state.view === id ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span>${id === "inbox" && pending ? `<span class="count" aria-label="${pending} pending">${pending}</span>` : ""}</button>`).join("")).join("");
+  document.getElementById("mobile-nav").innerHTML = MOBILE.map(([id, label, ic]) => `<button type="button" data-go="${id}" ${state.view === id ? 'aria-current="page"' : ""}>${icon(ic)}${label}${id === "inbox" && pending ? ` (${pending})` : ""}</button>`).join("");
+  document.getElementById("who").textContent = state.role === "maker" ? "Sara Al Mansoori · Credit controller" : "Omar Khalid · AR manager";
+}
+
+// ---- Views ----
+function viewCollections() {
+  const c = customers.find(x => x.id === state.selected);
+  const draftLines = c.invoices.filter(i => /Overdue/.test(i[3]) && !/Dispute/.test(i[4]));
+  const draftTotal = draftLines.reduce((s, i) => s + Math.round(parseFloat(i[2]) * 100), 0); // prototype display only
+  const total = (draftTotal / 100).toFixed(2);
+  const toneText = { reminder: "This is a friendly reminder that the invoices below are past due.", firm: "Several invoices on your account are now significantly overdue and require your attention.", final_notice: "Despite earlier reminders, the invoices below remain unpaid. Please arrange payment within 7 days or contact us to agree a schedule." }[state.tone];
+  const pendingCount = outbox.filter(m => m.status === "pending").length;
+  return `
+  <div class="page-head"><div><p class="eyebrow">Work / Collections</p><h1>Collections</h1><p class="muted">Ranked by overdue AED and age. The collections agent refreshed this list at 08:00 GST.</p></div>
+    <div class="actions"><button type="button" class="btn secondary" data-toast="Collections agent queued. Steps stream in AI agents.">${icon("bot")}Run collections agent</button></div></div>
+  <section class="kpis" aria-label="Collections summary">
+    <div class="kpi"><span class="muted small">Overdue AR</span><span class="value">AED 312,425.25</span><span class="note">3 customers · 6 invoices</span></div>
+    <div class="kpi"><span class="muted small">Broken promises</span><span class="value">1</span><span class="note">AED 88,250.00 promised by 30/09</span></div>
+    <div class="kpi"><span class="muted small">Open disputes</span><span class="value">1</span><span class="note">Excluded from dunning and auto-match</span></div>
+    <div class="kpi"><span class="muted small">Emails awaiting approval</span><span class="value">${pendingCount}</span><span class="note">${pendingCount ? "Needs an AR manager" : "Outbox clear"}</span></div>
+  </section>
+  <div class="split">
+    <section class="panel" aria-labelledby="wl-h">
+      <div class="panel-head"><h2 id="wl-h">Worklist</h2><div class="filters" role="group" aria-label="Filter worklist"><button class="chip" aria-pressed="true" type="button">All</button><button class="chip" aria-pressed="false" type="button">Broken promises</button><button class="chip" aria-pressed="false" type="button">On hold</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Customer</th><th class="r">Overdue</th><th class="r hide-sm">Oldest</th><th>Next step</th></tr></thead><tbody>
+      ${customers.map(x => `<tr class="row-btn" tabindex="0" data-select="${x.id}" aria-selected="${x.id === state.selected}"><td><div class="cust-name">${x.name}</div><div class="cust-sub">${x.acct}</div><div class="badges">${x.flags.map(flagPill).join("")}${x.hold && !state.holdReleased ? '<span class="pill bad">On hold</span>' : ""}</div></td><td class="r money">${fmt(x.overdue)}</td><td class="r num hide-sm">${x.days}d</td><td>${pillFor(x.stage)}</td></tr>`).join("")}
+      </tbody></table></div>
+    </section>
+    <section class="panel" aria-labelledby="dr-h">
+      <div class="drawer">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2 id="dr-h">${c.name}</h2><p class="small muted">${c.acct} · open <span class="money">${fmt(c.open)}</span></p></div><button type="button" class="btn ghost" data-go="customer">Open account →</button></div>
+        ${c.hold && !state.holdReleased ? `<div class="hold" role="status">${icon("warn")}<div><b>Credit hold active.</b> Placed by the credit risk agent on 14/10/2026: 90+ days overdue. Only an AR manager can release it.</div></div>` : ""}
+        <div><p class="section-label">Contacts</p>${c.contacts.length ? c.contacts.map(k => `<div class="contact"><div><b>${k.name}</b> ${k.primary ? '<span class="pill info">Primary</span>' : ""}<div class="small muted">${k.email} · ${k.role}</div></div><button class="btn ghost" type="button">Edit</button></div>`).join("") : `<div class="contact"><span class="muted">No AR contact on file. The agent cannot draft an email until someone adds one.</span><button class="btn secondary" type="button" data-toast="Contact form opens here (email validated, never filled by AI).">Add contact</button></div>`}</div>
+        ${c.contacts.length ? `<div class="draft">
+          <div class="draft-head"><span><span class="pill ai">AI draft</span> <span class="small muted">from collections agent run · 08:02</span></span>
+            <span class="tone" role="group" aria-label="Tone">${["reminder","firm","final_notice"].map(t => `<button type="button" data-tone="${t}" aria-pressed="${state.tone === t}">${t === "final_notice" ? "Final notice" : t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</span></div>
+          <div class="draft-body"><b>To:</b> ${c.contacts[0].email}
+<b>Subject:</b> ${state.tone === "final_notice" ? "Final notice" : "Payment reminder"}: ${c.acct} overdue ${fmt(total)}
+
+Dear ${c.contacts[0].name},
+
+${toneText}
+<div class="locked" aria-label="Invoice lines locked to ledger">${draftLines.map(i => `${i[0]}   due ${i[1].split("-").reverse().join("/")}   ${fmt(i[2])}`).join("<br>")}<br><b>Total overdue ${fmt(total)}</b> · locked to ledger</div>Please confirm your payment date, or tell us if anything is in dispute.
+
+Accounts Receivable</div>
+          <div class="draft-head" style="border-top:1px solid var(--border)"><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="attach-soa" checked> Attach statement of account (PDF)</label>
+            <div class="actions">${state.role === "maker" ? `<button type="button" class="btn secondary" data-toast="Promise form: amount, date, note.">Log promise</button><button type="button" class="btn" id="submit-draft" ${state.submitted ? "disabled" : ""}>${state.submitted ? "In outbox" : "Submit to outbox"}</button>` : `<span class="small muted">A credit controller submits; you approve in Approvals.</span>`}</div></div>
+        </div>` : ""}
+      </div>
+    </section>
+  </div>
+  <section class="panel" aria-labelledby="ob-h">
+    <div class="panel-head"><h2 id="ob-h">Outbox</h2><span class="small muted">Every email needs an approver other than its maker. Sending is a separate recorded step.</span></div>
+    <div class="tabs" role="tablist">${[["pending","Awaiting approval"],["approved","Approved"],["sent","Sent"],["failed","Failed"]].map(([k, l]) => `<button class="tab" role="tab" type="button" data-obtab="${k}" aria-selected="${state.outboxTab === k}">${l} (${outbox.filter(m => m.status === k).length})</button>`).join("")}</div>
+    <div class="list">${outbox.filter(m => m.status === state.outboxTab).map(m => `<div class="list-row"><div><b>${m.subject}</b><div class="small muted">To ${m.to} · maker ${nameOf(m.maker)}${m.providerId ? ` · Resend id <span class="num">${m.providerId}</span>` : ""}</div></div><span class="money">${fmt(m.amount)}</span></div>`).join("") || `<p class="empty">Nothing here yet.</p>`}</div>
+  </section>`;
+}
+
+function viewInbox() {
+  const items = [...outbox.filter(m => m.status === "pending").map(m => ({ id: m.id, type: "Email", maker: m.maker, title: m.subject, amount: m.amount, evidence: `Locked lines: ${m.lines}. Statement attached: ${m.attach ? "yes" : "no"}.`, impact: `Sends to ${m.to} through Resend`, status: "pending", email: true })), ...approvals.filter(a => a.status === "pending")];
+  if (!state.holdReleased) items.push({ id: "h1", type: "Hold release", maker: "ai", title: "Credit hold on Al Noor Building Materials", amount: "184250.00", evidence: "Placed automatically: invoices over 90 days overdue. Release only after a payment plan is agreed.", impact: "Customer returns to normal credit status", status: "pending", hold: true });
+  const shown = items.filter(i => state.inboxFilter === "all" || i.type === state.inboxFilter);
+  const types = ["all", "Email", "Cash", "Credit limit", "Hold release"];
+  return `
+  <div class="page-head"><div><p class="eyebrow">Work / Approvals</p><h1>Approvals</h1><p class="muted">One inbox for everything that needs an independent checker.</p></div></div>
+  <div class="filters" role="group" aria-label="Filter approvals">${types.map(t => `<button class="chip" type="button" data-filter="${t}" aria-pressed="${state.inboxFilter === t}">${t === "all" ? "All" : t} (${t === "all" ? items.length : items.filter(i => i.type === t).length})</button>`).join("")}</div>
+  <section class="panel"><div class="card-stack">
+  ${shown.map(i => { const own = (i.maker === "you-maker" && state.role === "maker") || (i.maker === "sara" && state.role === "maker"); return `<article class="appr">
+    <div class="appr-top"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill info">${i.type}</span>${i.maker === "ai" ? '<span class="pill ai">AI agent</span>' : `<span class="pill neutral">${nameOf(i.maker)}</span>`}</div><span class="money">${fmt(i.amount)}</span></div>
+    <h3>${i.title}</h3><p class="small muted">${i.evidence}</p><p class="impact"><b>Impact:</b> ${i.impact}</p>
+    ${state.role === "maker" ? `<p class="small muted">${own ? "You made this. A different user must approve it." : "Approval needs the AR manager role."}</p>` :
+      `<label class="ack"><input type="checkbox" data-ack="${i.id}"> I reviewed the recipient, amounts, evidence and impact above.</label><div class="actions"><button type="button" class="btn" data-approve="${i.id}">${i.email ? "Approve & send" : i.hold ? "Release hold" : "Approve"}</button><button type="button" class="btn danger" data-reject="${i.id}">Reject</button></div>`}
+  </article>`; }).join("") || `<p class="empty">No approvals waiting. New items appear here as soon as someone, or an agent, submits them.</p>`}
+  </div></section>`;
+}
+
+function viewCustomer() {
+  const c = customers.find(x => x.id === state.selected);
+  const used = Math.min(100, Math.round(parseFloat(c.open) / parseFloat(c.limit) * 100));
+  const tabs = [["overview","Overview"],["invoices","Invoices"],["statement","Statement"],["contacts","Contacts"],["timeline","Timeline"]];
+  let body = "";
+  if (state.custTab === "overview") body = `<div class="drawer"><div class="grid2">
+      <div class="stat"><p class="small muted">Open balance</p><p class="money" style="font-size:20px">${fmt(c.open)}</p></div>
+      <div class="stat"><p class="small muted">Credit limit used</p><p class="money" style="font-size:20px">${used}%</p><div class="limit-bar" role="img" aria-label="${used}% of limit used"><span style="width:${used}%"></span></div><p class="small muted" style="margin-top:6px">Limit ${fmt(c.limit)} · <button class="btn ghost" type="button" data-toast="Limit change goes to Approvals (maker/checker).">Propose change</button></p></div>
+    </div>
+    <div class="stat"><p class="section-label">AI risk note · credit risk agent, 14/10/2026</p><p>Oldest invoice 107 days past due and a broken promise for AED 88,250.00. Recommend keeping the hold until a payment plan is agreed.</p></div></div>`;
+  if (state.custTab === "invoices") body = `<div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Due</th><th class="r">Open</th><th>Status</th><th></th></tr></thead><tbody>${c.invoices.map(i => `<tr><td class="num">${i[0]}</td><td class="num">${i[1].split("-").reverse().join("/")}</td><td class="r money">${fmt(i[2])}</td><td>${/Overdue/.test(i[3]) ? `<span class="pill warn">${i[3]}</span>` : `<span class="pill ok">${i[3]}</span>`} ${i[4] ? flagPill(i[4]) : ""}</td><td class="r"><button class="btn ghost" type="button" data-toast="Actions: open/resolve dispute, set collection status, log promise. Each bumps the invoice version.">Actions ⋯</button></td></tr>`).join("")}</tbody></table></div>`;
+  if (state.custTab === "statement") body = `<div class="panel-head" style="border-bottom:0"><label class="f" style="flex-direction:row;align-items:center;gap:8px">As of <input type="date" id="soa-date" value="2026-10-15"></label><div class="actions"><button class="btn secondary" type="button" data-toast="Downloads O2C-SOA-${c.acct}-2026-10-15.pdf (server-generated).">Download PDF</button><button class="btn" type="button" data-go="collections">Attach to email</button></div></div>
+    <div class="pdf-stage"><div class="pdf" aria-label="Statement of account preview">
+      <div style="display:flex;justify-content:space-between;gap:12px"><div><h4>Dubai Operations LLC</h4><p>Statement of account</p></div><div style="text-align:right"><p>Statement date 15/10/2026</p><p>Currency AED</p></div></div>
+      <div style="margin:18px 0;display:flex;justify-content:space-between"><div><b>${c.name}</b><br>Account ${c.acct}</div><div style="text-align:right">Opening balance 01/06/2026<br><b class="money">${fmt("0.00")}</b></div></div>
+      <table><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th><th style="text-align:right">Balance</th></tr></thead><tbody>
+      ${c.invoices.map((i, n) => `<tr><td>${i[1].split("-").reverse().join("/")}</td><td>${i[0]}</td><td>Invoice</td><td style="text-align:right" class="money">${i[2]}</td><td></td><td style="text-align:right" class="money">${c.invoices.slice(0, n + 1).reduce((s, x) => s + Math.round(parseFloat(x[2]) * 100), 0) / 100 === 0 ? "" : (c.invoices.slice(0, n + 1).reduce((s, x) => s + Math.round(parseFloat(x[2]) * 100), 0) / 100).toFixed(2)}</td></tr>`).join("")}
+      </tbody></table>
+      <div class="ag">${(() => { const cents = [0,0,0,0,0,0]; c.invoices.forEach(i => { const d = parseInt((i[3].match(/(\d+)d/) || [0, 0])[1], 10); const k = d === 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : d <= 180 ? 4 : 5; cents[k] += Math.round(parseFloat(i[2]) * 100); }); return ["Current","1-30","31-60","61-90","91-180","180+"].map((b, n) => `<div>${b}<b>${(cents[n] / 100).toFixed(2)}</b></div>`).join(""); })()}</div>
+      <p style="margin-top:16px;color:#626c80">Remittance: bank details configured by your administrator. Generated from ledger records as of 15/10/2026; amounts in AED.</p>
+    </div></div>`;
+  if (state.custTab === "contacts") body = `<div class="drawer">${c.contacts.map(k => `<div class="contact"><div><b>${k.name}</b><div class="small muted">${k.email} · ${k.role}</div></div><span class="pill info">Primary</span></div>`).join("") || `<p class="muted">No contacts yet.</p>`}
+    <form class="form-grid" onsubmit="event.preventDefault()"><label class="f">Name<input id="ct-name" placeholder="Full name or team"></label><label class="f">Email<input id="ct-email" type="email" placeholder="ar@customer.ae"></label><label class="f">Role<select id="ct-role"><option>AR</option><option>Finance</option><option>Owner</option></select></label><div style="display:flex;align-items:flex-end"><button class="btn" type="button" data-toast="Contact saved after server confirmation. Contacts are entered by people only.">Add contact</button></div></form></div>`;
+  if (state.custTab === "timeline") body = `<ol class="timeline">${[["15/10 09:14","Email approved and sent by Omar Khalid · Resend id re_7Hk2…"],["15/10 08:02","Collections agent drafted final notice"],["14/10 08:05","Credit risk agent placed hold: 90+ days overdue"],["01/10 00:00","Promise broken: AED 88,250.00 due 30/09 not received"],["18/09 11:40","Sara logged promise AED 88,250.00 by 30/09"]].map(([t, e]) => `<li><span class="small muted num">${t}</span><span>${e}</span></li>`).join("")}</ol>`;
+  return `
+  <div class="page-head"><div><p class="eyebrow">Work / Customers</p><h1>${c.name}</h1><p class="muted">${c.acct} · AED · ${c.contacts.length} contact${c.contacts.length === 1 ? "" : "s"}</p></div>
+    <label class="f">Customer<select id="cust-pick">${customers.map(x => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${x.name}</option>`).join("")}</select></label></div>
+  ${c.hold && !state.holdReleased ? `<div class="hold" role="status">${icon("warn")}<div><b>Credit hold active.</b> New orders should not ship. ${state.role === "approver" ? "Release it from Approvals." : "An AR manager must release it."}</div></div>` : ""}
+  <section class="panel"><div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" type="button" data-ctab="${k}" aria-selected="${state.custTab === k}">${l}</button>`).join("")}</div>${body}</section>`;
+}
+
+function viewAgents() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Automation / AI agents</p><h1>AI agents</h1><p class="muted">Every reasoning summary, tool call and decision is recorded as it happens.</p></div></div>
+  <section class="agents">${[["Cash application","Next run in 15h 58m","awaiting approval","warn"],["Collections","Next run in 15h 58m","succeeded","ok"],["Credit risk","Daily 08:00 GST","succeeded","ok"],["Reporting","Manual","idle","neutral"]].map(([n, s, st, k]) => `<article class="agent"><div style="display:flex;justify-content:space-between;gap:8px"><h3>${n}</h3><span class="pill ${k}">${st}</span></div><p class="small muted">${s}</p><button class="btn secondary" type="button" data-toast="${n} agent queued.">Run now</button></article>`).join("")}</section>
+  <section class="panel"><div class="panel-head"><h2>Collections agent · today 08:00</h2><div class="filters" role="group" aria-label="Detail"><button class="chip" type="button" aria-pressed="true">Compact</button><button class="chip" type="button" aria-pressed="false">Expanded</button></div></div>
+    <div style="padding:6px 20px 14px">
+      ${[["","Read AR position","get_ar_overview · 220 ms"],["","Read 6 overdue invoices","list_invoices · 140 ms"],["prop","Submitted final notice to outbox · Al Noor Building Materials","AED 184,250.00 · awaiting approval"],["prop","Submitted firm reminder · Marina Hospitality Group","AED 44,000.00 (disputed INV-23190 excluded)"],["find","Missing contact · Desert Rose Clinics","Add an AR contact to enable drafting"],["post","Run finished · 2 emails awaiting approval","USD 0.0412 model cost · 9 steps"]].map(([k, t, d]) => `<div class="step ${k}"><span class="dot" aria-hidden="true">${k === "prop" ? "✉" : k === "find" ? "!" : k === "post" ? "✓" : "·"}</span><div><b>${t}</b><p class="small muted">${d}</p>${k === "find" ? '<button class="btn ghost" type="button" data-go="customer">Open customer →</button>' : ""}</div></div>`).join("")}
+    </div></section>`;
+}
+
+function viewCopilot() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Home / Copilot</p><h1>Copilot</h1><p class="muted">Answers come from live tool calls under your role.</p></div></div>
+  <section class="panel"><div class="chat">
+    <div class="bubble user">Who should I call first today and why?</div>
+    <div class="bubble ai"><span class="pill neutral">AR position</span> <span class="pill neutral">invoices</span><p style="margin-top:8px">Call <b>Al Noor Building Materials</b> first. They owe <span class="money">AED 184,250.00</span> overdue, the oldest invoice is 107 days past due, and they broke a promise for <span class="money">AED 88,250.00</span> on 30/09.</p>
+      <p style="margin-top:8px">Sources: <button class="cite" type="button" data-go="customer">CUS-1042</button> <button class="cite" type="button" data-go="customer">INV-23081</button> <button class="cite" type="button" data-go="customer">INV-23214</button></p></div>
+    <div class="followups" aria-label="Suggested follow-ups"><button class="chip" type="button">Draft a payment plan proposal</button><button class="chip" type="button">Show Al Noor statement</button><button class="chip" type="button">Which disputes block collection?</button></div>
+  </div></section>`;
+}
+
+function viewSimple(title, eyebrow, text) { return `<div class="page-head"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="muted">${text}</p></div></div><section class="panel"><p class="empty">Unchanged in slice 2. See the live app for this workspace.</p></section>`; }
+
+
+// ---- Agent operations (prototype data) ----
+const guardrails = [
+  { id: "g1", name: "Block auto-post above AED 50,000.00", kind: "max_amount", stage: "block", maker: "Omar (AR manager)", caught: 2, history: ["Monitor 02/10", "Warn 06/10", "Block 09/10"] },
+  { id: "g2", name: "Max 3 identical tool calls per run", kind: "max_identical_calls", stage: "warn", maker: "Sara (controller)", caught: 4, history: ["Monitor 08/10", "Warn 12/10"] },
+];
+const incidents = [
+  { id: "INC-104", sev: "critical", title: "Collections → Outbox: contact_id missing", agent: "Collections", kind: "Handoff rejected", runs: 3, cost: "0.0920", since: "42m", edge: "col-out", stage: "No guardrail yet" },
+  { id: "INC-103", sev: "warning", title: "Repeated get_cash_match_candidates calls", agent: "Cash application", kind: "Loop (4 identical calls)", runs: 1, cost: "0.0310", since: "3h", edge: "cash-appr", stage: "Guardrail g2 · Warn" },
+  { id: "INC-101", sev: "info", title: "Daily auto-execution limit reached", agent: "Cash application", kind: "Policy limit hit", runs: 1, cost: "0.0000", since: "1d", edge: "appr-post", stage: "Expected behaviour" },
+];
+const sevPill = (s) => s === "critical" ? '<span class="pill bad">Critical</span>' : s === "warning" ? '<span class="pill warn">Warning</span>' : '<span class="pill info">Info</span>';
+const stagePill = (s) => s === "block" ? '<span class="pill bad">Block</span>' : s === "warn" ? '<span class="pill warn">Warn</span>' : s === "monitor" ? '<span class="pill info">Monitor</span>' : '<span class="pill neutral">Rolled back</span>';
+const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function gauge(score) {
+  const r = 52, c = 2 * Math.PI * r, frac = score / 100;
+  return `<svg viewBox="0 0 140 140" width="150" height="150" role="img" aria-label="Health score ${score} out of 100">
+    <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--surface-muted)" stroke-width="12"/>
+    <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--success)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(c * frac).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 70 70)"/>
+    <text x="70" y="70" text-anchor="middle" dominant-baseline="middle" fill="var(--ink)" font-family="var(--font-money)" font-size="30">${score}</text>
+    <text x="70" y="96" text-anchor="middle" fill="var(--muted)" font-size="11">of 100</text></svg>`;
+}
+
+const NODES = {
+  bank:   { x: 20,  y: 40,  label: "Bank import",       sub: "312 credits · 24h", cls: "" },
+  cash:   { x: 230, y: 40,  label: "Cash application",  sub: "agent · 6 runs",   cls: "agent", live: true },
+  appr:   { x: 440, y: 40,  label: "Approval",           sub: "policy or human",  cls: "" },
+  post:   { x: 650, y: 40,  label: "Posting",            sub: "journals",          cls: "" },
+  coll:   { x: 230, y: 150, label: "Collections",        sub: "agent · 1 run",     cls: "agent warn" },
+  out:    { x: 440, y: 150, label: "Outbox",             sub: "2 awaiting",        cls: "" },
+  mail:   { x: 650, y: 150, label: "Resend email",       sub: "1 sent",            cls: "" },
+  credit: { x: 230, y: 260, label: "Credit risk",        sub: "agent · 1 run",     cls: "agent" },
+  hold:   { x: 440, y: 260, label: "Credit holds",       sub: "1 active",          cls: "" },
+  rep:    { x: 650, y: 260, label: "Reporting",          sub: "agent · weekly",    cls: "agent" },
+  order:  { x: 20,  y: 370, label: "Order intake",       sub: "Needs ERP connector", cls: "road" },
+  ful:    { x: 230, y: 370, label: "Fulfillment",        sub: "Needs ERP connector", cls: "road" },
+  ship:   { x: 440, y: 370, label: "Shipping",           sub: "Needs ERP connector", cls: "road" },
+  inv:    { x: 650, y: 370, label: "Invoicing",          sub: "Needs ERP connector", cls: "road" },
+};
+const EDGES = [
+  { id: "bank-cash", a: "bank", b: "cash", label: "312 · 100%", w: 4 },
+  { id: "cash-appr", a: "cash", b: "appr", label: "41 · 98%", w: 3 },
+  { id: "appr-post", a: "appr", b: "post", label: "38 · 100%", w: 3 },
+  { id: "col-out",   a: "coll", b: "out",  label: "2 · 40%", w: 2, bad: true },
+  { id: "out-mail",  a: "out",  b: "mail", label: "1 · 100%", w: 2 },
+  { id: "cred-hold", a: "credit", b: "hold", label: "1 · 100%", w: 1.5 },
+  { id: "inv-bank",  a: "inv", b: "bank", label: "", w: 1, road: true },
+  { id: "o-f", a: "order", b: "ful", label: "", w: 1, road: true },
+  { id: "f-s", a: "ful", b: "ship", label: "", w: 1, road: true },
+  { id: "s-i", a: "ship", b: "inv", label: "", w: 1, road: true },
+];
+const NW = 130, NH = 52;
+function edgePath(e) {
+  const A = NODES[e.a], B = NODES[e.b];
+  if (e.id === "inv-bank") return `M ${B.x + NW / 2} ${B.y + NH} C ${B.x + NW / 2} ${B.y + 200}, ${A.x + NW / 2} ${A.y - 120}, ${A.x + NW / 2} ${A.y - 4}`.replace(/NaN/g, "0");
+  const x1 = A.x + NW, y1 = A.y + NH / 2, x2 = B.x, y2 = B.y + NH / 2, mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+function agentMap(compact) {
+  const animate = !reduced();
+  const edges = EDGES.filter(e => !compact || !e.road).map(e => {
+    const d = e.id === "inv-bank" ? `M ${NODES.inv.x + NW / 2} ${NODES.inv.y} C ${NODES.inv.x + NW / 2} 330, ${NODES.bank.x + NW / 2} 330, ${NODES.bank.x + NW / 2} ${NODES.bank.y + NH}` : edgePath(e);
+    const A = NODES[e.a], B = NODES[e.b];
+    const lx = e.id === "inv-bank" ? 340 : (A.x + NW + B.x) / 2, ly = e.id === "inv-bank" ? 336 : (A.y + B.y) / 2 + NH / 2 - 8;
+    return `<path class="map-edge ${e.bad ? "bad" : ""} ${e.road ? "road" : ""}" d="${d}" stroke-width="${e.w}"/>
+      ${e.label ? `<text class="edge-label ${e.bad ? "bad" : ""}" x="${lx}" y="${ly}" text-anchor="middle">${e.label}</text>` : ""}
+      ${animate && !e.road ? `<circle class="flow-dot" r="3"><animateMotion dur="${e.bad ? 3.4 : 2.4}s" repeatCount="indefinite" path="${d}"/></circle>` : ""}
+      ${!e.road ? `<path class="edge-hit" d="${d}" tabindex="0" role="button" aria-label="Inspect handoff ${NODES[e.a].label} to ${NODES[e.b].label}" data-edge="${e.id}"/>` : ""}`;
+  }).join("");
+  const nodes = Object.entries(NODES).filter(([, n]) => !compact || n.cls !== "road").map(([k, n]) => `<g class="map-node ${n.cls}" transform="translate(${n.x} ${n.y})">
+      <rect width="${NW}" height="${NH}" rx="12"/>${n.live && animate ? `<circle class="pulse-ring" cx="${NW - 12}" cy="12" r="5"><animate attributeName="r" values="4;10" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values=".8;0" dur="1.6s" repeatCount="indefinite"/></circle>` : ""}
+      ${n.cls.includes("agent") ? `<circle cx="${NW - 12}" cy="12" r="4" fill="${n.cls.includes("warn") ? "var(--warning)" : "var(--teal)"}"/>` : ""}
+      <text x="12" y="22">${n.label}</text><text class="sub" x="12" y="39">${n.sub}</text></g>`).join("");
+  const h = compact ? 330 : 440;
+  return `<div class="map-wrap"><svg viewBox="0 0 800 ${h}" role="group" aria-label="Agent network. Select a connection to inspect it.">${edges}${nodes}</svg></div>`;
+}
+
+function viewOps() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Overview</p><h1>Agent operations</h1><p class="muted">Last 24 hours · every figure comes from recorded runs, steps and approvals.</p></div>
+    <div class="filters" role="group" aria-label="Time range"><button class="chip" type="button" aria-pressed="false">1h</button><button class="chip" type="button" aria-pressed="true">24h</button><button class="chip" type="button" aria-pressed="false">7d</button></div></div>
+  <section class="kpis" aria-label="Operations summary">
+    <div class="kpi"><span class="muted small">Run success</span><span class="value">9 / 10</span><span class="note">1 failed: Collections handoff</span></div>
+    <div class="kpi"><span class="muted small">Median run time</span><span class="value">48 s</span><span class="note">p95 2m 10s</span></div>
+    <div class="kpi"><span class="muted small">Pending approvals</span><span class="value">4</span><span class="note">Oldest 3h 12m</span></div>
+    <div class="kpi"><span class="muted small">Auto-posted today</span><span class="value">AED 38,420.00</span><span class="note">of AED 50,000.00 daily limit</span></div>
+  </section>
+  <div class="ops-grid">
+    <section class="panel gauge-card" aria-labelledby="hs-h"><h2 id="hs-h" style="align-self:flex-start">Health score</h2>${gauge(91)}<span class="pill ok">Healthy</span>
+      <div class="gauge-legend"><div><span>Run success (30%)</span><b class="num">90%</b></div><div><span>Approval age (20%)</span><b class="num">88</b></div><div><span>Incidents (20%)</span><b class="num">1 critical</b></div><div><span>Tool error rate (15%)</span><b class="num">2.1%</b></div><div><span>Send success (15%)</span><b class="num">100%</b></div></div>
+      <p class="small muted">Weighted mean of five recorded signals. No runs in the window shows "Not enough runs yet".</p></section>
+    <section class="panel" aria-labelledby="mm-h"><div class="panel-head"><h2 id="mm-h">Live agent network</h2><button class="btn ghost" type="button" data-go="map">Open map →</button></div>${agentMap(true)}</section>
+  </div>
+  <div class="split">
+    <section class="panel"><div class="panel-head"><h2>Open incidents</h2><button class="btn ghost" type="button" data-go="incidents">All incidents →</button></div>
+      <div class="list">${incidents.slice(0, 2).map(i => `<div class="list-row"><div>${sevPill(i.sev)} <b>${i.title}</b><div class="small muted">${i.agent} · ${i.kind} · ${i.since} ago</div></div><button class="btn secondary" type="button" data-investigate="${i.edge}">Investigate</button></div>`).join("")}</div></section>
+    <section class="panel"><div class="panel-head"><h2>Model cost by agent</h2><span class="small muted">USD · 24h</span></div>${costBars()}</section>
+  </div>`;
+}
+function costBars() {
+  const rows = [["Cash application", 0.2480], ["Collections", 0.1840], ["Credit risk", 0.0620], ["Copilot", 0.1210], ["Reporting", 0.0410]];
+  const max = Math.max(...rows.map(r => r[1]));
+  return `<div class="bars">${rows.map(([n, v]) => `<div class="bar-row"><span>${n}</span><span class="bar-track" role="img" aria-label="${n} USD ${v.toFixed(4)}"><span style="width:${(v / max * 100).toFixed(0)}%"></span></span><span class="num" style="text-align:end">${v.toFixed(4)}</span></div>`).join("")}</div>`;
+}
+function edgeDrawer() {
+  const e = EDGES.find(x => x.id === state.edge) || EDGES[3];
+  const A = NODES[e.a].label, B = NODES[e.b].label;
+  if (!e.bad) return `<div class="drawer"><h2>${A} → ${B}</h2><p class="muted">${e.label.split(" · ")[0]} handoffs in 24h, ${e.label.split(" · ")[1]} accepted. All required fields matched on recent calls.</p></div>`;
+  const rows = [["customer", "string", "Al Noor Building Materials", "Match"], ["contact_id", "uuid", "—", "Missing"], ["invoice_numbers", "string[]", "INV-23081, INV-23214", "Match"], ["total_overdue", "AED decimal", "184250.00", "Match"], ["tone", "enum", "final_notice", "Match"], ["subject", "string", "Final notice: CUS-1042…", "Match"]];
+  return `<div class="drawer"><div><p class="eyebrow">Context comparison</p><h2>${A} → ${B}</h2></div>
+    <p class="callout"><b>contact_id was not sent.</b> The Collections agent proposed an email for Desert Rose Clinics, which has no AR contact on file. The outbox rejected it 3 times in one run.</p>
+    <div class="table-wrap"><table class="cmp"><thead><tr><th>Field · expected</th><th>Sent</th><th>Status</th></tr></thead><tbody>${rows.map(r => `<tr><td><span class="num">${r[0]}</span><br><span class="small muted">${r[1]}</span></td><td class="small">${r[2]}</td><td>${r[3] === "Match" ? '<span class="pill ok">Match</span>' : '<span class="pill bad">Missing</span>'}</td></tr>`).join("")}</tbody></table></div>
+    <div class="actions"><button class="btn" type="button" data-fix="require_contact">Simulate a fix</button><button class="btn secondary" type="button" data-go="traces">Open trace</button></div></div>`;
+}
+function viewMap() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Agent map</p><h1>Agent map</h1><p class="muted">Live handoffs between agents and controls. Line width is volume; labels show handoffs and acceptance. Dashed nodes need an ERP connector.</p></div>
+    <div class="filters" role="group" aria-label="Filter map">${["All", "Failures", "Slow", "High cost", "Loops", "Stuck"].map((f, i) => `<button class="chip" type="button" aria-pressed="${i === 0}">${f}</button>`).join("")}</div></div>
+  <div class="split map-split">
+    <section class="panel">${agentMap(false)}
+      <div class="stream" aria-label="Live handoff stream"><div><span>08:02:14</span><b>Collections → Outbox</b><span>rejected · contact_id missing</span></div><div><span>08:01:57</span><b>Cash application → Approval</b><span>INV-23302 · AED 44,000.00 · exact</span></div><div><span>08:01:40</span><b>Approval → Posting</b><span>policy · journal posted</span></div></div></section>
+    <section class="panel" aria-live="polite">${edgeDrawer()}</section>
+  </div>`;
+}
+function viewTraces() {
+  const steps = [["08:02:01", "", "Run started · Collections agent · scheduled 08:00 GST", ""], ["08:02:03", "tool", "list_invoices(filter: overdue)", "140 ms"], ["08:02:04", "ok", "6 overdue invoices returned", ""], ["08:02:09", "tool", "propose_collection_message · Al Noor Building Materials", "210 ms"], ["08:02:09", "ok", "Outbox entry created · awaiting approval", ""], ["08:02:12", "tool", "propose_collection_message · Desert Rose Clinics", "95 ms"], ["08:02:12", "bad", "Rejected: contact_id required (1 of 3)", ""], ["08:02:14", "bad", "Rejected: contact_id required (3 of 3) · INC-104 opened", ""], ["08:02:20", "", "Finding recorded: Desert Rose Clinics has no AR contact", ""], ["09:14:40", "hum", "Omar Khalid approved and sent the Al Noor email · Resend re_7Hk2…", ""]];
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Traces</p><h1>Trace · Collections run 15/10 08:00</h1><p class="muted">One run end to end, including the human approval and the send.</p></div><span class="pill warn">Completed with incident</span></div>
+  <section class="panel"><ol class="trace">${steps.map(([t, k, d, ms]) => `<li><span class="t">${t}</span><span class="k ${k}" aria-hidden="true"></span><span>${d}</span><span class="small muted num">${ms}</span></li>`).join("")}</ol></section>`;
+}
+function viewIncidents() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Incidents</p><h1>Incidents</h1><p class="muted">Detected automatically from recorded runs: handoff rejections, loops, stuck runs, failed sends, refusals and limit hits.</p></div></div>
+  <section class="kpis"><div class="kpi"><span class="muted small">Open</span><span class="value">2</span><span class="note">1 critical</span></div><div class="kpi"><span class="muted small">Time to detect</span><span class="value">14 s</span><span class="note">median, 7 days</span></div><div class="kpi"><span class="muted small">Time to resolve</span><span class="value">5h 20m</span><span class="note">median, 7 days</span></div><div class="kpi"><span class="muted small">Wasted model cost</span><span class="value">USD 0.1230</span><span class="note">on failed or looping calls</span></div></section>
+  <section class="panel"><div class="table-wrap"><table><thead><tr><th>Incident</th><th>Agent · kind</th><th class="r">Runs</th><th class="r">Cost USD</th><th>Fix stage</th><th></th></tr></thead><tbody>
+    ${incidents.map(i => `<tr><td>${sevPill(i.sev)} <b>${i.title}</b><div class="small muted">${i.id} · ${i.since} ago</div></td><td>${i.agent}<div class="small muted">${i.kind}</div></td><td class="r num">${i.runs}</td><td class="r num">${i.cost}</td><td class="small">${i.stage}</td><td class="r"><button class="btn secondary" type="button" data-investigate="${i.edge}">Investigate</button></td></tr>`).join("")}
+  </tbody></table></div></section>`;
+}
+function viewGuardrails() {
+  const kinds = { require_contact: "Require an AR contact before proposing an email", max_amount: "Block auto-post above an AED amount", max_identical_calls: "Limit identical tool calls per run", require_field: "Require a field on a handoff", deny_tool: "Deny a tool for an agent" };
+  const step = state.gStep;
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Guardrails</p><h1>Guardrails</h1><p class="muted">Rules enforced before every tool call and again in the database. New rules start in Monitor and move to Warn and Block with an independent approval.</p></div></div>
+  <div class="split">
+    <section class="panel" aria-labelledby="gw-h"><div class="panel-head"><h2 id="gw-h">Simulate a fix</h2></div>
+      <div class="steps" aria-label="Progress"><span ${step === 1 ? 'aria-current="step"' : ""}>1 · Define</span><span ${step === 2 ? 'aria-current="step"' : ""}>2 · Simulate</span><span ${step === 3 ? 'aria-current="step"' : ""}>3 · Review & create</span></div>
+      <div class="drawer">
+        ${step === 1 ? `<label class="f">Rule<select id="g-kind">${Object.entries(kinds).map(([k, l]) => `<option value="${k}" ${state.gKind === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label class="f">Applies to<select id="g-scope"><option>Collections agent</option><option>All agents</option><option>Dubai Operations LLC only</option></select></label>
+          <p class="small muted">Evaluation order is fixed: deny tool, amount limits, required fields, identical-call limits.</p>
+          <div class="actions"><button class="btn" type="button" data-gstep="2">Simulate on last 30 days</button></div>` : ""}
+        ${step === 2 ? `<p class="muted">Replayed against 214 recorded tool calls from 30 days of runs. No model calls were made.</p>
+          <div class="sim"><div><span class="small muted">Failures it would have caught</span><b>7 / 7</b></div><div><span class="small muted">False positives</span><b>0</b></div><div><span class="small muted">Model cost avoided</span><b>USD 0.2140</b></div></div>
+          <div class="actions"><button class="btn secondary" type="button" data-gstep="1">Back</button><button class="btn" type="button" data-gstep="3">Continue</button></div>` : ""}
+        ${step === 3 ? `<p><b>${kinds[state.gKind]}</b> · Collections agent</p><p class="small muted">Creates the rule in Monitor. The simulation snapshot is saved with it, so the approver sees the same evidence.</p>
+          <div class="actions"><button class="btn secondary" type="button" data-gstep="2">Back</button><button class="btn" type="button" id="g-create">Create in Monitor</button></div>` : ""}
+      </div></section>
+    <section class="panel" aria-labelledby="gt-h"><div class="panel-head"><h2 id="gt-h">Tracked guardrails</h2></div>
+      <div class="list">${guardrails.map(g => `<div class="list-row"><div><b>${g.name}</b><div class="small muted">Caught ${g.caught} · proposed by ${g.maker}</div><div class="stage-track" style="margin-top:6px">${["monitor", "warn", "block"].map(st => `<span class="${g.stage === st ? "on" : ""}">${st[0].toUpperCase() + st.slice(1)}</span>`).join("")}</div><div class="small muted" style="margin-top:4px">${g.history.join(" → ")}</div></div>
+        <div class="actions">${stagePill(g.stage)}${g.stage !== "block" ? (state.role === "approver" ? `<button class="btn secondary" type="button" data-promote="${g.id}">Promote</button>` : `<span class="small muted">An AR manager promotes</span>`) : ""}<button class="btn ghost" type="button" data-rollback="${g.id}">Roll back</button></div></div>`).join("")}</div></section>
+  </div>`;
+}
+function viewInsights() {
+  return `
+  <div class="page-head"><div><p class="eyebrow">Operations / Insights</p><h1>Insights</h1><p class="muted">Where time and model cost go, and what to change.</p></div></div>
+  <div class="split">
+    <section class="panel"><div class="panel-head"><h2>Slowest tools</h2><span class="small muted">p50 · 7 days</span></div>
+      <div class="bars">${[["get_ar_kpi_pack", 640], ["list_invoices", 180], ["get_cash_match_candidates", 150], ["propose_receipt", 90]].map(([n, v]) => `<div class="bar-row"><span class="num" style="font-size:12px">${n}</span><span class="bar-track"><span style="width:${(v / 640 * 100).toFixed(0)}%"></span></span><span class="num" style="text-align:end">${v} ms</span></div>`).join("")}</div></section>
+    <section class="panel"><div class="panel-head"><h2>Suggestions</h2><span class="pill ai">Reporting agent</span></div>
+      <div class="list"><div class="list-row"><div><b>Add AR contacts for 4 customers</b><div class="small muted">They block collections drafts and caused INC-104. Source: 7 rejected handoffs.</div></div><button class="btn ghost" type="button" data-go="customer">Open customers</button></div>
+        <div class="list-row"><div><b>Raise the daily auto-post limit to AED 75,000.00</b><div class="small muted">The limit was reached on 4 of the last 7 days; all 38 policy postings were exact matches with no reversals.</div></div><button class="btn ghost" type="button" data-go="agents">Review policy</button></div></div></section>
+  </div>`;
+}
+function dock() {
+  return state.dock ? `<div class="dock" role="dialog" aria-label="Copilot"><div class="dock-head"><b>Copilot</b><button class="btn ghost" type="button" data-dock="close" aria-label="Close copilot">✕</button></div>
+    <div class="dock-body"><p class="bubble ai" style="max-width:none">2 open incidents. The critical one is a missing AR contact for Desert Rose Clinics. Want me to explain INC-104 or forecast this week's model cost?</p>
+    <div class="followups"><button class="chip" type="button" data-investigate="col-out">Explain INC-104</button><button class="chip" type="button" data-toast="Projected model cost this week: USD 4.62 at the current run rate.">Cost forecast</button><button class="chip" type="button" data-fix="require_contact">Draft a fix</button></div></div></div>` : "";
+}
+
+function render() {
+  nav();
+  const v = state.view;
+  document.getElementById("dock-host").innerHTML = `<button class="btn dock-btn" type="button" data-dock="toggle" aria-expanded="${state.dock}">${icon("chat")}Copilot</button>${dock()}`;
+  document.getElementById("view").innerHTML = v === "ops" ? viewOps() : v === "map" ? viewMap() : v === "traces" ? viewTraces() : v === "incidents" ? viewIncidents() : v === "guardrails" ? viewGuardrails() : v === "insights" ? viewInsights() : v === "collections" ? viewCollections() : v === "inbox" ? viewInbox() : v === "customer" ? viewCustomer() : v === "agents" ? viewAgents() : v === "copilot" ? viewCopilot()
+    : v === "overview" ? viewSimple("Overview", "Home / Overview", "KPIs, charts and countback DSO from slice 1.") : v === "cash" ? viewSimple("Cash application", "Work / Cash application", "Bank credits, receipts and allocations.")
+    : v === "reports" ? viewSimple("Reports", "Insight / Reports", "AR pack with DSO, CEI and aging.") : viewSimple("Receivables ledger", "Records / Receivables ledger", "Every invoice with lifecycle, dispute and collection status.");
+}
+
+// ---- Interactions ----
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest("[data-edge]");
+  if (hit) { state.edge = hit.dataset.edge; render(); return; }
+  const t = e.target.closest("button, tr[data-select]"); if (!t) return;
+  if (t.dataset.investigate) { state.edge = t.dataset.investigate; state.view = "map"; state.dock = false; render(); return; }
+  if (t.dataset.fix) { state.gKind = t.dataset.fix; state.gStep = 1; state.view = "guardrails"; state.dock = false; render(); return; }
+  if (t.dataset.gstep) { const k = document.getElementById("g-kind"); if (k) state.gKind = k.value; state.gStep = Number(t.dataset.gstep); render(); return; }
+  if (t.id === "g-create") { guardrails.unshift({ id: "g" + (guardrails.length + 1), name: { require_contact: "Require an AR contact before proposing an email", max_amount: "Block auto-post above an AED amount", max_identical_calls: "Limit identical tool calls per run", require_field: "Require a field on a handoff", deny_tool: "Deny a tool for an agent" }[state.gKind], kind: state.gKind, stage: "monitor", maker: state.role === "maker" ? "Sara (controller)" : "Omar (AR manager)", caught: 0, history: ["Monitor 16/10"] }); state.gStep = 1; render(); toast("Created in Monitor. It records matches without blocking."); return; }
+  if (t.dataset.promote) { const g = guardrails.find(x => x.id === t.dataset.promote); const next = g.stage === "monitor" ? "warn" : "block"; g.stage = next; g.history.push(`${next[0].toUpperCase() + next.slice(1)} 16/10`); render(); toast(`Promoted to ${next}. Recorded with you as the checker.`); return; }
+  if (t.dataset.rollback) { const g = guardrails.find(x => x.id === t.dataset.rollback); g.stage = "rolled_back"; g.history.push("Rolled back 16/10"); render(); toast("Rolled back. The previous version stays in history."); return; }
+  if (t.dataset.dock) { state.dock = t.dataset.dock === "toggle" ? !state.dock : false; render(); return; }
+  if (t.dataset.go) { state.view = t.dataset.go; render(); document.getElementById("view").focus(); return; }
+  if (t.dataset.select) { state.selected = t.dataset.select; state.submitted = outbox.some(m => m.cust === state.selected); render(); return; }
+  if (t.dataset.tone) { state.tone = t.dataset.tone; render(); return; }
+  if (t.dataset.obtab) { state.outboxTab = t.dataset.obtab; render(); return; }
+  if (t.dataset.ctab) { state.custTab = t.dataset.ctab; render(); return; }
+  if (t.dataset.filter) { state.inboxFilter = t.dataset.filter; render(); return; }
+  if (t.dataset.toast) { toast(t.dataset.toast); return; }
+  if (t.id === "role-maker" || t.id === "role-approver") { state.role = t.id === "role-maker" ? "maker" : "approver"; document.getElementById("role-maker").setAttribute("aria-pressed", state.role === "maker"); document.getElementById("role-approver").setAttribute("aria-pressed", state.role === "approver"); render(); toast(state.role === "maker" ? "Viewing as credit controller (maker)." : "Viewing as AR manager (approver)."); return; }
+  if (t.id === "submit-draft") {
+    const c = customers.find(x => x.id === state.selected);
+    const lines = c.invoices.filter(i => /Overdue/.test(i[3]) && !/Dispute/.test(i[4]));
+    const total = (lines.reduce((s, i) => s + Math.round(parseFloat(i[2]) * 100), 0) / 100).toFixed(2);
+    outbox.push({ id: "m" + (outbox.length + 1), cust: c.id, to: c.contacts[0].email, subject: `${state.tone === "final_notice" ? "Final notice" : "Payment reminder"}: ${c.acct} overdue ${fmt(total)}`, amount: total, maker: "you-maker", status: "pending", lines: lines.map(i => i[0]).join(", "), attach: document.getElementById("attach-soa")?.checked });
+    state.submitted = true; state.outboxTab = "pending"; render(); toast("Submitted to the outbox. An AR manager must approve before anything is sent."); return;
+  }
+  if (t.dataset.approve || t.dataset.reject) {
+    const id = t.dataset.approve || t.dataset.reject; const ack = document.querySelector(`[data-ack="${id}"]`);
+    if (t.dataset.approve && ack && !ack.checked) { toast("Tick the review confirmation first."); ack.focus(); return; }
+    const m = outbox.find(x => x.id === id); const a = approvals.find(x => x.id === id);
+    if (id === "h1") { state.holdReleased = !!t.dataset.approve; render(); toast(t.dataset.approve ? "Hold released. Recorded in the customer timeline." : "Release rejected."); return; }
+    if (m) { if (t.dataset.reject) { m.status = "failed"; m.providerId = ""; render(); toast("Rejected. The maker sees your decision in the outbox."); return; }
+      m.status = "approved"; render(); toast("Approved. Sending through Resend…");
+      setTimeout(() => { m.status = "sent"; m.providerId = "re_7Hk2" + m.id; render(); toast("Sent. Resend confirmed delivery to the provider."); }, 1200); return; }
+    if (a) { a.status = t.dataset.approve ? "approved" : "rejected"; render(); toast(t.dataset.approve ? (a.type === "Cash" ? "Approved. Posting runs as a separate step." : "Approved and recorded.") : "Rejected and recorded."); }
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr[data-select]")) { e.preventDefault(); e.target.click(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-edge]")) { e.preventDefault(); state.edge = e.target.dataset.edge; render(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openCmdk(); }
+  if (e.key === "Escape") { document.getElementById("modal-host").innerHTML = ""; if (state.dock) { state.dock = false; render(); } }
+});
+document.addEventListener("change", (e) => { if (e.target.id === "cust-pick") { state.selected = e.target.value; render(); } });
+function openCmdk() {
+  const host = document.getElementById("modal-host");
+  const rows = [["ops","Go to Agent operations","pulse"],["incidents","Go to Incidents","bell"],["collections","Go to Collections","coll"],["inbox","Go to Approvals","inbox"],["customer","Al Noor Building Materials · CUS-1042","cust"],["customer","Marina Hospitality Group · CUS-0877","cust"],["copilot","Ask Copilot: who should I call first?","chat"],["agents","Run collections agent","bot"]];
+  host.innerHTML = `<div class="modal-scrim" data-close><div class="modal" role="dialog" aria-modal="true" aria-label="Command bar"><input id="cmdk-input" placeholder="Search or type a command" autocomplete="off"><div id="cmdk-list">${rows.map(([go, l, ic]) => `<button type="button" class="cmd-row" data-go="${go}">${icon(ic)}${l}</button>`).join("")}</div></div></div>`;
+  const input = document.getElementById("cmdk-input"); input.focus();
+  input.addEventListener("input", () => { const q = input.value.toLowerCase(); document.querySelectorAll(".cmd-row").forEach(r => r.hidden = !r.textContent.toLowerCase().includes(q)); });
+  host.querySelector("[data-close]").addEventListener("click", (e) => { if (e.target === e.currentTarget || e.target.closest(".cmd-row")) host.innerHTML = ""; });
+}
+document.getElementById("open-cmdk").addEventListener("click", openCmdk);
+render();
+})();
+</script>

@@ -1,5 +1,7 @@
 # Task tracker
 
+> **Starting a new session?** Read `AGENTS.md`, then `docs/design/SLICE2_PLAN.md`, then this file. Open work is on branch `claude/elegant-goldberg-v8g58h` (PR #6, base `codex/light-finance-workspace`).
+
 Updated at every delivery. "Done" means the work is merged into the working branch with local tests passing. Live verification is tracked separately in `docs/RELEASE.md`.
 
 ## Done
@@ -21,7 +23,7 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 ## In progress
 
-- [ ] Slice 2 design: prototype v2 (agent operations) for owner review
+- [ ] Slice 2 design: prototype v2 with polish pass (`docs/design/slice2-prototype.html`), published and render-checked; awaiting owner approval
 
 ## Blocked or waiting on the owner
 

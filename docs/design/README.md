@@ -1,5 +1,10 @@
 # O2C design sources
 
+## Slice 2 prototype (agent operations, collections) — awaiting owner approval
+[slice2-prototype.html](slice2-prototype.html) is the interactive prototype, also published at https://claude.ai/artifact/QHec351kb1r7qBWU3TYnsw.
+Every figure in it is invented sample data labelled "Prototype data". It is a design reference only and is never loaded by the app.
+[SLICE2_PLAN.md](SLICE2_PLAN.md) is the approved build plan: Phase B (guardrails, incidents, collections, credit, PDF statements) starts after the prototype is approved.
+
 ## Latest complete screen-source handoff
 [Browser gallery](index.html) · [Unified audit and completion backlog](../UNIFIED_AUDIT.md) · [Current cloud workflow](../CLOUD_WORKFLOW.md).
 Open index.html from a cloud checkout/static preview; GitHub's file view does not execute HTML.
