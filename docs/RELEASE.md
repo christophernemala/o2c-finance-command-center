@@ -1,3 +1,41 @@
+## Slice 2: collections and credit — 2026-10-16
+
+**Added:**
+- **Migration** `202610160003_collections_credit.sql`. It adds five tables: contacts, the collections email outbox, payment promises, credit limits and credit holds. All writes go through `SECURITY DEFINER` routines with maker/checker.
+- **Email sending** through Resend, using `fetch` and an idempotency key. Sending happens only after independent approval, with SKIP LOCKED claiming and up to three attempts.
+- **Statements.** A PDF open-items statement (`pdf-lib` 1.17.1, the one new dependency, which you approved for this purpose) at `GET /api/statements/:customerId`, and optionally attached to emails.
+- **Collections screen.** Worklist, contacts, credit limit, hold place and release, promises, the email outbox with approve/reject, and the statement download.
+- **Agent tools.** `propose_collection_message` replaces `draft_collection_message`. New: `get_collections_worklist`, `get_customer_account` and `place_credit_hold`. There is no release tool.
+  - The collections agent now proposes emails for human approval.
+  - The credit risk agent places holds on customers over 90 days overdue, over their limit, or with two or more broken promises.
+- **Run trace.** Now shows guardrail steps and email proposals.
+
+**Tested locally:**
+- `npm run typecheck` and `npm run build` pass.
+- `npm test` passes 100/100, including 8 new tests:
+  - viewers cannot add contacts, and invalid emails are refused;
+  - a message without a contact, or with an invoice that is not overdue or is disputed, is refused;
+  - the total comes from the ledger;
+  - makers cannot approve their own messages;
+  - delivery claims once, retries twice, marks a message `failed` after the third failure, and never resends a sent message;
+  - the statement is attached and the message id is the idempotency key;
+  - an agent can place a hold, but neither an agent, a maker, nor the person who placed it can release it;
+  - credit limits need an independent checker;
+  - broken promises, the worklist and statement totals match the fixtures;
+  - the statement PDF parses;
+  - the Resend client sends the right headers and attachment encoding, and reports errors.
+- **PostgreSQL 16** (fresh cluster):
+  - 12 migrations applied, and a second run applied none.
+  - `test:postgres` passed 8/8 and `test:postgres:http` passed 5/5.
+  - RLS is on all 32 public tables.
+  - Anonymous users cannot execute any `SECURITY DEFINER` routine.
+- **Visual check.** The Collections screen was rendered with sample props at 1440px and 390px. No sideways scrolling and no errors (Chromium).
+
+**Not verified live:**
+- No email has been sent through Resend. That needs `RESEND_API_KEY`, `COLLECTIONS_FROM` and a verified sending domain.
+- No hosted database migration.
+- No live agent run using the new tools.
+
 ## Agent operations screens — 2026-10-16
 
 **Added:** three workspaces, built as server components with no new client JavaScript.

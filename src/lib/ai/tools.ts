@@ -109,18 +109,41 @@ export const tools: AgentTool[] = [
     },
   }),
   tool({
-    name: "draft_collection_message", writes: false, actors: ["agent"],
-    description: "Save a collections email draft for human review. Drafts are never sent by the platform. Reference only invoices and amounts returned by tools.",
+    name: "get_collections_worklist", writes: false, actors: ["agent", "copilot"],
+    description: "Customers with overdue AR, ranked by overdue AED: overdue and open totals, overdue invoice count, oldest days overdue, disputed invoices, broken and open payment promises, credit hold, number of contacts, active credit limit and the status of the last collections message.",
+    schema: z.strictObject({}),
+    run: (_, context) => call(context, "collections_worklist", { p_as_of: context.asOf }),
+  }),
+  tool({
+    name: "get_customer_account", writes: false, actors: ["agent", "copilot"],
+    description: "One customer's account: open invoices with days overdue and dispute state, contacts (use a contact id when proposing a message), payment promises (broken when the date passed unpaid), any credit hold, the active and pending credit limit, and the last 20 collections messages.",
+    schema: z.strictObject({ customer_id: uuid }),
+    run: (input, context) => call(context, "customer_account", { p_customer: input.customer_id, p_as_of: context.asOf }),
+  }),
+  tool({
+    name: "propose_collection_message", writes: true, actors: ["agent", "copilot"],
+    description: "Propose a collections email to one customer contact. It is NOT sent: it waits in the outbox until an independent human approves it, then the platform sends it. The customer must have a contact (contact_id from get_customer_account). invoice_ids must be overdue, undisputed open invoices of that customer; PostgreSQL recomputes the total from the ledger. Reference only invoice numbers, dates and amounts returned by tools. In copilot, only call when the user explicitly asks.",
     schema: z.strictObject({
-      customer: z.string().min(1).max(200), account: z.string().max(100).nullable(),
-      invoice_numbers: z.array(z.string().max(100)).min(1).max(30), total_overdue: decimal,
+      customer_id: uuid, contact_id: uuid, invoice_ids: z.array(uuid).min(1).max(30),
       tone: z.enum(["reminder", "firm", "final_notice"]), subject: z.string().min(3).max(200), body: z.string().min(20).max(4000),
+      attach_statement: z.boolean(),
     }),
     async run(input, context) {
-      const finding: Finding = { severity: input.tone === "final_notice" ? "critical" : input.tone === "firm" ? "warning" : "info", kind: "dunning_draft",
-        title: `${input.tone.replace("_", " ")} draft · ${input.customer}`, detail: input.body, data: { ...input, delivery: "not sent" } };
-      context.findings.push(finding); await context.record?.("finding", { ...finding });
-      return { saved: true, delivery: "not sent" };
+      const id = randomUUID();
+      const result = await call(context, "propose_collection_message", { p_id: id, p_customer: input.customer_id, p_contact: input.contact_id, p_tone: input.tone,
+        p_subject: input.subject, p_body: input.body, p_invoices: input.invoice_ids, p_attach: input.attach_statement }) as Record<string, unknown>;
+      await context.record?.("proposal", { message_id: id, kind: "collection_message", customer_id: input.customer_id, tone: input.tone, total_overdue: result.total_overdue });
+      return { ...result, note: "Pending human approval. Not sent." };
+    },
+  }),
+  tool({
+    name: "place_credit_hold", writes: true, actors: ["agent"],
+    description: "Place a credit hold on a customer with a reason citing the overdue amounts and days from tool results. Only a human approver can release a hold; you cannot. Returns the existing hold if one is already open.",
+    schema: z.strictObject({ customer_id: uuid, reason: z.string().min(5).max(500) }),
+    async run(input, context) {
+      const id = await call(context, "place_customer_hold", { p_id: randomUUID(), p_customer: input.customer_id, p_reason: input.reason });
+      await context.record?.("finding", { severity: "critical", kind: "finding", title: "Credit hold placed", detail: input.reason, data: { customer_id: input.customer_id, hold_id: id } });
+      return { hold_id: id, note: "Hold active. Only a human approver can release it." };
     },
   }),
   tool({

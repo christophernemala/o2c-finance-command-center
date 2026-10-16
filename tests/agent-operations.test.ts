@@ -46,7 +46,7 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
       await assert.rejects(db.query("select public.propose_guardrail_stage($1,$2,$3,3,'warn',null)", [T, E, G]), /Stale|already pending/);
       await assert.rejects(db.query("select public.decide_guardrail_stage($1,$2,$3,2,'active')", [T, E, G]), /Forbidden/, "makers cannot decide");
       await asUser(1);
-      await db.query("select public.propose_guardrail($1,$2,$3,'Admin rule','deny_tool',null,$4,null)", [T, E, id(202), { tool: "draft_collection_message" }]);
+      await db.query("select public.propose_guardrail($1,$2,$3,'Admin rule','deny_tool',null,$4,null)", [T, E, id(202), { tool: "propose_collection_message" }]);
       await db.query("select public.propose_guardrail_stage($1,$2,$3,2,'warn',null)", [T, E, id(202)]);
       await assert.rejects(db.query("select public.decide_guardrail_stage($1,$2,$3,2,'active')", [T, E, id(202)]), /Independent checker/);
       await asUser(2);

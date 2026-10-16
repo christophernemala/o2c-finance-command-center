@@ -17,3 +17,8 @@ export function Badge({ value, label }: { value: string; label?: string }) {
   return <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-medium", good ? "bg-success-soft text-success" : danger ? "bg-danger-soft text-danger" : waiting ? "bg-warning-soft text-warning" : info ? "bg-info-soft text-info" : "bg-surface-muted text-muted")}>{label ?? value.replaceAll("_", " ")}</span>;
 }
 export function Money({ value }: { value: string | null }) { return <span className="whitespace-nowrap tabular-nums">{value === null ? "Unavailable" : formatAed(value)}</span>; }
+/** KPI amount: the currency code is set small so large figures fit a card at display size. */
+export function KpiAmount({ value }: { value: string }) {
+  const [code, ...rest] = formatAed(value).split(/\s+/);
+  return <><span className="mr-1 font-sans text-sm font-medium tracking-normal text-muted">{code}</span><span className="whitespace-nowrap">{rest.join(" ")}</span></>;
+}

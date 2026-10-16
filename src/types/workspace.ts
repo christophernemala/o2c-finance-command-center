@@ -1,4 +1,4 @@
-export const workspaces = ["overview", "operations", "incidents", "guardrails", "copilot", "agents", "customers", "receivables", "reconciliation", "approvals", "reports", "cashflow", "ecl", "imports", "audit"] as const;
+export const workspaces = ["overview", "operations", "incidents", "guardrails", "copilot", "agents", "collections", "customers", "receivables", "reconciliation", "approvals", "reports", "cashflow", "ecl", "imports", "audit"] as const;
 export type Workspace = typeof workspaces[number];
 export type Role = "viewer" | "maker" | "approver" | "admin" | "agent";
 export interface Membership { tenant_id: string; tenant_name: string; role: Role }

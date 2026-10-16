@@ -12,11 +12,14 @@ import { aiConfig } from "@/lib/ai/config";
 import { validateArPack } from "@/lib/ar-pack";
 import { GuardrailsView, IncidentsView, OperationsOverview } from "@/components/operations";
 import { compareFields } from "@/lib/ai/context-compare";
+import { CollectionsView } from "@/components/collections";
+import { emailConfig } from "@/lib/email/resend";
+import type { CustomerAccount, WorklistRow } from "@/types/collections";
 import { agentKinds, type AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
 const viewTitles: Record<Workspace, string> = {
-  overview: "Overview", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
+  overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", receivables: "Receivables",
   reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
   ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
 };
@@ -62,6 +65,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     const failed = (failures && !failures.error ? failures.data : []) as EdgeFailure[];
     if (!overview.error && !edges.error && !incidents.error) analysis = <OperationsOverview data={data} overview={overview.data as OpsOverview} edges={edges.data as Edge[]}
       incidents={incidents.data as Incident[]} edge={edge} failures={failed} fields={edge && failed[0] ? compareFields(edge.tool, failed[0].input, failed[0].error) : []}/>;
+  }
+  if (view === "collections") {
+    const worklist = await auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf });
+    const rows = (worklist.error ? [] : worklist.data) as WorklistRow[];
+    const customer = typeof params.customer === "string" && uuid.test(params.customer) ? params.customer : rows[0]?.customer_id;
+    const detail = customer ? await auth.client.rpc("customer_account", { ...scope, p_customer: customer, p_as_of: asOf }) : null;
+    if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} userId={auth.user.id}/>;
   }
   if (view === "incidents") {
     const incidents = await auth.client.rpc("agent_incidents_list", { ...scope, p_status: "all" });

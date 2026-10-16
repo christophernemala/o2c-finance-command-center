@@ -146,6 +146,29 @@ Incident cost is the run's `cost_usd`, the same figure the overview sums. Approv
 - **`agent_edges(hours)`:** call count, successes and median latency for each pair of agent and tool.
 - **`edge_failures(agent, tool, hours)`:** recent failed calls with the input the agent sent, for the context comparison.
 
+## Collections and credit
+
+Migration `202610160003_collections_credit.sql`. Sender in `src/lib/collections/send.ts`, Resend client in `src/lib/email/resend.ts`, statement PDF in `src/lib/statements/pdf.ts` (pdf-lib).
+
+| Record | Rule |
+|---|---|
+| `customer_contacts` | Makers and admins add and archive contacts. Email addresses are validated and stored in lowercase. Each customer has at most one primary contact. |
+| `collection_messages` | Proposed by a maker, an admin or the collections agent within its run. There is no free-text recipient: the email goes to one of the customer's live contacts. The invoices must be overdue, undisputed and open, and belong to that customer. The total is recomputed from the ledger. An approver or admin other than the maker must approve before anything is sent. |
+| `payment_promises` | Makers and admins record them. A promise is shown as **broken** when its date has passed and it is still open; this is computed when read, with no job. |
+| `credit_limits` | A maker or admin proposes a limit, and a different approver or admin activates it. One active and one pending limit per customer. |
+| `customer_holds` | A maker, approver, admin or the agent (within a run) may place a hold, and `placed_by_kind` records which. Only a **human** approver or admin who did not place the hold may release it. The agent has no release tool. |
+
+**Send pipeline.** The steps are approve, claim, build, send, complete.
+- Approving a message schedules delivery after the response (`after()`). The daily cron retries.
+- `o2c_private.claim_collection_messages` moves messages from `approved` to `sending` using `FOR UPDATE SKIP LOCKED`. Two senders never take the same message.
+- If the message asks for one, the sender builds the statement from the ledger at send time.
+- It calls Resend with the message id as the `Idempotency-Key`.
+- `complete_collection_message` records `sent` with the provider id.
+- A failed send returns to the queue until the third attempt, then becomes `failed`. A message stuck in `sending` for 15 minutes goes back to the queue.
+- Without `RESEND_API_KEY` and `COLLECTIONS_FROM`, nothing is claimed.
+
+**Statements.** `GET /api/statements/:customerId` returns an open-items statement as a PDF, under the signed-in user's RLS scope. It lists every open posted invoice with amount, paid and open, plus total open and total overdue. Amounts are formatted from decimal strings.
+
 ## Copilot
 
 `/api/copilot` streams server-sent events. It runs as the signed-in user, so RLS

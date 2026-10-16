@@ -1,8 +1,8 @@
 # O2C Finance Command Center
 
 An agentic accounts-receivable (order-to-cash) platform for UAE finance teams. AI
-agents read the ledger, propose cash application, draft collections, screen credit
-risk and write management reports. Every step they take is recorded and visible.
+agents read the ledger, propose cash application, propose collections emails, place
+credit holds and write management reports. Every step they take is recorded and visible.
 Every money movement still goes through PostgreSQL-enforced maker/checker
 controls. The one exception is policy auto-posting: two humans can approve a
 policy that lets the agent post exact matches within AED limits.
@@ -22,6 +22,9 @@ Default currency is AED. Time zone is Asia/Dubai.
 |---|---|
 | **AI agents** (`/?view=agents`) | Four agents run on demand or daily via Vercel Cron: **Cash application**, **Collections**, **Credit risk** and **Reporting**. Each runs a Claude tool-use loop under its own non-human database identity. Reasoning summaries, tool calls, results, proposals and posting decisions stream live into the Agent Console, which also shows token cost per run. |
 | **Autonomy policy** | Off by default. An admin proposes per-item and daily AED limits and a *different* approver activates them. Within those limits, the cash application agent may auto-post **exact** matches (bank reference = invoice number and amount = open balance). Everything else waits in the Approval inbox. |
+| **Agent operations** (`/?view=operations`) | Health score with its formula and inputs, run success and latency, pending approvals, AED auto-posted today, an agent-to-tool handoff map, a context comparison for failed handoffs (the tool's schema against what the agent sent), open incidents and model cost per agent. Every figure comes from recorded runs and steps; with no runs the screens show empty states. |
+| **Guardrails and incidents** (`/?view=guardrails`, `/?view=incidents`) | Rules checked before every agent tool call: deny a tool, cap a proposal amount, require a field, limit identical calls. Simulate a rule on the last 30 days of recorded calls, create it in Monitor, then Warn or Block with an independent approver. Block-stage amount and deny rules are also enforced in PostgreSQL. Detectors open incidents for loops, tool error spikes, stuck and failed runs, and guardrail blocks. |
+| **Collections and credit** (`/?view=collections`) | Overdue worklist, customer contacts, payment promises (broken ones flagged), maker/checker credit limits, and credit holds that an agent may place but only a different human approver may release. Collections emails, proposed by a person or the collections agent, are sent through Resend **only after an independent approver approves them**, optionally with a PDF open-items statement. |
 | **Copilot** (`/?view=copilot`) | Chat over live ledger data, streamed. The copilot calls the same scoped tools as the agents, under *your* role. Attach a **CSV or Excel (.xlsx)** file and ask questions about it. Conversations are stored per user in PostgreSQL, never in browser storage. |
 | **Reports** (`/?view=reports`) | AR pack computed in SQL: aging (Current / 1-30 / 31-60 / 61-90 / 91-180 / 180+), **countback DSO**, **30-day CEI** (with its inputs shown), top debtors, disputed and unapplied cash. Downloads as a multi-sheet .xlsx. |
 | Cash application | Bank credit → receipt → allocation proposals with independent approval, separate posting, version locks, idempotency and an append-only journal and audit trail. |
@@ -66,11 +69,15 @@ auto-post an exact match under policy. Details are in [docs/ARCHITECTURE.md](doc
    are recorded as failed with that reason. Nothing is simulated.
 5. **Scheduler:** set `CRON_SECRET` (32 or more random characters). `vercel.json`
    calls `/api/cron/agents` daily at 04:00 UTC (08:00 GST). An admin chooses which
-   agents run daily in the Agent Console.
-6. Provision a real tenant and entity, then invite users:
+   agents run daily in the Agent Console. The same call sweeps for incidents and
+   retries approved collections emails.
+6. **Collections email:** set `RESEND_API_KEY` and `COLLECTIONS_FROM` (for example
+   `Accounts Receivable <ar@your-domain.example>` on a domain verified in Resend).
+   Without both, approved messages stay queued and the Collections screen says so.
+7. Provision a real tenant and entity, then invite users:
    `npm run auth:invite -- '<WORK EMAIL>' '<TENANT UUID>' maker`.
    You need at least one maker and a separate approver. See [docs/PRODUCTION_PROVISIONING.md](docs/PRODUCTION_PROVISIONING.md).
-7. `npm run dev`, then open http://127.0.0.1:5174.
+8. `npm run dev`, then open http://127.0.0.1:5174.
 
 ## Checks
 
@@ -109,13 +116,14 @@ Tests never call the live Claude API.
 
 These limits are deliberate. Read them before you sell or demo the product.
 
-- **No outbound email or SMS.** Collections messages are drafts only.
+- **Email only, no SMS or WhatsApp.** Collections email through Resend is built and tested
+  locally against a stubbed provider, but has not yet sent a live message.
 - **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
   statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
 - **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
   and no TRN capture in the ledger yet.
-- **No credit limits or order holds.** The credit risk agent recommends holds for a
-  human decision.
+- **Credit holds do not block orders.** Holds and limits are recorded and enforced in this
+  platform, but there is no ERP connector to stop orders or deliveries.
 - **No statutory general ledger.** The cash-control journal only (bank → unapplied
   cash → AR). No period locks, FX, write-offs or refunds.
 - **ECL is display-only for supplied runs.** There is no calibrated model.

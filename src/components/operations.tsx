@@ -3,19 +3,15 @@ import { randomUUID } from "node:crypto";
 import type { Snapshot } from "@/types/workspace";
 import type { AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, FieldCheck, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
-import { Panel, Empty, Badge } from "./ui";
+import { Panel, Empty, Badge, KpiAmount } from "./ui";
 import { formatAed } from "@/lib/money";
+import { tools } from "@/lib/ai/tools";
 import { MutationForm } from "./mutation-form";
 
 const agentName: Record<AgentKind, string> = { cash_application: "Cash application", collections: "Collections", credit_risk: "Credit risk", reporting: "Reporting" };
 const when = (value: string | null) => value ? new Date(value).toLocaleString("en-AE", { timeZone: "Asia/Dubai", dateStyle: "medium", timeStyle: "short" }) : "—";
 const seconds = (value: number | null) => value === null ? "—" : value >= 60 ? `${Math.floor(value / 60)}m ${Math.round(value % 60)}s` : `${value}s`;
 const Scope = ({ data }: { data: Snapshot }) => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/></>;
-/** KPI amount: the currency code is set small so large figures fit the card at 36px. */
-function KpiAmount({ value }: { value: string }) {
-  const [code, ...rest] = formatAed(value).split(/\s+/);
-  return <><span className="mr-1 font-sans text-sm font-medium tracking-normal text-muted">{code}</span><span className="whitespace-nowrap">{rest.join(" ")}</span></>;
-}
 function Stat({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
   return <div className="rounded-xl border border-line bg-surface px-6 py-4"><p className="text-xs font-medium text-muted">{label}</p><p className="kpi-value mt-2">{value}</p>{note && <p className="mt-1 text-xs text-muted">{note}</p>}</div>;
 }
@@ -130,7 +126,7 @@ export function GuardrailsView({ data, rules, userId, draft, simulation }: {
   data: Snapshot; rules: GuardrailRecord[]; userId: string; draft: { name: string; kind: string; agent_kind: string; tool: string; field: string; limit: string }; simulation: Simulation | null | "invalid";
 }) {
   const canPropose = ["maker", "approver", "admin"].includes(data.role); const checker = ["approver", "admin"].includes(data.role);
-  const toolOptions = ["get_ar_overview", "list_invoices", "get_cash_match_candidates", "get_ar_kpi_pack", "propose_receipt", "propose_allocation", "auto_post_if_policy_allows", "record_finding", "draft_collection_message"];
+  const toolOptions = tools.filter(entry => entry.actors.includes("agent")).map(entry => entry.name);
   return <div className="space-y-6">
     {canPropose && <Panel title="Simulate a fix" subtitle="1 · Define a rule. 2 · Replay it over the last 30 days of recorded tool calls (no model calls). 3 · Create it in Monitor; Warn and Block need an independent approver.">
       <div className="grid gap-6 p-6 xl:grid-cols-2">

@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 11 · public tables: 27 · tables with RLS: 27
+Migrations: 12 · public tables: 32 · tables with RLS: 32
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -262,6 +262,37 @@ References: entities, users
 | confidence_method | text | yes |
 | entries | jsonb | no |
 
+## collection_messages
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_runs, customer_contacts, customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| contact_id | uuid | no |
+| to_email | text | no |
+| tone | text | no |
+| subject | text | no |
+| body | text | no |
+| invoice_ids | ARRAY | no |
+| total_overdue | numeric(15,2) | no |
+| attach_statement | boolean | no |
+| status | text | no |
+| maker | uuid | no |
+| checker | uuid | yes |
+| agent_run_id | uuid | yes |
+| attempts | integer | no |
+| provider_id | text | yes |
+| error | text | yes |
+| created_at | timestamp with time zone | no |
+| decided_at | timestamp with time zone | yes |
+| sending_at | timestamp with time zone | yes |
+| sent_at | timestamp with time zone | yes |
+
 ## copilot_files
 
 RLS: enabled · policies: owner_read (SELECT)
@@ -307,6 +338,64 @@ References: entities, users
 | title | text | no |
 | created_at | timestamp with time zone | no |
 | updated_at | timestamp with time zone | no |
+
+## credit_limits
+
+RLS: enabled · policies: scope_read (SELECT)
+References: customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| credit_limit | numeric(15,2) | no |
+| reason | text | no |
+| status | text | no |
+| maker | uuid | no |
+| checker | uuid | yes |
+| created_at | timestamp with time zone | no |
+| decided_at | timestamp with time zone | yes |
+
+## customer_contacts
+
+RLS: enabled · policies: scope_read (SELECT)
+References: customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| name | text | no |
+| email | text | no |
+| role | text | no |
+| is_primary | boolean | no |
+| archived | boolean | no |
+| created_by | uuid | no |
+| created_at | timestamp with time zone | no |
+
+## customer_holds
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_runs, customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| reason | text | no |
+| placed_by | uuid | no |
+| placed_by_kind | text | no |
+| agent_run_id | uuid | yes |
+| placed_at | timestamp with time zone | no |
+| released_by | uuid | yes |
+| released_at | timestamp with time zone | yes |
+| release_reason | text | yes |
 
 ## customers
 
@@ -419,6 +508,25 @@ References: tenants, users
 | user_id | uuid | no |
 | role | text | no |
 
+## payment_promises
+
+RLS: enabled · policies: scope_read (SELECT)
+References: customers, entities, invoices, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| invoice_id | uuid | yes |
+| amount | numeric(15,2) | no |
+| promised_date | date | no |
+| status | text | no |
+| note | text | yes |
+| created_by | uuid | no |
+| created_at | timestamp with time zone | no |
+
 ## profiles
 
 RLS: enabled · policies: profiles_read_self (SELECT), profiles_update_self (UPDATE)
@@ -479,6 +587,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 
 | Routine | Security |
 |---|---|
+| add_customer_contact | definer |
 | agent_ar_overview | definer |
 | agent_auto_post | definer |
 | agent_cash_candidates | definer |
@@ -492,23 +601,34 @@ RLS: enabled · policies: tenant_read (SELECT)
 | agent_ops_overview | definer |
 | agent_record_step | definer |
 | agent_run_detail | definer |
+| archive_customer_contact | definer |
+| collections_worklist | definer |
 | commit_import | definer |
 | copilot_append | definer |
 | copilot_attach | definer |
 | copilot_file | definer |
 | copilot_history | definer |
 | copilot_threads_list | definer |
+| customer_account | definer |
+| customer_statement | definer |
 | decide_action | definer |
 | decide_agent_policy | definer |
+| decide_collection_message | definer |
+| decide_credit_limit | definer |
 | decide_guardrail_stage | definer |
 | edge_failures | definer |
 | enqueue_agent_job | definer |
 | execute_action | definer |
 | member_role | definer |
+| place_customer_hold | definer |
 | propose_action | definer |
 | propose_agent_policy | definer |
+| propose_collection_message | definer |
+| propose_credit_limit | definer |
 | propose_guardrail | definer |
 | propose_guardrail_stage | definer |
+| record_payment_promise | definer |
+| release_customer_hold | definer |
 | report_ar_pack | definer |
 | request_agent_run | definer |
 | resolve_agent_incident | definer |

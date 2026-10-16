@@ -16,6 +16,7 @@ const sections: { heading: string; body: string[] }[] = [
     "Vercel, which hosts the application.",
     "Upstash Redis, for sign-in and request rate limiting (stores hashed identifiers, not finance records).",
     "Anthropic (Claude API), when AI agents or the copilot are used: the questions and the scoped records needed to answer them are sent for processing.",
+    "Resend, when an approved collections email is sent: the recipient address, subject, message and any attached statement.",
   ] },
   { heading: "What the application does not do", body: [
     "It does not sell data, show advertising or use tracking cookies. The only cookie is the HttpOnly session cookie needed to keep you signed in.",
