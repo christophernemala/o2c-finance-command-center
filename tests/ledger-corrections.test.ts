@@ -1,3 +1,4 @@
+import { migrationPreflightSql } from "../src/lib/postgres/migration-preflight";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
@@ -244,7 +245,7 @@ test("the one-open-message index names duplicate customers before it is built", 
     for (const [n, status] of [[70, "pending"], [71, "approved"]] as const)
       await db.query(`insert into public.collection_messages(id,tenant_id,entity_id,customer_id,contact_id,to_email,tone,subject,body,invoice_ids,total_overdue,status,maker)
         values($1,$2,$3,$4,$5,'ar@one.example','firm','Overdue','Please pay the overdue invoices listed.',array[$6::uuid],10.00,$7,$8)`, [id(n), T, E, C1, id(60), A, status, id(4)]);
-    await assert.rejects(db.exec(await readFile(new URL(files[hardening], dir), "utf8")), new RegExp(`one open collections message per customer.*${C1} \\(2\\)`));
+    await assert.rejects(db.exec(migrationPreflightSql(files[hardening])!), new RegExp(`one open collections message per customer.*${C1} \\(2\\)`));
   } finally {
     await db.close();
   }

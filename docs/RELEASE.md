@@ -9,10 +9,12 @@ supports Resend or authenticated, certificate-verified SMTP. Missing configurati
 disables the form rather than claiming an email was sent. Nodemailer is required
 for SMTP delivery; its types are development-only.
 
-Local verification passed TypeScript, all 156 tests and the production build.
-The isolated Neon PR branch has all 19 migrations; the runtime has challenge-table
+After integrating the newer ledger fixes, local verification passed TypeScript,
+all 169 tests and the production build.
+The isolated Neon PR branch has all 20 migrations; the runtime has challenge-table
 access and the browser-facing authenticated role does not. Hosted HTTP checks
-are recorded separately from real email receipt.
+passed locally for the login link, disabled form, unconfigured-sender 503, CSRF
+403 and oversized-body 413. These checks do not establish real email receipt.
 Live email receipt and Google/Microsoft OAuth remain unverified; provider secrets
 must be configured in deployment settings. See `docs/AUTH_SETUP.md`.
 

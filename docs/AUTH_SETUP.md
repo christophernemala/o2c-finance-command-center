@@ -53,7 +53,7 @@ The entry screens use a white/blue banking scene rendered with Three.js, a stati
 fallback, pause control and reduced-motion support. The scene represents the product,
 not a live bank connection or an agent execution result.
 
-Previous local checks passed 151 tests and the production build. Tests cover private
+Current local checks passed 169 tests, TypeScript and the production build. Tests cover private
 registration, invitation activation, identity linking, replay, session rotation and
 MFA; HTTP tests also exercise registration and disabled-provider behavior on PostgreSQL.
 Live Google/Microsoft consent and browser/mobile visual review remain deployment
@@ -64,8 +64,9 @@ verify invitation activation, repeat login, linking refusal and MFA challenge.
 
 The PR branch requires its own restricted database connection and the matching MFA
 key; credentials scoped to another preview branch are not inherited. Registration
-and OIDC require the registration migration; email sign-in requires all 20 migrations. An isolated Neon verification branch was
-created and the 10 pending migrations passed there; original staging was preserved.
+and OIDC require the registration migration; the current branch has 20 migrations.
+An isolated Neon verification branch has all 20 applied, including email sign-in
+and the newer ledger corrections; original staging was preserved.
 No Google/Microsoft provider credentials were present during this check. Email sign-in
 code support is now implemented separately from enrolled authenticator TOTP; it
 requires the migration and a verified deployment email sender.

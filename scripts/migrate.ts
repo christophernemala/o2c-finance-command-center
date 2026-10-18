@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { migrationPreflightSql } from "../src/lib/postgres/migration-preflight";
 import { migrationChecksumMatches } from "../src/lib/postgres/migration-checksum";
 import { readFile, readdir } from "node:fs/promises";
 import { Client } from "pg";
@@ -19,18 +20,8 @@ try {
     if (applied) { if (!migrationChecksumMatches(sql, applied.checksum)) throw new Error(`Applied migration checksum changed: ${name}`); continue; }
     await client.query("begin");
     try {
-      // Keep upgrade diagnostics outside immutable, already-applied SQL history.
-      if (name === "202610160005_collections_hardening.sql") await client.query(`-- Pre-flight: name the customers to clean up instead of failing inside the index build.
-do $$
-declare dupes text;
-begin
-  select string_agg(customer_id::text||' ('||n||')',', ') into dupes from (select customer_id,count(*) as n from public.collection_messages
-    where status in ('pending','approved','sending') group by customer_id having count(*)>1) d;
-  if dupes is not null then
-    raise exception 'Cannot enforce one open collections message per customer. Reject or let all but one open message finish for: %', dupes;
-  end if;
-end $$;
-`);
+      const preflight = migrationPreflightSql(name);
+      if (preflight) await client.query(preflight);
       await client.query(sql.replace(/^begin;\s*$/gm, "").replace(/^commit;\s*$/gm, ""));
       await client.query("insert into o2c_migrations.applied(name,checksum) values($1,$2)", [name, checksum]);
       await client.query("commit");
