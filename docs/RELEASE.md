@@ -40,11 +40,17 @@ Migration `202610160010_ledger_corrections.sql` (apply before deploying this sou
   because credit notes were proposed earlier in the same session. `propose_adjustment_note`
   is fixed in the same migration.
 
-Not changed: agent-proposed collection messages still do not hold a run in
-`awaiting_approval`. Agents still propose `CN-pending-` placeholders, because they cannot
-know the ERP number.
+From review on PR #6:
 
-Local verification: `npm run typecheck`, `npm test` (161 tests, including the new
+- `agent_finish_run` also returns `awaiting_approval` while the run has a pending collections message.
+- The notes queue lists every open note. Only the posted and rejected history is limited to the last
+  100, so a pending note can no longer fall off the screen.
+- The copilot's `.xlsx` reader marks a sheet with more than 5,000 non-empty rows as truncated and tells
+  the model that totals are incomplete. It no longer reports the cap as the end of the sheet.
+
+Not changed: agents still propose `CN-pending-` placeholders, because they cannot know the ERP number.
+
+Local verification: `npm run typecheck`, `npm test` (164 tests, including the new
 `tests/ledger-corrections.test.ts`) and `npm run build` passed. Against a disposable local
 PostgreSQL 16, `db:migrate` applied 19 migrations and a second run applied none. Then
 `test:postgres` (8) and `test:postgres:http` (6) passed.

@@ -167,6 +167,31 @@ test("ledger corrections for notes, cash versus credits, promises and small fixe
       assert.equal((await promises(C1, "current_date")).find(row => row.id === id(93))?.status, "broken");
     });
 
+    await t.test("an open note stays listed behind more than 100 newer closed notes", async () => {
+      await db.exec("reset role");
+      await db.query(`insert into public.adjustment_notes(id,tenant_id,entity_id,customer_id,kind,amount,reason,memo,reference,due_date,status,maker,created_at)
+        values($1,$2,$3,$4,'debit',5.00,'other','An old note still waiting','DN-OLD',current_date+30,'pending',$5,now()-interval '1 day')`, [id(300), T, E, C2, id(4)]);
+      await db.query(`insert into public.adjustment_notes(id,tenant_id,entity_id,customer_id,kind,amount,reason,memo,reference,due_date,status,maker)
+        select gen_random_uuid(),$1,$2,$3,'debit',5.00,'other','Newer rejected history','DN-H'||n,current_date+30,'rejected',$4 from generate_series(1,101) n`, [T, E, C2, id(4)]);
+      await asUser(3);
+      const all = await value<AdjustmentNote[]>("select public.adjustment_notes_list($1,$2,'all') as v", [T, E]);
+      assert.ok(all.some(row => row.id === id(300)), "the open note is listed");
+      assert.equal(all.filter(row => row.status === "posted" || row.status === "rejected").length, 100, "history stays bounded");
+    });
+
+    await t.test("a run that leaves a pending collections message awaits approval", async () => {
+      await db.exec("reset role");
+      await db.query("insert into public.customer_contacts(id,tenant_id,entity_id,customer_id,name,email,created_by) values($1,$2,$3,$4,'Reem','ar@one.example',$5)", [id(310), T, E, C1, id(4)]);
+      await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Collections agent','queued','collections','manual',current_date)", [id(311), T, E]);
+      await db.query("select o2c_private.claim_agent_run($1,$2)", [id(311), "b".repeat(64)]);
+      const agent = (await db.query<{ agent_user: string }>("select agent_user from public.agent_runs where id=$1", [id(311)])).rows[0].agent_user;
+      await db.query(`insert into public.collection_messages(id,tenant_id,entity_id,customer_id,contact_id,to_email,tone,subject,body,invoice_ids,total_overdue,maker,agent_run_id)
+        values($1,$2,$3,$4,$5,'ar@one.example','firm','Overdue','Please pay the overdue invoices listed.',array[$6::uuid],500.00,$7,$8)`, [id(312), T, E, C1, id(310), A, agent, id(311)]);
+      await db.query("select set_config('o2c.session_hash',$1,false)", ["b".repeat(64)]);
+      await db.exec("set role authenticated");
+      assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','Proposed one message',null,0,0,0,null,null) as v", [T, E, id(311)])).rows[0].v, "awaiting_approval");
+    });
+
     await t.test("guardrails can name get_short_payment_candidates", async () => {
       await db.exec("reset role");
       await db.query("select o2c_private.check_guardrail('deny_tool',$1)", [{ tool: "get_short_payment_candidates" }]);

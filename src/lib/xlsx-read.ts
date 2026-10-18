@@ -3,7 +3,8 @@ import { parseCsv } from "./imports";
 
 export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 12 * 1024 * 1024, MAX_TOTAL_BYTES = 24 * 1024 * 1024;
-export interface Sheet { name: string; rows: string[][] }
+/** truncated: the sheet has more non-empty rows than were read, so totals over rows are incomplete. */
+export interface Sheet { name: string; rows: string[][]; truncated?: boolean }
 
 const decode = (value: string) => value.replace(/&(lt|gt|quot|apos|amp|#x[0-9a-f]+|#\d+);/gi, (_, entity: string) => {
   const named: Record<string, string> = { lt: "<", gt: ">", quot: "\"", apos: "'", amp: "&" };
@@ -37,9 +38,8 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
     const name = decode(/\bname="([^"]*)"/.exec(match[0])?.[1] ?? "Sheet");
     const relation = /\br:id="([^"]+)"/.exec(match[0])?.[1];
     const xml = part(targets[relation ?? ""] ?? "");
-    const rows: string[][] = [];
+    const rows: string[][] = []; let truncated = false;
     for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
-      if (rows.length >= MAX_ROWS) break;
       const values: string[] = [];
       for (const cell of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const attributes = cell[1]; const body = cell[2] ?? "";
@@ -51,9 +51,11 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
         while (values.length < column) values.push("");
         values[column] = value;
       }
-      if (values.some(Boolean)) rows.push(values);
+      if (!values.some(Boolean)) continue;
+      if (rows.length >= MAX_ROWS) { truncated = true; break; }
+      rows.push(values);
     }
-    return { name, rows };
+    return truncated ? { name, rows, truncated } : { name, rows };
   });
 }
 
@@ -64,9 +66,10 @@ export function describeWorkbook(bytes: Uint8Array, mediaType: string, sheet: st
   if (!selected) throw new Error("The file has no sheets");
   const [header = [], ...data] = selected.rows;
   return {
-    sheets: sheets.map(entry => ({ name: entry.name, data_rows: Math.max(entry.rows.length - 1, 0) })),
-    sheet: selected.name, header, total_rows: data.length, offset,
+    sheets: sheets.map(entry => ({ name: entry.name, data_rows: Math.max(entry.rows.length - 1, 0), truncated: entry.truncated === true })),
+    sheet: selected.name, header, total_rows: data.length, truncated: selected.truncated === true, offset,
     rows: data.slice(offset, offset + limit),
-    note: data.length > offset + limit ? `More rows available; continue from offset ${offset + limit}.` : "End of sheet.",
+    note: data.length > offset + limit ? `More rows available; continue from offset ${offset + limit}.`
+      : selected.truncated ? `Only the first ${MAX_ROWS} rows were read; the sheet has more. Totals over this sheet are incomplete; say so instead of reporting them as complete.` : "End of sheet.",
   };
 }

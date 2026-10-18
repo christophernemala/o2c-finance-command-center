@@ -7,7 +7,8 @@
 -- 4. An account promise is judged only on the invoices that were open when it was made and due on or
 --    before its date, so a kept promise stays kept when later invoices fall due.
 -- 5. Single-customer segment edits keep a value whose key is absent instead of clearing it.
--- 6. A debit note can be the first note proposed in a session; agent_finish_run counts pending notes; guardrails can name get_short_payment_candidates;
+-- 6. A debit note can be the first note proposed in a session; open notes are never cut off by the history
+--    limit; agent_finish_run counts pending notes and collection messages; guardrails can name get_short_payment_candidates;
 --    add_trade_licence replays without archiving a later renewal or adding audit events.
 begin;
 
@@ -140,6 +141,25 @@ begin
   insert into public.audit_events(tenant_id,entity_id,actor,operation,record_id,detail) values(p_tenant,p_entity,auth.uid(),'adjustment_note.posted',journal,
     jsonb_build_object('note_id',n.id,'kind',n.kind,'amount',n.amount::text,'invoice_id',coalesce(n.invoice_id,new_invoice)));
   return journal;
+end $$;
+
+-- The queue lists every open note; only the posted and rejected history is limited to the last 100, so an
+-- open note can never fall off the screen behind newer history.
+create or replace function public.adjustment_notes_list(p_tenant uuid,p_entity uuid,p_status text) returns jsonb
+language plpgsql stable security definer set search_path='' as $$
+begin
+  perform o2c_private.require_scope(p_tenant,p_entity);
+  if p_status is null or p_status not in ('open','all') then raise exception 'Invalid request'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id',n.id,'kind',n.kind,'customer_id',n.customer_id,'customer',c.name,'account',c.account,
+      'invoice_id',n.invoice_id,'invoice',i.number,'invoice_open',(select o.open::text from o2c_private.open_invoices(p_tenant,p_entity) o where o.id=n.invoice_id),
+      'invoice_current',n.invoice_id is null or i.version=n.invoice_version,'amount',n.amount::text,'reason',n.reason,'memo',n.memo,'reference',n.reference,
+      'due_date',n.due_date,'status',n.status,'maker',n.maker,'checker',n.checker,'poster',n.poster,'agent_run_id',n.agent_run_id,'version',n.version,
+      'created_at',n.created_at,'decided_at',n.decided_at,'posted_at',n.posted_at) order by n.created_at desc)
+    from (select * from public.adjustment_notes where tenant_id=p_tenant and entity_id=p_entity and status in ('pending','approved')
+      union all
+      (select * from public.adjustment_notes where tenant_id=p_tenant and entity_id=p_entity and p_status='all' and status in ('posted','rejected')
+        order by created_at desc limit 100)) n
+    join public.customers c on c.id=n.customer_id left join public.invoices i on i.id=n.invoice_id),'[]');
 end $$;
 
 -- 2. Cash versus credits ----------------------------------------------------------------------------
@@ -320,7 +340,8 @@ begin
   if p_status not in ('succeeded','failed') then raise exception 'Invalid status'; end if;
   if p_cost is not null and p_cost !~ '^[0-9]{1,6}(\.[0-9]{1,6})?$' then raise exception 'Invalid cost'; end if;
   final:=case when p_status='succeeded' and (exists(select 1 from public.approvals where agent_run_id=p_run and status='pending')
-    or exists(select 1 from public.adjustment_notes where agent_run_id=p_run and status='pending')) then 'awaiting_approval' else p_status end;
+    or exists(select 1 from public.adjustment_notes where agent_run_id=p_run and status='pending')
+    or exists(select 1 from public.collection_messages where agent_run_id=p_run and status='pending')) then 'awaiting_approval' else p_status end;
   update public.agent_runs set status=final,summary=left(p_summary,20000),model=left(p_model,100),input_tokens=greatest(coalesce(p_input_tokens,0),0),
     output_tokens=greatest(coalesce(p_output_tokens,0),0),cache_read_tokens=greatest(coalesce(p_cache_read_tokens,0),0),cost_usd=p_cost::numeric,
     error=left(p_error,2000),finished_at=now(),updated_at=now() where id=p_run;

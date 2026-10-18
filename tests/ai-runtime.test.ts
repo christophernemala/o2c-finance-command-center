@@ -34,6 +34,16 @@ test("xlsx reader round-trips the workbook builder and pages rows", () => {
   assert.deepEqual(page.rows, [["INV-2", "20.00"]]); assert.equal(page.total_rows, 2);
   assert.throws(() => readXlsx(new TextEncoder().encode("not a zip")));
   assert.equal(describeWorkbook(bytes, XLSX_TYPE, "Aging", 0, 10).sheet, "Aging");
+  assert.equal(describeWorkbook(bytes, XLSX_TYPE, "Aging", 0, 10).truncated, false);
+});
+
+test("xlsx reader flags a sheet longer than its row cap instead of reporting the cap as the end", () => {
+  const rows = Array.from({ length: 5001 }, (_, n) => ({ Invoice: `INV-${n + 1}`, Amount: "1.00" }));
+  const bytes = buildWorkbookBytes({ Long: rows });
+  const sheet = readXlsx(bytes)[0];
+  assert.equal(sheet.rows.length, 5000); assert.equal(sheet.truncated, true);
+  const last = describeWorkbook(bytes, XLSX_TYPE, "Long", 4990, 50);
+  assert.equal(last.truncated, true); assert.match(last.note, /incomplete/); assert.doesNotMatch(last.note, /End of sheet/);
 });
 
 test("tool registry: schemas, actor scoping and pricing", () => {

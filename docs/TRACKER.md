@@ -51,7 +51,7 @@ Updated at every delivery. "Done" means the work is merged into the working bran
   - "Set one customer" keeps blank fields
   - agent finish counts pending notes, guardrail tool list, replay-safe trade licences, one-open-message pre-flight
 
-  Verified locally (TypeScript, 161 tests, build) and on a disposable PostgreSQL 16. Not verified live.
+  Verified locally (TypeScript, 164 tests, build) and on a disposable PostgreSQL 16. Not verified live.
 
 ## In progress
 
