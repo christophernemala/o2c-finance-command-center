@@ -4,11 +4,12 @@ import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
 import { access } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
-import { parseSegments } from "@/lib/segments";
+import { parseSegments, singleSegmentRow, type SegmentRow } from "@/lib/segments";
 const segment = z.string().trim().max(60).refine(value => !/^[=+\-@]/.test(value) && value.toLowerCase() !== "unassigned");
 const scope = { tenant: z.uuid(), entity: z.uuid(), id: z.uuid() };
 const input = z.discriminatedUnion("intent", [
-  z.object({ intent: z.literal("segment_set"), ...scope, account: z.string().trim().min(1).max(60), category: segment, region: segment }),
+  z.object({ intent: z.literal("segment_set"), ...scope, account: z.string().trim().min(1).max(60), category: segment.default(""), region: segment.default(""),
+    clear_category: z.literal("on").optional().transform(Boolean), clear_region: z.literal("on").optional().transform(Boolean) }),
   z.object({ intent: z.literal("segments_upload"), ...scope }),
 ]);
 /** Customer category and region: one customer, or a CSV of account,category,region applied all-or-nothing. */
@@ -26,8 +27,8 @@ export async function POST(request: NextRequest) {
     const data = parsed.data;
     destination.searchParams.set("tenant", data.tenant); destination.searchParams.set("entity", data.entity);
     const limited = await apiLimit(auth.user.id, "commands"); if (limited) return limited;
-    let rows: { account: string; category: string; region: string }[];
-    if (data.intent === "segment_set") rows = [{ account: data.account, category: data.category, region: data.region }];
+    let rows: (Partial<SegmentRow> & { account: string })[];
+    if (data.intent === "segment_set") rows = [singleSegmentRow(data)];
     else {
       const file = form.get("file");
       if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".csv") || file.size > 256 * 1024) { message = "invalid_import"; throw new Error("Invalid file"); }

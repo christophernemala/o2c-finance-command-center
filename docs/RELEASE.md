@@ -1,3 +1,56 @@
+## Ledger corrections for notes, credits and promises — 2026-10-18
+
+Migration `202610160010_ledger_corrections.sql` (apply before deploying this source):
+
+- **Withdrawing approved notes.** `withdraw_adjustment_note` lets a human approver or admin
+  (not the maker) withdraw an approved, unposted note with a 5–500 character reason. This
+  covers a stale invoice or a reference already used. The note moves to `rejected`, which
+  frees its reference. The reason, approver and version go to an
+  `adjustment_note.withdrawn` audit event. Replays add no second event. The Notes screen
+  shows a "Withdraw approval" form.
+- **Cash and credits are separate.** Statement lines now show `paid` (receipt
+  allocations) and `credited` (posted credit notes) apart, and label debit notes. The PDF
+  has a Credited column.
+  - CEI now uses beginning AR + credit sales + debit notes − credit notes − ending AR, so
+    collections count cash only. Debit notes are reported apart from credit sales. The
+    basis lists `debit_notes` and `credit_notes`. Countback DSO still counts debit notes
+    in monthly billings.
+  - Only cash allocated after a promise was recorded can keep it. An invoice cleared by
+    credit notes alone makes its promise `cancelled`, not `kept`.
+- **No placeholder references.** The approver must enter the ERP document number when
+  approving. A reference matching `CN-pending-`/`DN-pending-` cannot be approved or
+  posted, including notes approved before this migration. The audit event keeps the
+  proposed reference. `decide_adjustment_note` gains an optional `p_reference`.
+- **Account promises.** An account promise is judged only on the invoices that were open
+  when it was recorded and due on or before its date. Invoices that fall due later no
+  longer turn a kept promise broken.
+- **Customers screen.** In "Set one customer", a blank field keeps the current value, and
+  explicit checkboxes clear a field. CSV uploads still clear on an empty cell.
+- **Smaller fixes.**
+  - `agent_finish_run` returns `awaiting_approval` while the run has a pending note.
+  - Guardrails can name `get_short_payment_candidates`.
+  - `add_trade_licence` replays return early. They no longer archive a later renewal or
+    add audit events, and a different payload under the same id is a key conflict.
+  - Migration `202610160005` now checks for duplicates before building
+    `collection_messages_one_open` and names the affected customers. Its checksum
+    therefore changed. A database that already applied `005` will refuse the next
+    `db:migrate`. Per the entries below, no hosted database has applied it.
+- **Bug found while testing.** Proposing a debit note as the first note in a database
+  session failed (`record "inv" is not assigned yet`). The existing test missed it only
+  because credit notes were proposed earlier in the same session. `propose_adjustment_note`
+  is fixed in the same migration.
+
+Not changed: agent-proposed collection messages still do not hold a run in
+`awaiting_approval`. Agents still propose `CN-pending-` placeholders, because they cannot
+know the ERP number.
+
+Local verification: `npm run typecheck`, `npm test` (161 tests, including the new
+`tests/ledger-corrections.test.ts`) and `npm run build` passed. Against a disposable local
+PostgreSQL 16, `db:migrate` applied 19 migrations and a second run applied none. Then
+`test:postgres` (8) and `test:postgres:http` (6) passed.
+
+Not verified live: no hosted migration, Vercel deployment or browser review.
+
 ## Minimalist modern typography and controls — 2026-10-16
 
 Applied the supplied design direction while retaining liquid white and Apple blue.

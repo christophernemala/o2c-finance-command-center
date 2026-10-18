@@ -78,6 +78,12 @@ test("credit and debit notes in PostgreSQL", async t => {
       await db.query("select public.post_adjustment_note($1,$2,$3,2)", [T, E, id(61)]);
       await assert.rejects(db.query("select public.post_adjustment_note($1,$2,$3,2)", [T, E, id(62)]), /Stale evidence/);
       assert.equal(await open(id(41)), "400.00", "the two notes together would have over-credited the invoice");
+      // The stuck approved note is withdrawn by its approver with a reason, which frees CN-3.
+      await asUser(2);
+      await db.query("select public.withdraw_adjustment_note($1,$2,$3,2,'Invoice changed after approval')", [T, E, id(62)]);
+      await db.exec("reset role");
+      assert.deepEqual((await db.query("select status,version from public.adjustment_notes where id=$1", [id(62)])).rows[0], { status: "rejected", version: 3 });
+      assert.equal((await db.query<{ n: number }>("select count(*)::int as n from public.audit_events where operation='adjustment_note.withdrawn' and record_id=$1", [id(62)])).rows[0].n, 1);
     });
 
     await t.test("a debit note posts a new receivable marked as a debit note", async () => {
@@ -120,6 +126,10 @@ test("credit and debit notes in PostgreSQL", async t => {
       await asUser(3);
       assert.deepEqual((await db.query<{ v: unknown[] }>("select public.short_payment_candidates($1,$2,'50.00') as v", [T, E])).rows[0].v, [], "a pending note removes the candidate");
       assert.equal(await version(70), 1);
+      await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.exec("set role authenticated");
+      assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','Proposed one credit note',null,0,0,0,null,null) as v", [T, E, id(100)])).rows[0].v,
+        "awaiting_approval", "a run that leaves a pending note awaits approval");
     });
 
     await t.test("allocations and notes cannot be written directly", async () => {

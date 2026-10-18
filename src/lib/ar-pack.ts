@@ -5,7 +5,7 @@ export interface ArPack {
   aging: { bucket: string; amount: string; invoices: number }[];
   top_debtors: { customer: string; account: string; open: string; overdue: string | null; oldest_due: string | null; invoices: number }[];
   dso_countback_days: string | null; dso_basis: string; cei_30d_percent: string | null;
-  cei_basis: { period_start: string; period_end: string; beginning_ar: string; credit_sales: string; ending_ar: string; ending_current_ar: string };
+  cei_basis: { period_start: string; period_end: string; beginning_ar: string; credit_sales: string; debit_notes: string; credit_notes: string; ending_ar: string; ending_current_ar: string };
 }
 /** Validate the database pack at the boundary; money stays as decimal strings. */
 export function validateArPack(value: unknown): ArPack {
@@ -34,8 +34,9 @@ export function arPackWorkbook(pack: ArPack, entityName: string): Record<string,
       { Item: "DSO method", Value: pack.dso_basis },
       { Item: "CEI period", Value: `${pack.cei_basis.period_start} to ${pack.cei_basis.period_end}` },
       { Item: "Beginning AR (AED)", Value: pack.cei_basis.beginning_ar }, { Item: "Credit sales (AED)", Value: pack.cei_basis.credit_sales },
+      { Item: "Debit notes issued (AED)", Value: pack.cei_basis.debit_notes }, { Item: "Credit notes posted (AED)", Value: pack.cei_basis.credit_notes },
       { Item: "Ending AR (AED)", Value: pack.cei_basis.ending_ar }, { Item: "Ending current AR (AED)", Value: pack.cei_basis.ending_current_ar },
-      { Item: "CEI formula", Value: "(Beginning AR + Credit sales - Ending AR) / (Beginning AR + Credit sales - Ending current AR) x 100" },
+      { Item: "CEI formula", Value: "(Beginning AR + Credit sales + Debit notes - Credit notes - Ending AR) / (Beginning AR + Credit sales + Debit notes - Credit notes - Ending current AR) x 100. Credit notes are not collections; debit notes are not credit sales." },
     ],
   };
 }

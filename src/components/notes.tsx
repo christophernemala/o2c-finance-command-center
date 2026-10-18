@@ -62,8 +62,11 @@ export function NotesView({ data, notes, shortPayments, userId }: { data: Snapsh
 }
 
 function NoteRow({ note, userId, checker, canPost, Scope }: { note: AdjustmentNote; userId: string; checker: boolean; canPost: boolean; Scope: (props: { id: string }) => React.ReactNode }) {
+  const placeholder = /^(CN|DN)-pending-/i.test(note.reference);
   const decide = (decision: "approved" | "rejected") => <MutationForm key={decision} action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_decide"/><input type="hidden" name="version" value={note.version}/>
-    <input type="hidden" name="decision" value={decision}/><button className={decision === "approved" ? "button" : "button secondary"}>{decision === "approved" ? "Approve" : "Reject"}</button></MutationForm>;
+    <input type="hidden" name="decision" value={decision}/>
+    {decision === "approved" && <label>{note.kind === "credit" ? "Credit" : "Debit"} note number from your ERP<input name="reference" required maxLength={60} defaultValue={placeholder ? "" : note.reference} placeholder={placeholder ? "Replaces the agent's placeholder" : undefined}/></label>}
+    <button className={decision === "approved" ? "button" : "button secondary"}>{decision === "approved" ? "Approve" : "Reject"}</button></MutationForm>;
   return <li className="space-y-2 px-6 py-4 text-sm">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="font-medium">{note.kind === "credit" ? "Credit note" : "Debit note"} <span className="money">{note.reference}</span> · <Money value={note.amount}/></p>
@@ -71,10 +74,16 @@ function NoteRow({ note, userId, checker, canPost, Scope }: { note: AdjustmentNo
     <p className="text-xs text-muted">{note.customer} ({note.account}){note.invoice ? <> · against <span className="money">{note.invoice}</span>{note.invoice_open !== null && <> (open <Money value={note.invoice_open}/>)</>}</> : null}
       {note.due_date ? ` · due ${note.due_date.split("-").reverse().join("/")}` : ""} · {noteReasonLabel[note.reason]} · {note.agent_run_id ? "proposed by the cash application agent" : note.maker === userId ? "proposed by you" : "proposed by a team member"} · {when(note.created_at)}</p>
     <p>{note.memo}</p>
-    {!note.invoice_current && note.status !== "posted" && <p className="text-xs text-danger">The invoice changed after this note was proposed. Reject it and record a new one.</p>}
+    {!note.invoice_current && note.status !== "posted" && <p className="text-xs text-danger">The invoice changed after this note was proposed. {note.status === "approved" ? "Withdraw" : "Reject"} it and record a new one.</p>}
     {note.status === "pending" && (checker && note.maker !== userId ? <div className="flex gap-2">{decide("approved")}{decide("rejected")}</div>
       : <p className="text-xs text-muted">Waiting for an approver other than the maker.</p>)}
+    {note.status === "pending" && placeholder && <p className="text-xs text-muted">The reference is a placeholder; the approver enters the document number issued in your ERP.</p>}
     {note.status === "approved" && canPost && <MutationForm action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_post"/><input type="hidden" name="version" value={note.version}/>
       <button className="button">Post {note.kind === "credit" ? "credit" : "debit"} note</button></MutationForm>}
+    {note.status === "approved" && checker && note.maker !== userId && <details><summary className="cursor-pointer text-link">Withdraw approval</summary>
+      <MutationForm action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_withdraw"/><input type="hidden" name="version" value={note.version}/>
+        <label>Reason<input name="reason" required minLength={5} maxLength={500} placeholder="For example: invoice changed, reference already used"/></label>
+        <p className="text-xs text-muted">Use this when the note can no longer post. It moves to rejected, frees its reference and is recorded in the audit trail.</p>
+        <button className="button secondary">Withdraw note</button></MutationForm></details>}
   </li>;
 }

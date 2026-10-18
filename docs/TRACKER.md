@@ -43,6 +43,16 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] Minimalist modern typography and shared controls: locally bundled Calistoga/Inter, preserved JetBrains Mono figures and Apple-blue palette, shared gradient/radius/shadow tokens, locally optimized robot artwork with real HTML copy, and an on-demand bank scene. TypeScript, 151 tests, production build and login/signup/image HTTP checks passed; browser visual review pending.
 
+- [x] Ledger corrections from review:
+  - withdraw an approved note that cannot post (audited)
+  - cash split from credit notes in statements, CEI and promises; debit notes labelled
+  - approver enters the ERP number, and `CN-pending-` never posts
+  - account promises judged only on the invoices they covered
+  - "Set one customer" keeps blank fields
+  - agent finish counts pending notes, guardrail tool list, replay-safe trade licences, one-open-message pre-flight
+
+  Verified locally (TypeScript, 161 tests, build) and on a disposable PostgreSQL 16. Not verified live.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

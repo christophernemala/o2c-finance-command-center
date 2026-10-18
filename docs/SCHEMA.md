@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 18 · public tables: 36 · tables with RLS: 36
+Migrations: 19 · public tables: 36 · tables with RLS: 36
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -748,6 +748,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | simulate_guardrail | definer |
 | source_entity_access | invoker |
 | stage_import | definer |
+| withdraw_adjustment_note | definer |
 | workspace_access | invoker |
 | workspace_entities | invoker |
 | workspace_insights | invoker |

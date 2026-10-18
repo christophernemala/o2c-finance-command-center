@@ -59,7 +59,7 @@ export const tools: AgentTool[] = [
   }),
   tool({
     name: "get_ar_kpi_pack", writes: false, actors: ["agent", "copilot"],
-    description: "AR KPI pack: everything in get_ar_overview plus countback DSO (days) and 30-day collection effectiveness index (CEI %) with the inputs used. DSO is null when invoice history is insufficient.",
+    description: "AR KPI pack: everything in get_ar_overview plus countback DSO (days) and 30-day collection effectiveness index (CEI %) with the inputs used; credit notes are netted out, not counted as collections, and debit notes are shown separately from credit sales. DSO is null when invoice history is insufficient.",
     schema: z.strictObject({}),
     run: (_, context) => call(context, "report_ar_pack", { p_as_of: context.asOf }),
   }),
@@ -93,7 +93,7 @@ export const tools: AgentTool[] = [
   }),
   tool({
     name: "propose_credit_note", writes: true, actors: ["agent"],
-    description: "Propose a credit note that clears a short-payment remainder on one invoice (reason short_payment or bank_charges). The amount may not exceed the invoice open amount. reference is the credit note number the finance team will issue in the source system, e.g. 'CN-pending-INV-1001'. Creates a pending note for an independent human approver; it never posts.",
+    description: "Propose a credit note that clears a short-payment remainder on one invoice (reason short_payment or bank_charges). The amount may not exceed the invoice open amount. reference is a placeholder of the form 'CN-pending-' plus the invoice number, e.g. 'CN-pending-INV-1001'; the approver replaces it with the credit note number issued in the ERP, and a placeholder can never post. Creates a pending note for an independent human approver; it never posts.",
     schema: z.strictObject({ customer_id: uuid, invoice_id: uuid, amount: decimal, reason: z.enum(["short_payment", "bank_charges"]), reference: z.string().min(1).max(60), memo: z.string().min(10).max(1000) }),
     async run(input, context) {
       const id = randomUUID();

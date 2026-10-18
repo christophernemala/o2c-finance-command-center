@@ -65,7 +65,9 @@ export function CustomersView({ data, breakdown, segments }: { data: Snapshot; b
             <button className="button secondary">Apply segments</button></MutationForm>
           <details><summary className="cursor-pointer text-link">Set one customer</summary><MutationForm action="/api/customers"><Scope/><input type="hidden" name="intent" value="segment_set"/>
             <label>Customer<select name="account" required>{data.customers.map(customer => <option key={customer.id} value={customer.account}>{customer.name} ({customer.account})</option>)}</select></label>
-            <div className="grid gap-3 sm:grid-cols-2"><label>Category<input name="category" maxLength={60} list="segment-categories" placeholder="Distributor"/></label><label>Region<input name="region" maxLength={60} list="segment-regions" placeholder="Dubai"/></label></div>
+            <div className="grid gap-3 sm:grid-cols-2"><label>Category<input name="category" maxLength={60} list="segment-categories" placeholder="Leave blank to keep"/></label><label>Region<input name="region" maxLength={60} list="segment-regions" placeholder="Leave blank to keep"/></label></div>
+            <div className="flex flex-wrap gap-4 text-xs"><label className="inline-flex items-center gap-2"><input type="checkbox" name="clear_category"/>Clear category</label><label className="inline-flex items-center gap-2"><input type="checkbox" name="clear_region"/>Clear region</label></div>
+            <p className="text-xs text-muted">A blank field keeps the customer&apos;s current value.</p>
             <datalist id="segment-categories">{segments.categories.map(value => <option key={value} value={value}/>)}</datalist>
             <datalist id="segment-regions">{segments.regions.map(value => <option key={value} value={value}/>)}</datalist>
             <button className="button secondary">Save segment</button></MutationForm></details>

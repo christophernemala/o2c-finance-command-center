@@ -51,7 +51,8 @@ const routines = {
   set_customer_segments: ["p_tenant", "p_entity", "p_id", "p_rows"],
   outstanding_breakdown: ["p_tenant", "p_entity", "p_as_of", "p_dimension", "p_category", "p_region"], customer_segments: ["p_tenant", "p_entity"],
   propose_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_kind", "p_customer", "p_invoice", "p_amount", "p_reason", "p_memo", "p_reference", "p_due"],
-  decide_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version", "p_decision"], post_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version"],
+  decide_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version", "p_decision", "p_reference"],
+  withdraw_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version", "p_reason"], post_adjustment_note: ["p_tenant", "p_entity", "p_id", "p_version"],
   adjustment_notes_list: ["p_tenant", "p_entity", "p_status"], short_payment_candidates: ["p_tenant", "p_entity", "p_tolerance"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.

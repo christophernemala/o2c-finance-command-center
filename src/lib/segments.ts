@@ -1,6 +1,13 @@
 import { parseCsv } from "./imports";
 export interface SegmentRow { account: string; category: string; region: string }
 export interface SegmentPreview { rows: SegmentRow[]; errors: string[] }
+/** One customer from the form: a blank field keeps the current value (its key is omitted); clearing is explicit. */
+export function singleSegmentRow(input: { account: string; category: string; region: string; clear_category?: boolean; clear_region?: boolean }): Partial<SegmentRow> & { account: string } {
+  const row: Partial<SegmentRow> & { account: string } = { account: input.account };
+  if (input.clear_category) row.category = ""; else if (input.category) row.category = input.category;
+  if (input.clear_region) row.region = ""; else if (input.region) row.region = input.region;
+  return row;
+}
 const header = ["account", "category", "region"];
 // A value that a spreadsheet would run as a formula is refused rather than silently altered.
 const formula = /^[=+\-@\t\r]/;

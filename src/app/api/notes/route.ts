@@ -10,10 +10,11 @@ const scope = { tenant: z.uuid(), entity: z.uuid(), id: z.uuid() };
 const input = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("note_propose"), ...scope, kind: z.enum(["credit", "debit"]), customer: z.uuid(), invoice: z.union([z.uuid(), z.literal("")]),
     amount: decimal, reason: z.enum(noteReasons), memo: z.string().trim().min(10).max(1000), reference: z.string().trim().min(1).max(60), due: z.union([z.iso.date(), z.literal("")]) }),
-  z.object({ intent: z.literal("note_decide"), ...scope, version: z.coerce.number().int().min(1).max(1000), decision: z.enum(["approved", "rejected"]) }),
+  z.object({ intent: z.literal("note_decide"), ...scope, version: z.coerce.number().int().min(1).max(1000), decision: z.enum(["approved", "rejected"]), reference: z.string().trim().max(60).optional() }),
+  z.object({ intent: z.literal("note_withdraw"), ...scope, version: z.coerce.number().int().min(1).max(1000), reason: z.string().trim().min(5).max(500) }),
   z.object({ intent: z.literal("note_post"), ...scope, version: z.coerce.number().int().min(1).max(1000) }),
 ]);
-/** Credit and debit notes: propose, decide (independent human approver) and post are three separate calls. */
+/** Credit and debit notes: propose, decide (independent human approver) and post are three separate calls; an approved note can be withdrawn. */
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
   const body = await boundedFormRequest(request, 8_192);
@@ -30,9 +31,10 @@ export async function POST(request: NextRequest) {
     const result = data.intent === "note_propose"
       ? await auth.client.rpc("propose_adjustment_note", { ...s, p_kind: data.kind, p_customer: data.customer, p_invoice: data.invoice || null, p_amount: data.amount,
           p_reason: data.reason, p_memo: data.memo, p_reference: data.reference, p_due: data.kind === "debit" ? data.due || null : null })
-      : data.intent === "note_decide" ? await auth.client.rpc("decide_adjustment_note", { ...s, p_version: data.version, p_decision: data.decision })
+      : data.intent === "note_decide" ? await auth.client.rpc("decide_adjustment_note", { ...s, p_version: data.version, p_decision: data.decision, p_reference: data.reference || null })
+      : data.intent === "note_withdraw" ? await auth.client.rpc("withdraw_adjustment_note", { ...s, p_version: data.version, p_reason: data.reason })
       : await auth.client.rpc("post_adjustment_note", { ...s, p_version: data.version });
-    message = !result.error ? "confirmed" : /Forbidden|Independent|authority/.test(result.error.message) ? "forbidden" : /Stale|exceeds|already used/.test(result.error.message) ? "conflict" : "failed";
+    message = !result.error ? "confirmed" : /Forbidden|Independent|authority/.test(result.error.message) ? "forbidden" : /Stale|exceeds|already used|ERP|Placeholder|Only an approved/.test(result.error.message) ? "conflict" : "failed";
   } catch { /* message stays failed */ }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));
   return NextResponse.redirect(destination, { status: 303, headers: { "Cache-Control": "no-store" } });

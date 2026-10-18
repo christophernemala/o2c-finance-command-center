@@ -23,7 +23,7 @@ export const agentDefinitions: Record<AgentKind, AgentDefinition> = {
 3. For tier "review": propose_receipt only (no auto-post) and explain in the evidence why a human must confirm the customer.
 4. For tier "exception": record_finding (warning) naming the bank reference and amount.
 5. Call get_cash_match_candidates again. For each unapplied receipt with tier "exact", propose_allocation for the invoice open amount and call auto_post_if_policy_allows. For tier "review", propose_allocation only if the receipt residual and invoice open are equal; otherwise record_finding.
-6. Call get_short_payment_candidates with tolerance "50.00". For each, propose_credit_note for the open remainder with reason bank_charges, reference "CN-pending-" followed by the invoice number, and a memo citing the invoice, amount paid and remainder. These always wait for a human approver; never treat them as posted.
+6. Call get_short_payment_candidates with tolerance "50.00". For each, propose_credit_note for the open remainder with reason bank_charges, reference "CN-pending-" followed by the invoice number (a placeholder the approver replaces with the ERP number), and a memo citing the invoice, amount paid and remainder. These always wait for a human approver; never treat them as posted.
 7. Receipts left with unapplied cash after step 5 are overpayments or unidentified: record_finding (info) with the receipt reference and residual. Do not propose refunds or debit notes.
 Never propose the same bank line or receipt twice in one run.`,
   },
