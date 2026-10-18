@@ -1,3 +1,36 @@
+## Email sign-in recovery — 2026-10-18
+
+Added `/login/code` and `/api/auth/email-code` for existing confirmed accounts.
+Six-digit codes expire after ten minutes, are browser-bound and single-use, and
+lock after five wrong guesses. Only keyed hashes are persisted. Requests use the
+existing durable account/IP limiter; sessions rotate, financial memberships stay
+unchanged, and enrolled authenticator MFA remains required. Sender configuration
+supports Resend or authenticated, certificate-verified SMTP. Missing configuration
+disables the form rather than claiming an email was sent. Nodemailer is required
+for SMTP delivery; its types are development-only.
+
+Local verification passed TypeScript, all 156 tests and the production build.
+The isolated Neon PR branch has all 19 migrations; the runtime has challenge-table
+access and the browser-facing authenticated role does not. Hosted HTTP checks
+are recorded separately from real email receipt.
+Live email receipt and Google/Microsoft OAuth remain unverified; provider secrets
+must be configured in deployment settings. See `docs/AUTH_SETUP.md`.
+
+## Authentication deployment diagnosis — 2026-10-16
+
+The shared PR preview lacked DATABASE_URL and MFA_ENCRYPTION_KEY because these
+settings were scoped only to another Git branch. Google/Microsoft credentials
+were absent. Email OTP has not been implemented. Public registration requests
+are administrator reviewed, not immediate accounts. These limitations prevent
+claiming that a visually ready preview has completed live account onboarding.
+
+Ten pending migrations were verified on a separate Neon branch; the original
+staging schema was preserved. The PR preview received a restricted runtime
+connection to that isolated branch and the existing matching MFA key. No owner
+credentials were deployed. Existing account passwords are hashes and cannot be
+retrieved. Migration integrity now recognizes LF/CRLF-only differences while
+continuing to reject changes to SQL content. See docs/AUTH_SETUP.md.
+
 ## Ledger corrections for notes, credits and promises — 2026-10-18
 
 Migration `202610160010_ledger_corrections.sql` (apply before deploying this source):
@@ -31,10 +64,10 @@ Migration `202610160010_ledger_corrections.sql` (apply before deploying this sou
   - Guardrails can name `get_short_payment_candidates`.
   - `add_trade_licence` replays return early. They no longer archive a later renewal or
     add audit events, and a different payload under the same id is a key conflict.
-  - Migration `202610160005` now checks for duplicates before building
-    `collection_messages_one_open` and names the affected customers. Its checksum
-    therefore changed. A database that already applied `005` will refuse the next
-    `db:migrate`. Per the entries below, no hosted database has applied it.
+  - The migration runner checks for duplicate open messages before applying
+    `202610160005` and names the affected customers. The historical SQL is preserved
+    because the isolated hosted PR database has already applied it; integrity
+    checks continue to reject actual edits to an applied migration.
 - **Bug found while testing.** Proposing a debit note as the first note in a database
   session failed (`record "inv" is not assigned yet`). The existing test missed it only
   because credit notes were proposed earlier in the same session. `propose_adjustment_note`

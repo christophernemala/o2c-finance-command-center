@@ -1,7 +1,7 @@
 # Registration and work identity setup
 
 Apply all migrations with `npm run db:migrate`, including
-`202610160009_registration_oidc.sql`. Runtime connections must use `o2c_app`,
+`202610160010_email_login_codes.sql`. Runtime connections must use `o2c_app`,
 never the migration owner. Set the canonical HTTPS `AUTH_SITE_URL` and the existing
 session, encryption and durable login-limiter settings described in `.env.example`.
 
@@ -53,9 +53,50 @@ The entry screens use a white/blue banking scene rendered with Three.js, a stati
 fallback, pause control and reduced-motion support. The scene represents the product,
 not a live bank connection or an agent execution result.
 
-Local TypeScript checks, 151 tests and the production build pass. Tests cover private
+Previous local checks passed 151 tests and the production build. Tests cover private
 registration, invitation activation, identity linking, replay, session rotation and
 MFA; HTTP tests also exercise registration and disabled-provider behavior on PostgreSQL.
 Live Google/Microsoft consent and browser/mobile visual review remain deployment
 checks. Test each provider with dedicated accounts after credentials are configured;
 verify invitation activation, repeat login, linking refusal and MFA challenge.
+
+## PR preview configuration repair
+
+The PR branch requires its own restricted database connection and the matching MFA
+key; credentials scoped to another preview branch are not inherited. Registration
+and OIDC require the registration migration; email sign-in requires all 20 migrations. An isolated Neon verification branch was
+created and the 10 pending migrations passed there; original staging was preserved.
+No Google/Microsoft provider credentials were present during this check. Email sign-in
+code support is now implemented separately from enrolled authenticator TOTP; it
+requires the migration and a verified deployment email sender.
+
+The migration runner now accepts equivalent LF/CRLF checksum histories. It still
+rejects changed SQL, comments and whitespace. This handles the existing Windows
+migration history without rewriting applied checksums or skipping integrity checks.
+
+## Email sign-in codes
+
+Existing confirmed, enabled accounts can request a six-digit code at `/login/code`.
+This signs into an existing identity; it never creates accounts, confirms pending
+invitations, grants memberships, or bypasses enrolled authenticator MFA. Registration
+continues to require administrator review and an invitation.
+
+Use either a verified Resend sender (`AUTH_EMAIL_FROM` and `RESEND_API_KEY`) or
+SMTP (`SMTP_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_MODE`, `SMTP_USERNAME`,
+`SMTP_PASSWORD`). SMTP only accepts authenticated TLS on 465 (`ssl`/`tls`) or
+STARTTLS on 587 (`starttls`), with certificate verification. `AUTH_EMAIL_FROM`
+overrides `SMTP_FROM`. Keep credentials in deployment environment settings, never
+in chat or Git. Cloud workspace settings are not automatically inherited by Vercel.
+A syntactically valid sender configuration does not establish delivery.
+
+Codes expire after ten minutes, allow five failed guesses, and are usable once in
+the requesting browser. New requests replace older codes. The database stores only
+a keyed hash of the code and a hash of the browser binding; the cookie is HttpOnly.
+Durable account/IP limits apply to requests. Codes, passwords and private session
+tokens must not appear in logs. A rejected send invalidates its challenge. Unknown
+and disabled emails receive a generic response and are never provisioned.
+
+After deployment, test with an existing account: request code, confirm receipt in
+inbox, submit it in the same browser, verify tenant access, replay refusal and MFA.
+Local provider stubs establish behavior, not real inbox delivery. Until a sender
+is configured, email-code controls remain disabled and the endpoint returns 503.

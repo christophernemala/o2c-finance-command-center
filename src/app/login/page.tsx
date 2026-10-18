@@ -27,6 +27,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     {params.message === "activated" && <p role="status" className="mt-5 rounded-lg bg-success-soft p-4 text-success">Your account is ready. Sign in to continue.</p>}
     <div className="mt-6"><SocialSignin available={available}/></div><div className="auth-divider">or use your work email</div>
     <LoginForm key={params.error ?? "ready"} available={available} error={params.error ? errors[params.error] ?? "Sign-in is unavailable. Try again when the connection is restored." : undefined}/>
+    <p className="mt-5 text-center text-sm"><Link href="/login/code" className="font-semibold text-link underline underline-offset-4">Email me a sign-in code</Link></p>
     <p className="mt-6 text-center text-sm text-muted">New to the workspace? <Link href="/signup" className="font-semibold text-link underline underline-offset-4">Sign up</Link></p>
     <p className="mt-4 text-center text-xs leading-5 text-muted">Workspace access is granted by your administrator.<br/>Contact them for an invitation or account recovery.</p>
   </AuthShell>;

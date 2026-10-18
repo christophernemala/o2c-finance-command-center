@@ -30,16 +30,6 @@ begin
   return matched=cardinality(m.invoice_ids) and total=m.total_overdue;
 end $$;
 
--- Pre-flight: name the customers to clean up instead of failing inside the index build.
-do $$
-declare dupes text;
-begin
-  select string_agg(customer_id::text||' ('||n||')',', ') into dupes from (select customer_id,count(*) as n from public.collection_messages
-    where status in ('pending','approved','sending') group by customer_id having count(*)>1) d;
-  if dupes is not null then
-    raise exception 'Cannot enforce one open collections message per customer. Reject or let all but one open message finish for: %', dupes;
-  end if;
-end $$;
 create unique index collection_messages_one_open on public.collection_messages(customer_id) where status in ('pending','approved','sending');
 
 create or replace function public.propose_collection_message(p_tenant uuid,p_entity uuid,p_id uuid,p_customer uuid,p_contact uuid,p_tone text,

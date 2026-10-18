@@ -5,7 +5,7 @@ export const metadata = { title: "Privacy" };
 const sections: { heading: string; body: string[] }[] = [
   { heading: "Who operates this service", body: ["The organisation that invited you operates this workspace and decides how its data is used. Contact your administrator for privacy requests."] },
   { heading: "Data the application stores", body: [
-    "Account data: work email, password hash, authenticator enrolment, connected provider identifiers and session records.",
+    "Account data: work email, password hash, authenticator enrolment, connected provider identifiers, hashed email-code challenges and session records.",
     "Registration requests: name, company, job title, country, work phone, company size, finance interests and the process description you submit. These details are used for administrator review, not automatic financial access.",
     "Finance records your organisation imports: customers, invoices, bank statement lines, receipts, allocations, approvals and audit events.",
     "Customer contact details entered by your team for collections, once that feature is enabled.",
@@ -19,10 +19,11 @@ const sections: { heading: string; body: string[] }[] = [
     "Anthropic (Claude API), when AI agents or the copilot are used: the questions and the scoped records needed to answer them are sent for processing.",
     "Google and Microsoft, only when you choose a configured identity provider: the provider authenticates you and returns an issuer-scoped account identifier and profile claims. Passwords entered at the provider are not sent to this application.",
     "Twilio, when an approved SMS or WhatsApp reply is submitted: recipient phone and message text.",
+    "Resend or the operator’s configured SMTP provider, when you request an email sign-in code: your account email and the short-lived code.",
     "Resend, when an approved collections email is sent: the recipient address, subject, message and any attached statement.",
   ] },
   { heading: "What the application does not do", body: [
-    "It does not sell data, show advertising or use tracking cookies. Essential HttpOnly cookies keep you signed in, bind provider sign-in requests, preserve sign-in protection and confirm a submitted registration request.",
+    "It does not sell data, show advertising or use tracking cookies. Essential HttpOnly cookies keep you signed in, bind provider and email-code sign-in requests, preserve sign-in protection and confirm a submitted registration request.",
     "It does not store finance records in your browser.",
   ] },
   { heading: "Retention and your rights", body: ["Retention periods, data location and how to exercise access, correction or deletion rights are set by the operator. Ask your administrator."] },

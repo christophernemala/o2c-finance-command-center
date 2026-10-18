@@ -1,3 +1,4 @@
+import { consumeEmailCode } from "./email-code";
 import { randomUUID } from "node:crypto";
 import { transaction, type SqlPool, type SqlConnection } from "../postgres/transaction";
 import { decryptSecret, encryptSecret, generateFactor, hashPassword, newToken, tokenHash, validToken, verifiedCounter, verifyPassword } from "./crypto";
@@ -51,6 +52,27 @@ export function authService(pool: SqlPool, cookies: SessionCookies, key: Buffer)
         });
         cookies.write(result.token, result.seconds); return { error: null };
       } catch { return { error: unavailable() }; }
+    },
+    async signInWithEmailCode(binding:string,code:string,secret:string) {
+      try {
+        const result=await transaction(pool,async connection=>{
+          if(!validToken(binding))return null;
+          const challenge=(await connection.query<{user_id:string}>("select user_id from auth.email_login_codes where token_hash=$1",[tokenHash(binding)])).rows[0];
+          if(!challenge)return null;
+          // Match request's user-then-challenge lock order to avoid concurrent resend deadlocks.
+          const user=(await connection.query<{disabled:boolean;confirmed:boolean}>("select disabled,email_confirmed_at is not null as confirmed from auth.users where id=$1 for update",[challenge.user_id])).rows[0];
+          // Invalid guesses return normally so their attempt counters commit.
+          const userId=await consumeEmailCode(connection,binding,code,secret);
+          if(!userId)return null;
+          if(!user||user.disabled||!user.confirmed)return null;
+          const hasMfa=(await connection.query("select id from auth.mfa_factors where user_id=$1 and status='verified'",[userId])).rows.length>0;
+          const previous=cookies.read();if(validToken(previous))await connection.query("delete from auth.sessions where token_hash=$1",[tokenHash(previous)]);
+          const seconds=hasMfa?600:43200;
+          return {token:await insertSession(connection,userId,"login","aal1",seconds),seconds};
+        });
+        if(!result)return {error:new Error("Invalid or expired code")};
+        cookies.write(result.token,result.seconds);return {error:null};
+      }catch{return {error:unavailable()};}
     },
     async signInWithExternal(external: {issuer:string;subject:string;email:string;provider:"google"|"microsoft"}, linkSessionHash:string|null) {
       try {
