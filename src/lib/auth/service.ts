@@ -1,3 +1,4 @@
+import { consumeEmailCode } from "./email-code";
 import { randomUUID } from "node:crypto";
 import { transaction, type SqlPool, type SqlConnection } from "../postgres/transaction";
 import { decryptSecret, encryptSecret, generateFactor, hashPassword, newToken, tokenHash, validToken, verifiedCounter, verifyPassword } from "./crypto";
@@ -52,6 +53,62 @@ export function authService(pool: SqlPool, cookies: SessionCookies, key: Buffer)
         cookies.write(result.token, result.seconds); return { error: null };
       } catch { return { error: unavailable() }; }
     },
+    async signInWithEmailCode(binding:string,code:string,secret:string) {
+      try {
+        const result=await transaction(pool,async connection=>{
+          if(!validToken(binding))return null;
+          const challenge=(await connection.query<{user_id:string}>("select user_id from auth.email_login_codes where token_hash=$1",[tokenHash(binding)])).rows[0];
+          if(!challenge)return null;
+          // Match request's user-then-challenge lock order to avoid concurrent resend deadlocks.
+          const user=(await connection.query<{disabled:boolean;confirmed:boolean}>("select disabled,email_confirmed_at is not null as confirmed from auth.users where id=$1 for update",[challenge.user_id])).rows[0];
+          // Invalid guesses return normally so their attempt counters commit.
+          const userId=await consumeEmailCode(connection,binding,code,secret);
+          if(!userId)return null;
+          if(!user||user.disabled||!user.confirmed)return null;
+          const hasMfa=(await connection.query("select id from auth.mfa_factors where user_id=$1 and status='verified'",[userId])).rows.length>0;
+          const previous=cookies.read();if(validToken(previous))await connection.query("delete from auth.sessions where token_hash=$1",[tokenHash(previous)]);
+          const seconds=hasMfa?600:43200;
+          return {token:await insertSession(connection,userId,"login","aal1",seconds),seconds};
+        });
+        if(!result)return {error:new Error("Invalid or expired code")};
+        cookies.write(result.token,result.seconds);return {error:null};
+      }catch{return {error:unavailable()};}
+    },
+    async signInWithExternal(external: {issuer:string;subject:string;email:string;provider:"google"|"microsoft"}, linkSessionHash:string|null) {
+      try {
+        const result=await transaction(pool,async connection=>{
+          const linked=(await connection.query<{user_id:string}>("select user_id from auth.external_identities where issuer=$1 and subject=$2",[external.issuer,external.subject])).rows[0];
+          const active=await identity(connection,cookies.read());
+          let userId=linked?.user_id;
+          if(linkSessionHash){
+            if(!active || !validToken(cookies.read()) || tokenHash(cookies.read()!)!==linkSessionHash || (active.purpose==="login" && active.has_mfa && active.aal!=="aal2"))throw unavailable();
+            if(userId && userId!==active.id)throw unavailable();
+            if(active.email.toLowerCase()!==external.email.toLowerCase())throw unavailable();
+            // Linking is authorized by an existing authenticated/invitation session, never an email claim alone.
+            userId=active.id;
+          }
+          if(!userId)throw unavailable();
+          const user=(await connection.query<{id:string;disabled:boolean;confirmed:boolean}>("select id,disabled,email_confirmed_at is not null as confirmed from auth.users where id=$1 for update",[userId])).rows[0];
+          if(!user || user.disabled)throw unavailable();
+          if(linkSessionHash){
+            const live=await identity(connection,cookies.read());if(!live || live.id!==userId)throw unavailable();
+            await connection.query("insert into auth.external_identities(issuer,subject,provider,user_id) values($1,$2,$3,$4) on conflict(issuer,subject) do nothing",[external.issuer,external.subject,external.provider,userId]);
+            const owner=(await connection.query<{user_id:string}>("select user_id from auth.external_identities where issuer=$1 and subject=$2",[external.issuer,external.subject])).rows[0];
+            if(owner?.user_id!==userId)throw unavailable();
+            if(live.purpose==="invitation"){
+              await connection.query("update auth.users set email_confirmed_at=coalesce(email_confirmed_at,now()) where id=$1",[userId]);
+              await connection.query("delete from auth.invitations where user_id=$1",[userId]);
+              await connection.query("delete from auth.sessions where user_id=$1",[userId]);
+            }
+          }else if(!user.confirmed)throw unavailable();
+          const hasMfa=(await connection.query("select id from auth.mfa_factors where user_id=$1 and status='verified'",[userId])).rows.length>0;
+          const previous=cookies.read();if(validToken(previous))await connection.query("delete from auth.sessions where token_hash=$1",[tokenHash(previous)]);
+          const seconds=hasMfa?600:43200;
+          return {token:await insertSession(connection,userId,"login","aal1",seconds),seconds};
+        });
+        cookies.write(result.token,result.seconds);return {error:null};
+      }catch{return {error:unavailable()};}
+    },
     async signOut(_options?: { scope?: "local" }) {
       try {
         const token = cookies.read();
@@ -83,7 +140,7 @@ export function authService(pool: SqlPool, cookies: SessionCookies, key: Buffer)
         cookies.write(session, 600); return { error: null };
       } catch { return { error: unavailable() }; }
     },
-    async updateUser({ password }: { password: string }) {
+    async updateUser({ password, registration }: { password: string; registration?: Record<string,unknown> }) {
       try {
         const hash = await hashPassword(password);
         await transaction(pool, async connection => {
@@ -95,6 +152,7 @@ export function authService(pool: SqlPool, cookies: SessionCookies, key: Buffer)
           const locked = await connection.query("select token_hash from auth.sessions where token_hash=$1 and purpose='invitation' and expires_at>now() for update", [tokenHash(cookies.read()!)]);
           if (!locked.rows.length) throw unavailable();
           await connection.query("update auth.users set password_hash=$2,email_confirmed_at=coalesce(email_confirmed_at,now()) where id=$1", [user.id, hash]);
+          if(registration)await connection.query("update auth.users set raw_user_meta_data=jsonb_set(raw_user_meta_data,'{registration}',$2::jsonb) where id=$1",[user.id,JSON.stringify(registration)]);
           await connection.query("delete from auth.sessions where user_id=$1", [user.id]);
           await connection.query("delete from auth.invitations where user_id=$1", [user.id]);
         });

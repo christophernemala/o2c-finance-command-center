@@ -4,6 +4,7 @@ import { createClient } from "@/lib/postgres/server";
 import { verifiedWorkspace } from "@/lib/auth-flow";
 import { MutationForm } from "@/components/mutation-form";
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Verify sign-in" };
 export default async function Verify({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const client = await createClient(); const { data: { user } } = await client.auth.getUser();
   if (!user || user.purpose !== "login") redirect("/login");

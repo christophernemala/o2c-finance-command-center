@@ -1,6 +1,6 @@
-export const workspaces = ["overview", "customers", "receivables", "cashflow", "reconciliation", "ecl", "approvals", "agents", "imports", "audit"] as const;
+export const workspaces = ["overview", "operations", "incidents", "guardrails", "copilot", "agents", "collections", "customers", "notes", "receivables", "reconciliation", "approvals", "reports", "cashflow", "ecl", "imports", "audit"] as const;
 export type Workspace = typeof workspaces[number];
-export type Role = "viewer" | "maker" | "approver" | "admin";
+export type Role = "viewer" | "maker" | "approver" | "admin" | "agent";
 export interface Membership { tenant_id: string; tenant_name: string; role: Role }
 export interface Entity { id: string; name: string; currency: "AED" }
 export interface Invoice {
