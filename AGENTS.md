@@ -29,3 +29,11 @@
   or complete enterprise readiness. Maintain `docs/RELEASE.md` as scope evolves.
 - Conventional commits: `<type>(<scope>): <lowercase description under 72 chars>`.
   Scopes: ar-dashboard, invoice, collections, treasury, agents, auth, db.
+
+## Model handoff
+
+- Read `docs/AI_HANDOFF.md` for the current working branch and release state.
+- Claude and Codex share the same working branch; a model switch is not a reason
+  to create another branch or application. Only one model writes at a time.
+- Inspect uncommitted work before switching or pulling; never discard it.
+  Update using fast-forward only. Commit/push a checkpoint and update the handoff.
