@@ -1,3 +1,4 @@
+<!-- Current model handoff: docs/AI_HANDOFF.md -->
 # O2C Finance Command Center
 
 An agentic accounts-receivable (order-to-cash) platform for UAE finance teams. AI
@@ -119,8 +120,8 @@ Tests never call the live Claude API.
 
 These limits are deliberate. Read them before you sell or demo the product.
 
-- **Email only, no SMS or WhatsApp.** Collections email through Resend is built and tested
-  locally against a stubbed provider, but has not yet sent a live message.
+- **Live messaging verification pending.** Resend email and Twilio SMS/WhatsApp
+  paths exist with approval controls and provider tests; real delivery is not yet verified.
 - **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
   statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
 - **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
@@ -130,7 +131,9 @@ These limits are deliberate. Read them before you sell or demo the product.
 - **No statutory general ledger.** The cash-control journal only (bank → unapplied
   cash → AR). No period locks, FX, write-offs or refunds.
 - **ECL is display-only for supplied runs.** There is no calibrated model.
-- **Not yet available:** SSO/OIDC, tenant self-signup, billing, Arabic UI.
+- **Provider configuration required:** Google/Microsoft OIDC and administrator-reviewed
+  registration exist in source; live provider sign-in is not yet verified.
+- **Not yet available:** self-service tenant provisioning, billing, Arabic UI.
 - **No external certifications or audits:** no SOC 2, ISO 27001 or penetration test
   has been performed.
 - **Live verification pending:** the hosted deployment has not been tested with real

@@ -83,3 +83,12 @@ use restrained monospace pills. Dark navy is reserved for the account-entry capa
 panel; financial evidence remains opaque white. Auth artwork is a locally served
 Adobe-generated illustration with blank space; all product copy remains real HTML.
 The existing interactive bank scene is available from a labeled disclosure.
+
+## Cinematic sign-in exception — 2026-10-21
+
+The owner requested a dark navy split login: binary human portrait with orange eye,
+blue particles, dark glass card and white O2C wordmark. This applies to `/login`
+and `/login/code` only. Scope its palette to `.cinematic-auth`; retain the light
+finance workspace. Keep provider-unavailable states truthful, labels and keyboard
+focus visible, decorative images empty-alt, motion optional and reduced-motion
+preferences respected. Authentication must work without WebGL.
