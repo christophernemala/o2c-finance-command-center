@@ -43,9 +43,9 @@ production just to make a design preview look complete.
 - Vercel production: `master`; default and production currently differ.
 - PR #6: latest finance work, Claude branch into default.
 - PR #3: default into master; PR #2: older documentation into master.
-- Three older branches are fully contained in this candidate:
+- Three fully merged branches were deleted after publication (history retained):
   `codex/feat/production-workspaces`, `codex/postgresql-migration`,
-  `codex/unified-cloud-audit`. They are eligible for deletion after publication.
+  `codex/unified-cloud-audit`. GitHub offered Restore after deletion.
 - `main`, `f9-implementation`, the two `cursor/*` branches and
   `codex/cloud-continuation-handoff` contain unique commits. Preserve them until
   those commits are reviewed. Do not treat an old branch as disposable by name.
@@ -62,3 +62,19 @@ Remaining: review the actual preview on desktop/mobile, configure any missing
 preview-only providers through the owner, and validate authenticated workflows
 with authorized test accounts. Broader security/financial acceptance and deciding
 when PR #6 and PR #3 should merge are separate release tasks.
+
+## Published checkpoint
+
+Design commit: `a4e9d5d9a8da17be6a6f686f602a511b3e62fb78`.
+Draft PR #7 targets the existing Claude branch (PR #6).
+Preview: https://o2c-finance-command-center-fxcgm8qqi.vercel.app/login
+Vercel state: READY. GitHub PR workflow run 39553026255: success.
+Local typecheck, build, 169 tests and dependency audit passed (zero reported vulnerabilities).
+Desktop rendering and animation pause were checked in the connected browser.
+Mobile viewport verification was blocked by the browser resize/screenshot failure.
+The new preview lacks database/sign-in configuration and correctly disables sign-in;
+no authenticated workflow or provider delivery is claimed. Production was not changed.
+
+Thirteen loose historical documents exactly matched their tracked docs/archive
+copies and were removed locally. Untracked legacy route/component files and a
+review ZIP were preserved outside the checkout, not published or silently deleted.
