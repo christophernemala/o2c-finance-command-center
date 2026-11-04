@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       catch (error) { failed.push(run); console.error("Scheduled agent run failed", run, error instanceof Error ? error.message : error); }
     }
     // Runs left for lack of time are marked, not left queued, so they are visible and free the active-run cap.
-    await agentControl(deps.pool).skipRuns(skipped);
+    await agentControl(deps.pool).skipRuns(skipped).catch(error => console.error("Skipped agent runs not marked", error instanceof Error ? error.message : error));
     // Stuck runs produce no finish call, so the sweep is what catches them.
     const incidents = await agentControl(deps.pool).detectIncidents();
     // Retry approved collections emails that were not sent right after approval.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLoginLimiter, loginLimiterConfig, trustedLoginIp, sealReservation, openReservation, settleOidcReservation } from "../src/lib/login-limiter";
+import { createLoginLimiter, loginLimiterConfig, trustedLoginIp, sealReservation, openReservation, settleOidcReservation, sealValue, openValue } from "../src/lib/login-limiter";
 const settings = { url: "https://test.upstash.io", token: "test-only-token", secret: "test-only-secret-32-characters-long" };
 test("OAuth and MFA reservations cannot be changed or signed with another key", () => {
   const ticket={key:`o2c:{login}:account:${"a".repeat(64)}`,ipKey:`o2c:{login}:ip:${"b".repeat(64)}`,id:"00000000-0000-4000-8000-000000000001"};
@@ -102,4 +102,14 @@ test("a successful provider sign-in releases its slot, or hands it to MFA when a
   assert.deepEqual(openReservation(handed ?? undefined, settings.secret), ticket); assert.equal(commands.length, 1, "MFA releases it later");
   assert.equal(await settleOidcReservation(`x${sealed}`, false, settings, transport), null); assert.equal(commands.length, 1, "a forged cookie releases nothing");
   assert.equal(await settleOidcReservation(sealed, false, null, transport), null);
+});
+test("sealed values reject tampering, other keys and reservation tickets", () => {
+  const sealed = sealValue("binding:staff@example.invalid", settings.secret);
+  assert.equal(openValue(sealed, settings.secret), "binding:staff@example.invalid");
+  assert.equal(openValue(sealed, "another-key-that-is-32-characters-long"), null);
+  const [payload, tag] = sealed.split(".");
+  assert.equal(openValue(`${Buffer.from("binding:other@example.invalid").toString("base64url")}.${tag}`, settings.secret), null, "a changed value keeps no valid tag");
+  assert.equal(openValue(`${payload}.${tag}.extra`, settings.secret), null);
+  const ticket = { key: `o2c:{login}:account:${"a".repeat(64)}`, ipKey: `o2c:{login}:ip:${"b".repeat(64)}`, id: "00000000-0000-4000-8000-000000000001" };
+  assert.equal(openValue(sealReservation(ticket, settings.secret), settings.secret), null, "a reservation ticket does not open as a value");
 });

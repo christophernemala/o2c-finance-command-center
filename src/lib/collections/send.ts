@@ -31,7 +31,7 @@ export async function deliverApproved(pool: SqlPool, send: Sender | ChannelSende
     } catch (error) { outcome = { ok: false, error: error instanceof Error ? error.message.slice(0, 300) : "Delivery failed" }; }
     try { await control.completeMessage(message.id, message.attempts, outcome.ok, outcome.ok ? outcome.id : null, outcome.ok ? null : outcome.error); }
     catch (error) {
-      // The stale-claim sweep marks the message failed; keep the provider id in the logs so it can be reconciled.
+      // The stale-claim sweep requeues email before the final attempt and fails phone messages and the final attempt; keep the provider id in the logs so it can be reconciled.
       console.error("Collections message completion not recorded", { id: message.id, channel: message.channel, accepted: outcome.ok, provider_id: outcome.ok ? outcome.id : null, error: error instanceof Error ? error.message : error });
     }
     if (outcome.ok) sent++; else failed++;

@@ -65,7 +65,7 @@ verify invitation activation, repeat login, linking refusal and MFA challenge.
 The PR branch requires its own restricted database connection and the matching MFA
 key; credentials scoped to another preview branch are not inherited. Registration
 and OIDC require the registration migration; the current branch has 22 migrations (through `202610160012_review_hardening.sql`).
-An isolated Neon verification branch has all 20 applied, including email sign-in
+An isolated Neon verification branch has the first 20 applied (`202610160011` and `202610160012` are not yet applied or verified there), including email sign-in
 and the newer ledger corrections; original staging was preserved.
 No Google/Microsoft provider credentials were present during this check. Email sign-in
 code support is now implemented separately from enrolled authenticator TOTP; it

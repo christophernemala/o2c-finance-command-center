@@ -1,17 +1,16 @@
-import { unstable_rethrow } from "next/navigation";
 import { apiLimit } from "@/lib/api-limiter";
 import { NextRequest, NextResponse } from "next/server";
-import { access, snapshot } from "@/lib/workspace";
+import { routeAccess, snapshot } from "@/lib/workspace";
 import { buildWorkbookBytes } from "@/modules/DashboardRenderer/browserExcel";
 import { receivablesReport } from "@/lib/receivables-report";
 import { arPackWorkbook, validateArPack } from "@/lib/ar-pack";
 import { entities } from "@/lib/workspace";
 import { dailyPackWorkbook, validateDailyPack } from "@/lib/daily-pack";
 // Only an authorization refusal is a 403; anything else (an outage, a bad date) is a 503 so it is not mistaken for missing access.
-const failure = (message: string) => /Forbidden/.test(message) ? new NextResponse("Forbidden", { status: 403 }) : new NextResponse("Export unavailable", { status: 503 });
+const failure = (message: string) => /Forbidden|Unauthenticated|Invalid entity scope/.test(message) ? new NextResponse("Forbidden", { status: 403 }) : new NextResponse("Export unavailable", { status: 503 });
 export async function GET(request: NextRequest) {
   try {
-    const auth = await access(); if (!auth) return new NextResponse("Unauthorized", { status: 401 });
+    const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", request.url), 303); if (!auth) return new NextResponse("Unauthorized", { status: 401 });
     const limited = await apiLimit(auth.user.id, "export"); if (limited) return limited;
     const tenant = request.nextUrl.searchParams.get("tenant") ?? ""; const entity = request.nextUrl.searchParams.get("entity") ?? "";
     if (!auth.memberships.some(row => row.tenant_id === tenant)) return new NextResponse("Forbidden", { status: 403 });
@@ -35,8 +34,7 @@ export async function GET(request: NextRequest) {
       fileName = `O2C-daily-collections-${asOf}.xlsx`;
     } else bytes = buildWorkbookBytes(receivablesReport(await snapshot(tenant, entity, asOf, 0)));
     return new NextResponse(new Uint8Array(bytes).buffer, { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-  } catch (error) {
-    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+  } catch {
     return new NextResponse("Export unavailable", { status: 503 });
   }
 }

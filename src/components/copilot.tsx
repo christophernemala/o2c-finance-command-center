@@ -47,7 +47,7 @@ export function Copilot({ tenant, entity, thread, initial, aiReady }: { tenant: 
     finally { setBusy(false); }
   }
   async function upload(file: File) {
-    if (files.length >= MAX_FILES) { setNotice(`Attach at most ${MAX_FILES} files to one question.`); if (fileInput.current) fileInput.current.value = ""; return; }
+    if (uploading || files.length >= MAX_FILES) { setNotice(uploading ? "Wait for the current upload to finish." : `Attach at most ${MAX_FILES} files to one question.`); if (fileInput.current) fileInput.current.value = ""; return; }
     setUploading(true); setNotice("");
     const form = new FormData(); form.set("tenant", tenant); form.set("entity", entity); form.set("file", file);
     try {

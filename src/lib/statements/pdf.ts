@@ -13,9 +13,11 @@ export function validateStatement(value: unknown): StatementData {
     || !["invoice", "debit_note"].includes(line.document_type)) throw new Error("Statement unavailable");
   return data;
 }
-// Standard PDF fonts use WinAnsi (Latin-1), so accented Latin letters stay as they are and only characters
+// Standard PDF fonts use WinAnsi (Latin-1 plus the Windows-1252 punctuation and euro sign), so accented Latin letters stay as they are and only characters
 // outside it (for example Arabic script) are replaced. NFC keeps "é" as one character instead of e + mark.
-const ascii = (value: string) => value.normalize("NFC").replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+const winAnsiExtras = "\u0152\u0153\u0160\u0161\u0178\u017D\u017E\u0192\u02C6\u02DC\u2013\u2014\u2018\u2019\u201A\u201C\u201D\u201E\u2020\u2021\u2022\u2026\u2030\u2039\u203A\u20AC\u2122";
+const outsideWinAnsi = new RegExp(`[^\\x20-\\x7E\\xA0-\\xFF${winAnsiExtras}]`, "g");
+const ascii = (value: string) => value.normalize("NFC").replace(outsideWinAnsi, "?");
 const money = (value: string) => ascii(formatAed(value));
 const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
 

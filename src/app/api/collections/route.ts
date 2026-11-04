@@ -1,9 +1,8 @@
-import { unstable_rethrow } from "next/navigation";
 import { after, NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { deliverApproved } from "@/lib/collections/send";
 import { collectionSenders } from "@/lib/messaging/server";
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (body instanceof Response) return body;
   const destination = new URL("/", request.headers.get("origin")!); destination.searchParams.set("view", "collections");
   try {
-    const auth = await access(); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
+    const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", destination), 303); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
     const parsed = input.safeParse(Object.fromEntries(await body.formData()));
     if (!parsed.success) throw new Error("Invalid request");
     const data = parsed.data; const s = { p_tenant: data.tenant, p_entity: data.entity };
@@ -67,8 +66,7 @@ export async function POST(request: NextRequest) {
     else if (data.intent === "licence_add") result = await auth.client.rpc("add_trade_licence", { ...s, p_id: data.id, p_customer: data.customer, p_number: data.number, p_authority: data.authority, p_expiry: data.expiry });
     else result = await auth.client.rpc("release_customer_hold", { ...s, p_id: data.id, p_reason: data.reason });
     destination.searchParams.set("message", result.error ? (/Forbidden|Independent/.test(result.error.message) ? "forbidden" : /Stale evidence/.test(result.error.message) ? "stale" : "failed") : "confirmed");
-  } catch (error) {
-    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+  } catch {
     destination.searchParams.set("message", "failed");
   }
   destination.searchParams.set("nonce", randomUUID().slice(0, 8));

@@ -1,9 +1,8 @@
-import { unstable_rethrow } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { parseSegments, singleSegmentRow, type SegmentRow } from "@/lib/segments";
 const segment = z.string().trim().max(60).refine(value => !/^[=+\-@]/.test(value) && value.toLowerCase() !== "unassigned");
@@ -21,7 +20,7 @@ export async function POST(request: NextRequest) {
   const destination = new URL("/", request.headers.get("origin")!); destination.searchParams.set("view", "customers");
   let message = "failed";
   try {
-    const auth = await access(); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
+    const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", destination), 303); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
     const form = await body.formData();
     const parsed = input.safeParse(Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === "string")));
     if (!parsed.success) throw new Error("Invalid request");
@@ -39,8 +38,7 @@ export async function POST(request: NextRequest) {
     }
     const result = await auth.client.rpc("set_customer_segments", { p_tenant: data.tenant, p_entity: data.entity, p_id: data.id, p_rows: rows });
     message = result.error ? (/Forbidden/.test(result.error.message) ? "forbidden" : /Unknown customer account/.test(result.error.message) ? "invalid_import" : "failed") : "confirmed";
-  } catch (error) {
-    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+  } catch {
     /* message already set */
   }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));

@@ -1,9 +1,8 @@
-import { unstable_rethrow } from "next/navigation";
 import { after, NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { executeRun } from "@/lib/ai/runner";
 import { aiDependencies } from "@/lib/ai/server";
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
   if (body instanceof Response) return body;
   const destination = new URL("/", request.headers.get("origin")!); destination.searchParams.set("view", "agents");
   try {
-    const auth = await access(); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
+    const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", destination), 303); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
     const parsed = input.safeParse(Object.fromEntries(await body.formData()));
     if (!parsed.success) throw new Error("Invalid request");
     const data = parsed.data;
@@ -81,8 +80,7 @@ export async function POST(request: NextRequest) {
       result = await auth.client.rpc("resolve_agent_incident", { ...scope, p_id: data.id });
     }
     destination.searchParams.set("message", result.error ? (/Forbidden|Independent/.test(result.error.message) ? "forbidden" : "failed") : "confirmed");
-  } catch (error) {
-    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+  } catch {
     destination.searchParams.set("message", "failed");
   }
   destination.searchParams.set("nonce", randomUUID().slice(0, 8));

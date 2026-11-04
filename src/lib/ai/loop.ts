@@ -47,7 +47,10 @@ export async function runLoop(options: {
   const definitions = toolDefinitions(options.tools);
   const registry = new Map(options.tools.map(entry => [entry.name, entry]));
   const seen = new Map<string, number>();
-  const timedOut = (turn: number): LoopResult => ({ status: "failed", text: finalText, error: "Stopped: the run's time budget ran out.", usage, model: served, turns: turn });
+  // Text streamed in a turn that is then aborted is kept, so the saved answer matches what the user saw.
+  let streamed = "";
+  const onText = options.onText ? (delta: string) => { streamed += delta; options.onText!(delta); } : undefined;
+  const timedOut = (turn: number): LoopResult => ({ status: "failed", text: [finalText, streamed].filter(Boolean).join("\n"), error: "Stopped: the run's time budget ran out.", usage, model: served, turns: turn });
   for (let turn = 1; turn <= options.maxTurns; turn++) {
     const remaining = options.deadline === undefined ? null : options.deadline - Date.now();
     if (remaining !== null && remaining <= 0) return timedOut(turn - 1);
@@ -60,11 +63,13 @@ export async function runLoop(options: {
       cache_control: { type: "ephemeral" },
       system: [{ type: "text", text: options.system }],
       tools: definitions, tool_choice: { type: "auto" }, messages: options.messages,
-    }, options.onText, signal); } catch (error) {
+    }, onText, signal); } catch (error) {
       if (signal?.aborted) return timedOut(turn);
       // Return the usage of earlier turns so the run record keeps their tokens and cost.
-      return { status: "failed", text: finalText, error: `The model call failed: ${error instanceof Error ? error.message.slice(0, 300) : "unknown error"}`, usage, model: served, turns: turn };
+      console.error("Model call failed", error instanceof Error ? error.message : error);
+      return { status: "failed", text: finalText, error: "The model call failed. Try again shortly.", usage, model: served, turns: turn };
     }
+    streamed = "";
     served = message.model;
     usage.input += message.usage.input_tokens; usage.output += message.usage.output_tokens;
     usage.cacheRead += message.usage.cache_read_input_tokens ?? 0; usage.cacheWrite += message.usage.cache_creation_input_tokens ?? 0;

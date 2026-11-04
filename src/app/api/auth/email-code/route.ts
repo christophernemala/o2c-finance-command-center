@@ -31,11 +31,12 @@ export async function POST(request:NextRequest){
    // A failed send is logged; the unused code expires in ten minutes.
    await requestEmailCode(databasePool(),parsed.data,binding,settings.secret,async(to,code)=>{after(()=>sendEmailCode(to,code).catch(error=>{console.error('Email sign-in code not delivered',error instanceof Error?error.message:error);}));});
    destination.searchParams.set('step','verify');const response=NextResponse.redirect(destination,{status:303,headers:{'Cache-Control':'no-store'}});
-   response.cookies.set(name,binding,{...options,maxAge:600});response.cookies.set(accountCookie,sealValue(parsed.data,settings.secret),{...options,maxAge:600});return response;
+   response.cookies.set(name,binding,{...options,maxAge:600});response.cookies.set(accountCookie,sealValue(`${binding}:${parsed.data}`,settings.secret),{...options,maxAge:600});return response;
   }
   if(form.get('intent')!=='verify')return new NextResponse('Invalid request',{status:400});
   const jar=await cookies();const binding=jar.get(name)?.value;const code=form.get('code');destination.searchParams.set('step','verify');
-  const email=openValue(jar.get(accountCookie)?.value,settings.secret);
+  // The account cookie is sealed together with this challenge's binding, so it cannot be paired with another challenge.
+  const sealed=openValue(jar.get(accountCookie)?.value,settings.secret);const email=binding&&sealed?.startsWith(`${binding}:`)?sealed.slice(binding.length+1):null;
   if(!validToken(binding)||!email||typeof code!=='string'||!/^\d{6}$/.test(code)){destination.searchParams.set('error','invalid');return NextResponse.redirect(destination,303);}
   // Every guess spends the account's sign-in budget, shared with code requests and passwords, so new codes do not reset it.
   const limiter=createLoginLimiter(settings);const guess=await limiter.reserve(email,trustedLoginIp(request.headers));

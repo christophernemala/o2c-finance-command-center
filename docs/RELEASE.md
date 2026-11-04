@@ -21,7 +21,7 @@ App changes:
 - Smaller fixes to status codes, the PDF and the spreadsheet reader, plus documentation corrections.
 
 Tested locally:
-- TypeScript, all 174 tests and the production build pass.
+- TypeScript, all 175 tests and the production build pass (169 was the count before this round; 171 after the hold, deadline and sign-in fixes).
 - On a local PostgreSQL 16 the migration applied as an upgrade, a second run was a no-op, RLS is on
   for every public table, and `authenticated` cannot execute the new private routines.
 

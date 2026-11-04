@@ -3,7 +3,7 @@ import { parseCsv } from "./imports";
 
 export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 12 * 1024 * 1024, MAX_TOTAL_BYTES = 24 * 1024 * 1024;
-/** truncated: the sheet has more non-empty rows than were read, so totals over rows are incomplete. */
+/** truncated: rows beyond the 5,000-row cap (rows_cut) or non-empty cells beyond the 60-column cap (columns_cut) were not read, so totals over the sheet are incomplete. */
 export interface Sheet { name: string; rows: string[][]; truncated?: boolean; rows_cut?: boolean; columns_cut?: boolean }
 
 const decode = (value: string) => value.replace(/&(lt|gt|quot|apos|amp|#x[0-9a-f]+|#\d+);/gi, (_, entity: string) => {

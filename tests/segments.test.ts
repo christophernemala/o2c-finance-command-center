@@ -14,6 +14,8 @@ const T = id(10), E = id(20);
 test("segment CSV: exact header, unique accounts, no formulas, no reserved label", () => {
   assert.deepEqual(parseSegments("account,category,region\nC1,Distributor,Dubai\nC2,,\n"), { rows: [{ account: "C1", category: "Distributor", region: "Dubai" }, { account: "C2", category: "", region: "" }], errors: [] });
   assert.match(parseSegments("account,region,category\nC1,a,b").errors[0], /first row must be exactly/);
+  assert.deepEqual(parseSegments(`account,category,region\n${"A".repeat(100)},Distributor,Dubai`).errors, [], "a 100-character account is accepted");
+  assert.match(parseSegments(`account,category,region\n${"A".repeat(101)},Distributor,Dubai`).errors[0], /at most 100 characters/);
   const bad = parseSegments("account,category,region\nC1,=HYPERLINK(1),Dubai\nC1,Retail,Unassigned\nC3,Retail");
   assert.deepEqual(bad.rows, []);
   assert.deepEqual(bad.errors, ["Row 2: category cannot start with = + - or @.", "Row 3: account C1 appears more than once.", "Row 3: \"Unassigned\" is reserved; leave region empty instead.", "Row 4: expected 3 columns."]);

@@ -1,9 +1,8 @@
-import { unstable_rethrow } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { noteReasons } from "@/types/collections";
 const decimal = z.string().regex(/^(0|[1-9]\d{0,12})(\.\d{1,2})?$/);
@@ -23,7 +22,7 @@ export async function POST(request: NextRequest) {
   const destination = new URL("/", request.headers.get("origin")!); destination.searchParams.set("view", "notes");
   let message = "failed";
   try {
-    const auth = await access(); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
+    const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", destination), 303); if (!auth) return NextResponse.redirect(new URL("/login", destination), 303);
     const parsed = input.safeParse(Object.fromEntries(await body.formData()));
     if (!parsed.success) throw new Error("Invalid request");
     const data = parsed.data; const s = { p_tenant: data.tenant, p_entity: data.entity, p_id: data.id };
@@ -36,8 +35,7 @@ export async function POST(request: NextRequest) {
       : data.intent === "note_withdraw" ? await auth.client.rpc("withdraw_adjustment_note", { ...s, p_version: data.version, p_reason: data.reason })
       : await auth.client.rpc("post_adjustment_note", { ...s, p_version: data.version });
     message = !result.error ? "confirmed" : /Forbidden|Independent|authority/.test(result.error.message) ? "forbidden" : /Stale|exceeds|already used|ERP|Placeholder|Only an approved/.test(result.error.message) ? "conflict" : "failed";
-  } catch (error) {
-    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+  } catch {
     /* message stays failed */
   }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));

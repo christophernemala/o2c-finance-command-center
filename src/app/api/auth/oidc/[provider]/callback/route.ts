@@ -22,8 +22,11 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{provider
   const claims=tokens.claims();if(!claims)throw new Error("Missing identity");
   const external=validateProviderClaims(provider,claims,settings.issuer);
   const client=await createClient();const signed=await client.auth.signInWithExternal(external,flow.link_session_hash);
-  // A link started from Account security returns there; an invitation or signed-out flow returns to /signup.
-  if(signed.error){target.pathname=flow.link_session_hash?"/auth/security":"/signup";target.search="?error=link";}
+  if(signed.error){
+   // Only a signed-in link from Account security returns there; invitation and signed-out flows return to /signup.
+   const linkPurpose=flow.link_session_hash?(await transaction(databasePool(),async c=>(await c.query<{purpose:string}>("select purpose from auth.sessions where token_hash=$1",[flow.link_session_hash])).rows[0]?.purpose)):null;
+   target.pathname=linkPurpose==="login"?"/auth/security":"/signup";target.search="?error=link";
+  }
   else{
    const mfa=await authenticationAssurance(client)==="mfa";target.pathname=mfa?"/auth/verify":"/";target.search="";
    // A successful sign-in frees its rate-limit slot, so repeat sign-ins from one office address are not locked out.

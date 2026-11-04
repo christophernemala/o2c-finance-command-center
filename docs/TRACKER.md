@@ -60,7 +60,7 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
   Verified locally (TypeScript, tests, build). Not verified live.
 
-- [x] Automated review round (cubic, 2026-11-04): agent sessions bound to their run's entity, disabled agents cannot claim, stale queued runs expire, account promises ignore later invoices, email-code guesses charged to the account limit, MFA redirect kept in mutation routes, full-payload replay checks, plus smaller fixes and doc corrections (migration `202610160012_review_hardening.sql`). Verified locally (TypeScript, 174 tests, build) and as an upgrade on a local PostgreSQL 16. Not verified live.
+- [x] Automated review round (cubic, 2026-11-04): agent sessions bound to their run's entity, disabled agents cannot claim, stale queued runs expire, account promises ignore later invoices, email-code guesses charged to the account limit, MFA redirect kept in mutation routes, full-payload replay checks, plus smaller fixes and doc corrections (migration `202610160012_review_hardening.sql`). Verified locally (TypeScript, 175 tests, build) and as an upgrade on a local PostgreSQL 16. Not verified live.
 
 ## In progress
 

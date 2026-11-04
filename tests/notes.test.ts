@@ -145,6 +145,9 @@ test("credit and debit notes in PostgreSQL", async t => {
       const approver = renderToStaticMarkup(createElement(NotesView, { data: { ...base, role: "approver" } as Snapshot, notes, shortPayments: [], userId: id(2) }));
       assert.match(approver, /not tax documents/); assert.match(approver, /proposed by the cash application agent/); assert.match(approver, />Approve</);
       assert.match(approver, /CN-3/); assert.doesNotMatch(approver, /invoice changed after this note was proposed/, "no stale-invoice warning on rejected or posted notes");
+      const stale = { ...notes.find(note => note.reference === "CN-3")!, status: "approved" as const, invoice_current: false };
+      const staleHtml = renderToStaticMarkup(createElement(NotesView, { data: { ...base, role: "approver" } as Snapshot, notes: [stale], shortPayments: [], userId: id(2) }));
+      assert.match(staleHtml, /invoice changed after this note was proposed\. Withdraw it/, "an approved credit note on a changed invoice is flagged");
       const viewer = renderToStaticMarkup(createElement(NotesView, { data: { ...base, role: "viewer" } as Snapshot, notes, shortPayments: [], userId: id(3) }));
       assert.doesNotMatch(viewer, />Approve</); assert.doesNotMatch(viewer, /Post credit note/); assert.doesNotMatch(viewer, /Submit for approval/);
     });
