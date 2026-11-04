@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
     }
     const result = await auth.client.rpc("set_customer_segments", { p_tenant: data.tenant, p_entity: data.entity, p_id: data.id, p_rows: rows });
     message = result.error ? (/Forbidden/.test(result.error.message) ? "forbidden" : /Unknown customer account/.test(result.error.message) ? "invalid_import" : "failed") : "confirmed";
-  } catch {
+  } catch (error) {
+    console.error("Customer segment command failed", error instanceof Error ? error.message : error);
     /* message already set */
   }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));

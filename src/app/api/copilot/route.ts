@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { aiDependencies } from "@/lib/ai/server";
 import { dubaiDate } from "@/lib/ai/config";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (body instanceof Response) return body;
   let data: z.infer<typeof input>;
   try { data = input.parse(await body.json()); } catch { return json(400, { error: "Invalid request" }); }
-  const auth = await access(); if (!auth) return json(401, { error: "Sign in again" });
+  const auth = await routeAccess(); if (auth === "mfa") return json(401, { error: "Verify your authenticator code to continue" }); if (!auth) return json(401, { error: "Sign in again" });
   const membership = auth.memberships.find(row => row.tenant_id === data.tenant); if (!membership) return json(403, { error: "Forbidden" });
   const limited = await apiLimit(auth.user.id, "copilot"); if (limited) return limited;
   const deps = aiDependencies(); const config = deps.config; const call = deps.call;

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { apiLimit } from "@/lib/api-limiter";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { XLSX_TYPE, readXlsx } from "@/lib/xlsx-read";
 import { parseCsv } from "@/lib/imports";
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return json(403, { error: "Forbidden" });
   const body = await boundedFormRequest(request, 2_200_000);
   if (body instanceof Response) return body;
-  const auth = await access(); if (!auth) return json(401, { error: "Sign in again" });
+  const auth = await routeAccess(); if (auth === "mfa") return json(401, { error: "Verify your authenticator code to continue" }); if (!auth) return json(401, { error: "Sign in again" });
   const limited = await apiLimit(auth.user.id, "copilot"); if (limited) return limited;
   try {
     const form = await body.formData(); const parsed = scope.safeParse({ tenant: form.get("tenant"), entity: form.get("entity") });

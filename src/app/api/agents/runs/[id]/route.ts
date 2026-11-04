@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 export const maxDuration = 300;
 const query = z.object({ tenant: z.uuid(), entity: z.uuid(), after: z.coerce.number().int().min(0).max(1000).default(0) });
 const terminal = new Set(["succeeded", "failed", "awaiting_approval"]);
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const parsed = query.safeParse(Object.fromEntries(request.nextUrl.searchParams));
   if (!z.uuid().safeParse(id).success || !parsed.success) return new Response("Invalid request", { status: 400 });
-  const auth = await access(); if (!auth) return new Response("Unauthorized", { status: 401 });
+  const auth = await routeAccess(); if (auth === "mfa") return new Response("Authenticator verification required", { status: 401 }); if (!auth) return new Response("Unauthorized", { status: 401 });
   const { tenant, entity } = parsed.data; let after = parsed.data.after;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

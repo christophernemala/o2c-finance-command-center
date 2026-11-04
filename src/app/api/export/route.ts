@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
       fileName = `O2C-daily-collections-${asOf}.xlsx`;
     } else bytes = buildWorkbookBytes(receivablesReport(await snapshot(tenant, entity, asOf, 0)));
     return new NextResponse(new Uint8Array(bytes).buffer, { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-  } catch {
+  } catch (error) {
+    console.error("Export failed", error instanceof Error ? error.message : error);
     return new NextResponse("Export unavailable", { status: 503 });
   }
 }

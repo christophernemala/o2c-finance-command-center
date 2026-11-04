@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { access } from "@/lib/workspace";
+import { routeAccess } from "@/lib/workspace";
 import { apiLimit } from "@/lib/api-limiter";
 import { dubaiDate } from "@/lib/ai/config";
 import { statementPdf, validateStatement } from "@/lib/statements/pdf";
 /** Open-items statement PDF for one customer, built from the ledger under the signed-in user's RLS scope. */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ customerId: string }> }) {
-  const auth = await access(); if (!auth) return new Response("Unauthorized", { status: 401 });
+  const auth = await routeAccess(); if (auth === "mfa") return new Response("Authenticator verification required", { status: 401 }); if (!auth) return new Response("Unauthorized", { status: 401 });
   const query = z.object({ tenant: z.uuid(), entity: z.uuid() }).safeParse(Object.fromEntries(request.nextUrl.searchParams));
   const customer = z.uuid().safeParse((await params).customerId);
   if (!query.success || !customer.success) return new Response("Invalid request", { status: 400 });

@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
       result = await auth.client.rpc("resolve_agent_incident", { ...scope, p_id: data.id });
     }
     destination.searchParams.set("message", result.error ? (/Forbidden|Independent/.test(result.error.message) ? "forbidden" : "failed") : "confirmed");
-  } catch {
+  } catch (error) {
+    console.error("Agent command failed", error instanceof Error ? error.message : error);
     destination.searchParams.set("message", "failed");
   }
   destination.searchParams.set("nonce", randomUUID().slice(0, 8));
