@@ -23,6 +23,9 @@ export function anthropicCaller(apiKey: string): ModelCaller {
   };
 }
 
+/** An audit-trail write failed. It ends the run instead of being shown to the model as a tool error. */
+export class PersistenceError extends Error {}
+
 const MAX_RESULT_CHARS = 60_000;
 export function serializeResult(value: unknown) {
   const json = JSON.stringify(value ?? null);
@@ -57,7 +60,11 @@ export async function runLoop(options: {
       cache_control: { type: "ephemeral" },
       system: [{ type: "text", text: options.system }],
       tools: definitions, tool_choice: { type: "auto" }, messages: options.messages,
-    }, options.onText, signal); } catch (error) { if (signal?.aborted) return timedOut(turn); throw error; }
+    }, options.onText, signal); } catch (error) {
+      if (signal?.aborted) return timedOut(turn);
+      // Return the usage of earlier turns so the run record keeps their tokens and cost.
+      return { status: "failed", text: finalText, error: `The model call failed: ${error instanceof Error ? error.message.slice(0, 300) : "unknown error"}`, usage, model: served, turns: turn };
+    }
     served = message.model;
     usage.input += message.usage.input_tokens; usage.output += message.usage.output_tokens;
     usage.cacheRead += message.usage.cache_read_input_tokens ?? 0; usage.cacheWrite += message.usage.cache_creation_input_tokens ?? 0;
@@ -90,7 +97,11 @@ export async function runLoop(options: {
         const parsed = entry.schema.safeParse(use.input);
         if (!parsed.success) throw new Error(`Invalid input: ${parsed.error.issues.map(issue => `${issue.path.join(".") || "input"} ${issue.message}`).join("; ")}`);
         output = await entry.run(parsed.data, options.context);
-      } catch (error) { ok = false; output = { error: error instanceof Error ? error.message : "Tool failed" }; }
+      } catch (error) {
+        // A tool whose effect committed but whose audit record failed must not look like a failed tool.
+        if (error instanceof PersistenceError) throw error;
+        ok = false; output = { error: error instanceof Error ? error.message : "Tool failed" };
+      }
       const duration = Date.now() - started;
       await options.onEvent({ type: "tool_result", id: use.id, tool: use.name, ok, output, duration_ms: duration });
       results.push({ type: "tool_result", tool_use_id: use.id, content: serializeResult(output), ...(ok ? {} : { is_error: true }) });

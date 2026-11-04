@@ -94,7 +94,7 @@ export const tools: AgentTool[] = [
   tool({
     name: "propose_credit_note", writes: true, actors: ["agent"],
     description: "Propose a credit note that clears a short-payment remainder on one invoice (reason short_payment or bank_charges). The amount may not exceed the invoice open amount. reference is a placeholder of the form 'CN-pending-' plus the invoice number, e.g. 'CN-pending-INV-1001'; the approver replaces it with the credit note number issued in the ERP, and a placeholder can never post. Creates a pending note for an independent human approver; it never posts.",
-    schema: z.strictObject({ customer_id: uuid, invoice_id: uuid, amount: decimal, reason: z.enum(["short_payment", "bank_charges"]), reference: z.string().min(1).max(60), memo: z.string().min(10).max(1000) }),
+    schema: z.strictObject({ customer_id: uuid, invoice_id: uuid, amount: decimal, reason: z.enum(["short_payment", "bank_charges"]), reference: z.string().regex(/^CN-pending-[A-Za-z0-9._\/-]{1,48}$/), memo: z.string().min(10).max(1000) }),
     async run(input, context) {
       const id = randomUUID();
       await call(context, "propose_adjustment_note", { p_id: id, p_kind: "credit", p_customer: input.customer_id, p_invoice: input.invoice_id, p_amount: positiveAmount(input.amount),
@@ -162,10 +162,13 @@ export const tools: AgentTool[] = [
   }),
   tool({
     name: "place_credit_hold", writes: true, actors: ["agent"],
-    description: "Propose a credit hold on a customer with a reason citing the overdue amounts and days from tool results. The hold takes effect only when a human approver approves it; only a human can release it. Returns the existing hold or pending proposal if one is already open.",
+    description: "Propose a credit hold on a customer with a reason citing the overdue amounts and days from tool results. The hold takes effect only when a human approver approves it; only a human can release it. Reports an existing active hold or pending proposal instead of proposing again.",
     schema: z.strictObject({ customer_id: uuid, reason: z.string().min(5).max(500) }),
     async run(input, context) {
-      const id = await call(context, "place_customer_hold", { p_id: randomUUID(), p_customer: input.customer_id, p_reason: input.reason });
+      const requested = randomUUID();
+      const id = await call(context, "place_customer_hold", { p_id: requested, p_customer: input.customer_id, p_reason: input.reason });
+      // Another id back means a hold is already in force or a proposal is already pending; nothing new was created.
+      if (id !== requested) return { existing_id: id, note: "This customer already has an active credit hold or a pending hold proposal. Nothing new was proposed." };
       await context.record?.("proposal", { kind: "credit_hold", hold_proposal_id: id, customer_id: input.customer_id, reason: input.reason });
       return { hold_proposal_id: id, note: "Pending human approval. No hold is in effect yet." };
     },

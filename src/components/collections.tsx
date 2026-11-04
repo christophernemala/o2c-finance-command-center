@@ -94,7 +94,7 @@ function CustomerPanel({ data, account, userId, remarks, holdProposal }: { data:
 
       <section aria-labelledby="remarks-h"><h3 id="remarks-h" className="font-semibold">Remarks</h3>
         {["maker", "approver", "admin"].includes(data.role) && <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="remark_add"/><input type="hidden" name="id" value={randomUUID()}/>
-          <div className="grid gap-3 sm:grid-cols-2"><label>Outcome<select name="reason" defaultValue="no_answer">{remarkReasons.map(reason => <option key={reason} value={reason}>{reasonLabel[reason]}</option>)}</select></label>
+          <div className="grid gap-3 sm:grid-cols-2"><label>Outcome<select name="reason" defaultValue="no_answer">{remarkReasons.filter(reason => reason !== "promised" || maker).map(reason => <option key={reason} value={reason}>{reasonLabel[reason]}</option>)}</select></label>
             <label>Channel<select name="channel" defaultValue="call">{remarkChannels.map(channel => <option key={channel} value={channel}>{channelLabel[channel]}</option>)}</select></label></div>
           <label>Note<textarea name="note" required minLength={3} maxLength={1000} rows={3}/></label>
           <div className="grid gap-3 sm:grid-cols-2"><label>Next follow-up<input name="next" type="date" min={data.as_of}/></label>

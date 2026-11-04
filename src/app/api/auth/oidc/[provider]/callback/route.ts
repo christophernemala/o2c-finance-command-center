@@ -22,7 +22,8 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{provider
   const claims=tokens.claims();if(!claims)throw new Error("Missing identity");
   const external=validateProviderClaims(provider,claims,settings.issuer);
   const client=await createClient();const signed=await client.auth.signInWithExternal(external,flow.link_session_hash);
-  if(signed.error){target.pathname="/signup";target.search="?error=link";}
+  // A link started from Account security returns there; an invitation or signed-out flow returns to /signup.
+  if(signed.error){target.pathname=flow.link_session_hash?"/auth/security":"/signup";target.search="?error=link";}
   else{
    const mfa=await authenticationAssurance(client)==="mfa";target.pathname=mfa?"/auth/verify":"/";target.search="";
    // A successful sign-in frees its rate-limit slot, so repeat sign-ins from one office address are not locked out.

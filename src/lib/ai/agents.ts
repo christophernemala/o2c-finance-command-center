@@ -40,9 +40,9 @@ Never propose the same bank line or receipt twice in one run.`,
   credit_risk: {
     kind: "credit_risk", name: "Credit risk agent", maxTurns: 12,
     summary: "Screens concentration, severe aging, limit breaches and broken promises, and proposes credit holds that a human approver activates and releases.",
-    tools: ["get_ar_kpi_pack", "get_collections_worklist", "get_customer_account", "place_credit_hold", "record_finding"],
+    tools: ["get_ar_kpi_pack", "get_collections_worklist", "get_outstanding_breakdown", "get_customer_account", "place_credit_hold", "record_finding"],
     goal: `Goal: credit risk screening.
-1. Call get_ar_kpi_pack and get_collections_worklist.
+1. Call get_ar_kpi_pack, get_collections_worklist (customers with overdue AR) and get_outstanding_breakdown with dimension customer (every customer with open AR, including fully current accounts).
 2. Flag concentration: any customer above 20% of open AR (record_finding warning; above 35% critical).
 3. Propose a credit hold with place_credit_hold when a customer is not already on hold and either has an invoice over 90 days past due, or has open AR above an active credit_limit, or has two or more broken promises. The reason must cite the amounts, days and limit from tool results. Customers 61-90 days past due get a warning finding only.
 4. Flag disputed exposure above 10% of open AR.

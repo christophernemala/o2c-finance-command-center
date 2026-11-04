@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { apiLimit } from "@/lib/api-limiter";
 import { NextRequest, NextResponse } from "next/server";
 import { access, snapshot } from "@/lib/workspace";
@@ -6,6 +7,8 @@ import { receivablesReport } from "@/lib/receivables-report";
 import { arPackWorkbook, validateArPack } from "@/lib/ar-pack";
 import { entities } from "@/lib/workspace";
 import { dailyPackWorkbook, validateDailyPack } from "@/lib/daily-pack";
+// Only an authorization refusal is a 403; anything else (an outage, a bad date) is a 503 so it is not mistaken for missing access.
+const failure = (message: string) => /Forbidden/.test(message) ? new NextResponse("Forbidden", { status: 403 }) : new NextResponse("Export unavailable", { status: 503 });
 export async function GET(request: NextRequest) {
   try {
     const auth = await access(); if (!auth) return new NextResponse("Unauthorized", { status: 401 });
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
     let bytes: Uint8Array; let fileName = "O2C-receivables-report.xlsx";
     if (request.nextUrl.searchParams.get("report") === "pack") {
       const result = await auth.client.rpc("report_ar_pack", { p_tenant: tenant, p_entity: entity, p_as_of: asOf });
-      if (result.error) return new NextResponse("Forbidden", { status: 403 });
+      if (result.error) return failure(result.error.message);
       const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";
       bytes = buildWorkbookBytes(arPackWorkbook(validateArPack(result.data), name)); fileName = `O2C-AR-pack-${asOf}.xlsx`;
     } else if (request.nextUrl.searchParams.get("report") === "daily") {
@@ -26,11 +29,14 @@ export async function GET(request: NextRequest) {
         auth.client.rpc("remarks_logged", { ...scope, p_date: asOf }), auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf }),
         auth.client.rpc("outstanding_breakdown", { ...scope, p_as_of: asOf, p_dimension: "category", p_category: null, p_region: null }),
         auth.client.rpc("outstanding_breakdown", { ...scope, p_as_of: asOf, p_dimension: "region", p_category: null, p_region: null })]);
-      if ([callList, followUps, licences, remarks, worklist, byCategory, byRegion].some(result => result.error)) return new NextResponse("Forbidden", { status: 403 });
+      if ([callList, followUps, licences, remarks, worklist, byCategory, byRegion].some(result => result.error)) return failure([callList, followUps, licences, remarks, worklist, byCategory, byRegion].find(result => result.error)!.error!.message);
       const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";
       bytes = buildWorkbookBytes(dailyPackWorkbook(validateDailyPack({ as_of: asOf, entity: name, callList: callList.data, followUps: followUps.data, licences: licences.data, remarks: remarks.data, worklist: worklist.data, byCategory: byCategory.data, byRegion: byRegion.data })));
       fileName = `O2C-daily-collections-${asOf}.xlsx`;
     } else bytes = buildWorkbookBytes(receivablesReport(await snapshot(tenant, entity, asOf, 0)));
     return new NextResponse(new Uint8Array(bytes).buffer, { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
-  } catch { return new NextResponse("Export unavailable", { status: 503 }); }
+  } catch (error) {
+    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+    return new NextResponse("Export unavailable", { status: 503 });
+  }
 }

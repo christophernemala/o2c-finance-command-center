@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { after, NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -66,7 +67,10 @@ export async function POST(request: NextRequest) {
     else if (data.intent === "licence_add") result = await auth.client.rpc("add_trade_licence", { ...s, p_id: data.id, p_customer: data.customer, p_number: data.number, p_authority: data.authority, p_expiry: data.expiry });
     else result = await auth.client.rpc("release_customer_hold", { ...s, p_id: data.id, p_reason: data.reason });
     destination.searchParams.set("message", result.error ? (/Forbidden|Independent/.test(result.error.message) ? "forbidden" : /Stale evidence/.test(result.error.message) ? "stale" : "failed") : "confirmed");
-  } catch { destination.searchParams.set("message", "failed"); }
+  } catch (error) {
+    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+    destination.searchParams.set("message", "failed");
+  }
   destination.searchParams.set("nonce", randomUUID().slice(0, 8));
   return NextResponse.redirect(destination, { status: 303, headers: { "Cache-Control": "no-store" } });
 }

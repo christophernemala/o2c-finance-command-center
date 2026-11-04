@@ -30,7 +30,10 @@ export async function deliverApproved(pool: SqlPool, send: Sender | ChannelSende
       outcome = await sender({ to: message.to, subject: message.subject, text: message.body, attachments }, message.id);
     } catch (error) { outcome = { ok: false, error: error instanceof Error ? error.message.slice(0, 300) : "Delivery failed" }; }
     try { await control.completeMessage(message.id, message.attempts, outcome.ok, outcome.ok ? outcome.id : null, outcome.ok ? null : outcome.error); }
-    catch { /* The claim was reclaimed or the database is unavailable; the stale-claim sweep recovers it. */ }
+    catch (error) {
+      // The stale-claim sweep marks the message failed; keep the provider id in the logs so it can be reconciled.
+      console.error("Collections message completion not recorded", { id: message.id, channel: message.channel, accepted: outcome.ok, provider_id: outcome.ok ? outcome.id : null, error: error instanceof Error ? error.message : error });
+    }
     if (outcome.ok) sent++; else failed++;
   }
   return { claimed: claimed.length, sent, failed, configured: true };

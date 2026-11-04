@@ -3,7 +3,7 @@ import type { SqlPool } from "../postgres/transaction";
 import { newToken, tokenHash } from "../auth/crypto";
 import type { AiConfig } from "./config";
 import { agentDefinitions, agentKickoff, agentSystemPrompt } from "./agents";
-import { runLoop, serializeResult, type ModelCaller } from "./loop";
+import { PersistenceError, runLoop, serializeResult, type ModelCaller } from "./loop";
 import { usageCost } from "./pricing";
 import { tools, type ToolContext } from "./tools";
 import { parseGuardrails } from "./guardrails";
@@ -25,17 +25,19 @@ export async function executeRun(runId: string, deps: { pool: SqlPool; config: A
     const result = await client.rpc("agent_record_step", { ...scope, p_type: type, p_tool: tool, p_detail: detail, p_duration: duration });
     if (result.error) throw new Error(`Step not recorded: ${result.error.message}`);
   };
-  const finish = (status: "succeeded" | "failed", summary: string, extra: { model?: string; input?: number; output?: number; cacheRead?: number; cost?: string | null; error?: string } = {}) =>
-    client.rpc("agent_finish_run", { ...scope, p_status: status, p_summary: summary || null, p_model: extra.model ?? null, p_input_tokens: extra.input ?? 0,
+  const finish = async (status: "succeeded" | "failed", summary: string, extra: { model?: string; input?: number; output?: number; cacheRead?: number; cost?: string | null; error?: string } = {}) => {
+    const result = await client.rpc("agent_finish_run", { ...scope, p_status: status, p_summary: summary || null, p_model: extra.model ?? null, p_input_tokens: extra.input ?? 0,
       p_output_tokens: extra.output ?? 0, p_cache_read_tokens: extra.cacheRead ?? 0, p_cost: extra.cost ?? null, p_error: extra.error ?? null });
+    if (result.error) throw new Error(`Run not finished: ${result.error.message}`);
+  };
   const definition = agentDefinitions[run.kind];
   if (!deps.config || !deps.call) {
     await step("error", null, { message: "AI provider not configured. Set ANTHROPIC_API_KEY on the server." }).catch(() => {});
-    await finish("failed", "", { error: "AI provider not configured" });
+    await finish("failed", "", { error: "AI provider not configured" }).catch(() => {});
     return run;
   }
   const context: ToolContext = { client, tenant: run.tenant_id, entity: run.entity_id, asOf: run.as_of, actor: "agent", runId: run.id, findings: [],
-    record: (type, detail) => step(type, null, detail) };
+    record: (type, detail) => step(type, null, detail).catch(error => { throw new PersistenceError(error instanceof Error ? error.message : "Step not recorded"); }) };
   try {
     // Fail closed: a run never proceeds without the entity's guardrails loaded.
     const active = await client.rpc("agent_guardrails_active", { p_tenant: run.tenant_id, p_entity: run.entity_id, p_agent_kind: run.kind });

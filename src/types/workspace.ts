@@ -14,7 +14,7 @@ export interface Approval {
   id: string; kind: "receipt" | "allocation"; amount: string; maker: string;
   approver: string | null; status: "pending" | "approved" | "rejected" | "posted";
   invoice_id: string | null; receipt_id: string | null; bank_line_id: string | null;
-  customer_id: string | null; evidence: string; created_at: string; version: number;
+  customer_id: string | null; evidence: string; created_at: string; version: number; agent_run_id?: string | null;
   captured_versions: { invoice: number | null; receipt: number | null; bank_line: number | null };
   source_records: {
     customer: { id: string; name: string; account: string } | null;

@@ -12,4 +12,8 @@ test("provider claims require stable subjects and Google-verified email; Microso
  assert.deepEqual(validateProviderClaims("google",{iss:"https://accounts.google.com",sub:"subject",email:"USER@example.com",email_verified:true}),{issuer:"https://accounts.google.com",subject:"subject",email:"user@example.com",provider:"google"});
  assert.throws(()=>validateProviderClaims("google",{iss:"https://accounts.google.com",sub:"subject",email:"user@example.com",email_verified:false}));
  assert.throws(()=>validateProviderClaims("google",{iss:"https://evil.example",sub:"subject",email:"user@example.com",email_verified:true}));
+ const tenant="https://login.microsoftonline.com/11111111-1111-4111-8111-111111111111/v2.0";
+ assert.deepEqual(validateProviderClaims("microsoft",{iss:tenant,sub:"ms-subject",preferred_username:"User@Example.com"},tenant),{issuer:tenant,subject:"ms-subject",email:"user@example.com",provider:"microsoft"});
+ assert.throws(()=>validateProviderClaims("microsoft",{iss:"https://login.microsoftonline.com/other/v2.0",sub:"ms-subject",email:"user@example.com"},tenant),/Invalid provider identity/);
+ assert.throws(()=>validateProviderClaims("microsoft",{iss:tenant,sub:"ms-subject",email:"user@example.com"}),/Invalid provider identity/,"no configured tenant issuer, no sign-in");
 });

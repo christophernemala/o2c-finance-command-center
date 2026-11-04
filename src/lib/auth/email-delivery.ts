@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 const address=/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
 export function emailDeliverySettings(env:Record<string,string|undefined>=process.env){
- const from=env.AUTH_EMAIL_FROM??env.SMTP_FROM;
+ const from=env.AUTH_EMAIL_FROM||env.SMTP_FROM; // an empty AUTH_EMAIL_FROM falls through to SMTP_FROM
  if(!from||/[\r\n]/.test(from)||!address.test(from.match(/<([^<>]+)>$/)?.[1]??from))return null;
  if(env.RESEND_API_KEY)return {kind:'resend' as const,from,key:env.RESEND_API_KEY};
  const host=env.SMTP_HOST;const port=Number(env.SMTP_PORT);const mode=env.SMTP_MODE?.toLowerCase();

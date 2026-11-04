@@ -13,7 +13,9 @@ export function validateStatement(value: unknown): StatementData {
     || !["invoice", "debit_note"].includes(line.document_type)) throw new Error("Statement unavailable");
   return data;
 }
-const ascii = (value: string) => value.normalize("NFKD").replace(/[^\x20-\x7E]/g, "?"); // standard PDF fonts cover Latin-1 only
+// Standard PDF fonts use WinAnsi (Latin-1), so accented Latin letters stay as they are and only characters
+// outside it (for example Arabic script) are replaced. NFC keeps "é" as one character instead of e + mark.
+const ascii = (value: string) => value.normalize("NFC").replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
 const money = (value: string) => ascii(formatAed(value));
 const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
 
@@ -45,6 +47,7 @@ export async function statementPdf(input: StatementData): Promise<Uint8Array> {
     y -= detail ? 26 : 18;
   }
   if (!input.lines.length) { text(page, "No open invoices.", 48, y, regular, 9, muted); y -= 18; }
+  if (y < 110) { page = pdf.addPage([595.28, 841.89]); y = 790; header(); } // keep the totals clear of the footer
   y -= 4; page.drawLine({ start: { x: 298, y: y + 10 }, end: { x: 548, y: y + 10 }, thickness: 0.75, color: line });
   text(page, "Total open", 298, y - 4, bold, 10); text(page, money(input.total_open), 458, y - 4, bold, 10, ink, true, 90);
   text(page, "Of which overdue", 298, y - 20, regular, 9, muted); text(page, money(input.total_overdue), 458, y - 20, regular, 9, muted, true, 90);

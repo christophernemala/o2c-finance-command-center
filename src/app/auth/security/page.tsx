@@ -19,7 +19,7 @@ export default async function Security({ searchParams }: { searchParams: Promise
   // Read an existing pending factor; a GET never creates or changes security settings.
   const pending = factors.data.totp.some(factor => factor.status === "unverified") ? await client.auth.mfa.pendingFactor() : null;
   return <AuthShell><h1 className="text-3xl font-semibold">Account security</h1>
-    {params.error && <p role="alert" className="mt-5 text-danger">The authenticator could not be verified. Try the current code.</p>}
+    {params.error && <p role="alert" className="mt-5 text-danger">{params.error === "link" ? "That provider account could not be connected. Use a provider account with the same work email, or one not already linked to another user." : "The authenticator could not be verified. Try the current code."}</p>}
     {verified ? <p role="status" className="mt-5 text-success">Authenticator verification is enabled for your account. You’ll need its code when you sign in.</p>
       : pending?.data ? <><p className="mt-5 leading-6 text-muted">In your authenticator app, add a new account using this setup key. Keep it private.</p>
         <code className="mt-4 block break-all rounded bg-surface-muted p-4">{pending.data.secret}</code>

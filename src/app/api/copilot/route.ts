@@ -43,9 +43,12 @@ export async function POST(request: NextRequest) {
             return { name: value.name, mediaType: value.media_type, bytes: new Uint8Array(Buffer.from(value.content_base64, "base64")) };
           },
         });
-        const text = result.text || (result.error ? `I could not complete this answer: ${result.error}` : "No answer was produced.");
-        await auth.client.rpc("copilot_append", { ...scope, p_thread: data.thread, p_role: "assistant", p_content: text, p_trace: result.trace });
-        emit(result.status === "failed" && !result.text ? { type: "error", message: text } : { type: "done", text });
+        // A failed run keeps any partial text but always says why it stopped.
+        const note = result.status === "failed" ? `I could not complete this answer: ${result.error ?? "the run stopped"}` : null;
+        const text = result.text ? (note ? `${result.text}\n\n${note}` : result.text) : note ?? "No answer was produced.";
+        const stored = await auth.client.rpc("copilot_append", { ...scope, p_thread: data.thread, p_role: "assistant", p_content: text, p_trace: result.trace });
+        if (stored.error) emit({ type: "error", message: "The answer could not be saved to this conversation. Ask again to get a saved answer." });
+        else emit(result.status === "failed" && !result.text ? { type: "error", message: text } : { type: "done", text });
       } catch { emit({ type: "error", message: "The copilot is unavailable right now. Your question was saved; try again shortly." }); }
       controller.close();
     },

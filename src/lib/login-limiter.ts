@@ -10,6 +10,18 @@ export function sealReservation(ticket: Ticket, secret: string): string {
   const payload = Buffer.from(JSON.stringify(ticket)).toString("base64url");
   return `${payload}.${createHmac("sha256", secret).update(payload).digest("base64url")}`;
 }
+/** Sign a short value (for example the email a code was sent to) so a cookie cannot be swapped. */
+export function sealValue(value: string, secret: string): string {
+  const payload = Buffer.from(value).toString("base64url");
+  return `${payload}.${createHmac("sha256", secret).update(`value:${payload}`).digest("base64url")}`;
+}
+export function openValue(sealed: string | undefined, secret: string): string | null {
+  if (!sealed || sealed.length > 1024) return null;
+  const [payload, tag, extra] = sealed.split("."); if (!payload || !tag || extra) return null;
+  const actual = Buffer.from(tag, "base64url"); const expected = createHmac("sha256", secret).update(`value:${payload}`).digest();
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  return Buffer.from(payload, "base64url").toString();
+}
 export function openReservation(value: string | undefined, secret: string): Ticket | null {
   try {
     if (!value || value.length > 1024) return null;

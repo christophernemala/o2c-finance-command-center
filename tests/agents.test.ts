@@ -115,12 +115,12 @@ test("agent runtime controls in PostgreSQL", async t => {
       assert.equal(open, "11900.50");
     });
 
-    await t.test("over-limit, inexact and daily-cap breaches stay pending for a human", async () => {
+    await t.test("over-limit and daily-cap breaches stay pending for a human", async () => {
       await asAgent(agentSession);
       await db.query("select public.propose_action($1,$2,$3,'receipt','9000.00','AI agent: exact reference INV-4',null,null,$4,$5)", [T, E, id(202), id(52), id(31)]);
       assert.match((await db.query<{ v: { reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(202)])).rows[0].v.reason, /per-item/);
       await db.query("select public.propose_action($1,$2,$3,'receipt','400.00','AI agent: amount-only match INV-3',null,null,$4,$5)", [T, E, id(203), id(51), id(31)]);
-      assert.match((await db.query<{ v: { reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(203)])).rows[0].v.reason, /Daily|exact/);
+      assert.equal((await db.query<{ v: { reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(203)])).rows[0].v.reason, "Daily auto-execution limit reached");
       const pending = await db.query("select id from public.approvals where status='pending'");
       assert.equal(pending.rows.length, 2);
       // A human approver can still approve agent proposals; the agent is the maker.

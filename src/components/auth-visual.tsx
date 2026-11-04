@@ -27,10 +27,11 @@ export function AuthVisual(){
     const nodes:Mesh[]=[];for(let i=0;i<3;i++){const node=new T.Mesh(new T.OctahedronGeometry(.18),blue);orbit.add(node);nodes.push(node);}
     const robot=new T.Group();robot.position.set(2.2,.65,0);const head=new T.Mesh(new T.BoxGeometry(.65,.52,.45),white);robot.add(head);
     for(const x of [-.15,.15]){const eye=new T.Mesh(new T.SphereGeometry(.055,12,12),blue);eye.position.set(x,.03,.24);robot.add(eye);}scene.add(robot);
-    const resize=()=>{const width=canvas.current?.clientWidth??400,height=canvas.current?.clientHeight??360;renderer.setSize(width,height,false);camera.aspect=width/Math.max(height,1);camera.updateProjectionMatrix();};resize();window.addEventListener("resize",resize);
+    const resize=()=>{const width=canvas.current?.clientWidth??400,height=canvas.current?.clientHeight??360;renderer.setSize(width,height,false);camera.aspect=width/Math.max(height,1);camera.updateProjectionMatrix();};resize();
     let frame=0;const draw=(time:number)=>{if(disposed)return;const t=paused||reduced?0:time*.00025;bank.rotation.y=-.2+Math.sin(t)*.1;robot.position.y=.65+Math.sin(t*2)*.12;nodes.forEach((n,i)=>{const a=t+i*Math.PI*2/3;n.position.set(Math.cos(a)*2.65,Math.sin(a)*.65,Math.sin(a)*1.7);});renderer.render(scene,camera);if(!paused&&!reduced&&!document.hidden)frame=requestAnimationFrame(draw);};
-    const visibility=()=>{cancelAnimationFrame(frame);if(!document.hidden)draw(performance.now());};document.addEventListener("visibilitychange",visibility);draw(0);setReady(true);
-    cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",resize);document.removeEventListener("visibilitychange",visibility);scene.traverse(object=>{if(object instanceof T.Mesh)object.geometry.dispose();});white.dispose();blue.dispose();renderer.dispose();};
+    const visibility=()=>{cancelAnimationFrame(frame);if(!document.hidden)draw(performance.now());};// setSize clears the canvas, so redraw after a resize even when the loop is idle (paused or reduced motion).
+    const onResize=()=>{resize();cancelAnimationFrame(frame);draw(performance.now());};window.addEventListener("resize",onResize);document.addEventListener("visibilitychange",visibility);draw(0);setReady(true);
+    cleanup=()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",onResize);document.removeEventListener("visibilitychange",visibility);scene.traverse(object=>{if(object instanceof T.Mesh)object.geometry.dispose();});white.dispose();blue.dispose();renderer.dispose();};
    }catch{/* The SVG remains visible when WebGL is unavailable. */}
   }).catch(()=>{ /* Keep the static bank illustration if the graphics chunk cannot load. */ });
   return()=>{disposed=true;cleanup();};

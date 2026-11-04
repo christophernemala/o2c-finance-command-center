@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { after, NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -51,7 +52,9 @@ export async function POST(request: NextRequest) {
       if (!result.error) {
         const runId = data.id;
         // The response returns immediately; the run continues after it and streams steps from PostgreSQL.
-        after(async () => { await executeRun(runId, aiDependencies()).catch(() => {}); });
+        // Same budget as the cron batch, so the platform's maxDuration never cuts a run off mid-loop.
+        const deadline = Date.now() + 240_000;
+        after(async () => { await executeRun(runId, aiDependencies(), { deadline }).catch(error => { console.error("Manual agent run failed", runId, error instanceof Error ? error.message : error); }); });
         destination.searchParams.set("run", runId);
       }
     } else if (data.intent === "schedule") result = await auth.client.rpc("set_agent_schedule", { ...scope, p_kind: data.kind, p_cadence: data.cadence });
@@ -78,7 +81,10 @@ export async function POST(request: NextRequest) {
       result = await auth.client.rpc("resolve_agent_incident", { ...scope, p_id: data.id });
     }
     destination.searchParams.set("message", result.error ? (/Forbidden|Independent/.test(result.error.message) ? "forbidden" : "failed") : "confirmed");
-  } catch { destination.searchParams.set("message", "failed"); }
+  } catch (error) {
+    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+    destination.searchParams.set("message", "failed");
+  }
   destination.searchParams.set("nonce", randomUUID().slice(0, 8));
   return NextResponse.redirect(destination, { status: 303, headers: { "Cache-Control": "no-store" } });
 }

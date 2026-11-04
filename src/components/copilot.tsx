@@ -12,6 +12,7 @@ const suggestions = [
 const toolNames: Record<string, string> = { get_ar_overview: "AR position", list_invoices: "invoices", get_cash_match_candidates: "cash matching", get_ar_kpi_pack: "KPI pack", read_uploaded_file: "uploaded file", propose_receipt: "receipt proposal", propose_allocation: "allocation proposal" };
 
 /** Streams answers from /api/copilot. Nothing is stored in browser storage; history lives in PostgreSQL. */
+const MAX_FILES = 5; // matches the /api/copilot files limit
 export function Copilot({ tenant, entity, thread, initial, aiReady }: { tenant: string; entity: string; thread: string; initial: Turn[]; aiReady: boolean }) {
   const [turns, setTurns] = useState<Turn[]>(initial);
   const [draft, setDraft] = useState(""); const [busy, setBusy] = useState(false);
@@ -46,6 +47,7 @@ export function Copilot({ tenant, entity, thread, initial, aiReady }: { tenant: 
     finally { setBusy(false); }
   }
   async function upload(file: File) {
+    if (files.length >= MAX_FILES) { setNotice(`Attach at most ${MAX_FILES} files to one question.`); if (fileInput.current) fileInput.current.value = ""; return; }
     setUploading(true); setNotice("");
     const form = new FormData(); form.set("tenant", tenant); form.set("entity", entity); form.set("file", file);
     try {

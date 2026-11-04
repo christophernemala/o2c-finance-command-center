@@ -8,7 +8,8 @@ export function compareFields(toolName: string, input: Record<string, unknown> |
   const required = new Set(schema.required ?? []);
   return Object.entries(schema.properties ?? {}).map(([name, spec]) => {
     const types = spec.enum ? `one of ${spec.enum.join(", ")}` : [spec.type, ...(spec.anyOf ?? []).map(option => option.type)].flat().filter(Boolean).join(" or ") || "value";
-    const value = input?.[name]; const absent = value === undefined || value === null || value === "";
+    // null is the documented "none" value for nullable fields, so only an omitted key counts as missing.
+    const value = input?.[name]; const absent = value === undefined;
     const sent = absent ? null : (typeof value === "string" ? value : JSON.stringify(value)).slice(0, 200);
     const flagged = error !== null && new RegExp(`\\b${name}\\b`).test(error);
     return { name, expected: types, required: required.has(name), sent, status: absent && required.has(name) ? "missing" : flagged ? "invalid" : "match" };

@@ -25,7 +25,7 @@ export async function schemaMarkdown(): Promise<string> {
       "# Database schema", "",
       "Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.", "",
       `Migrations: ${files.length} · public tables: ${tables.length} · tables with RLS: ${tables.filter(t => t.rls).length}`, "",
-      "Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.", "",
+      "Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting archived source CSVs into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.", "",
     ];
     for (const table of tables) {
       out.push(`## ${table.name}`, "", `RLS: ${table.rls ? "enabled" : "**disabled**"} · policies: ${policies.filter(p => p.table === table.name).map(p => `${p.name} (${p.cmd})`).join(", ") || "none"}`);

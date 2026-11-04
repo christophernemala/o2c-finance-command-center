@@ -12,9 +12,9 @@ const names: Record<string, string> = { normal: "Standard collection", follow_up
 const label = (key: string, value: string) => ["collections", "disputes", "approvals", "bank_direction"].includes(key) ? names[value] ?? value : value;
 const color = (index: number) => `var(--chart-${index % 5 + 1})`;
 const modes = [{ id: "bar", name: "Bar chart", Icon: BarChart3 }, { id: "donut", name: "Donut chart", Icon: PieChart }, { id: "table", name: "Exact figures", Icon: Table2 }] as const;
-export function ChartExplorer({ charts, title = "Aging, settlement and cash analysis" }: { charts: MetricChart[]; title?: string }) {
+export function ChartExplorer({ charts, title = "Aging, settlement and cash analysis", scope = "Full legal entity" }: { charts: MetricChart[]; title?: string; scope?: string }) {
   if (!charts.length) return null;
-  return <section aria-label="Interactive financial analysis" className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow">Financial analysis</p><h2 className="mt-1 text-xl font-semibold">{title}</h2></div><span className="data-scope">Full legal entity · select a segment to inspect</span></div>
+  return <section aria-label="Interactive financial analysis" className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow">Financial analysis</p><h2 className="mt-1 text-xl font-semibold">{title}</h2></div><span className="data-scope">{scope} · select a segment to inspect</span></div>
     <div className="chart-grid">{charts.map(chart => <ChartTile key={chart.key} chart={chart}/>)}</div>
   </section>;
 }

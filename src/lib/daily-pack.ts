@@ -24,7 +24,7 @@ export function dailyPackWorkbook(pack: DailyPack): Record<string, Record<string
   return {
     Summary: [
       { Item: "Legal entity", Value: pack.entity }, { Item: "Business date (Asia/Dubai)", Value: pack.as_of },
-      { Item: "Customers to call", Value: String(pack.callList.length) }, { Item: "Follow-ups due", Value: String(pack.followUps.length) },
+      { Item: "Customers in call list (top 100)", Value: String(pack.callList.length) }, { Item: "Follow-ups due", Value: String(pack.followUps.length) },
       { Item: "Remarks logged today", Value: String(pack.remarks.length) }, { Item: "Trade licences expired or expiring in 30 days", Value: String(pack.licences.length) },
       { Item: "Call list score", Value: "Overdue AED x (1 + min(oldest days, 360) / 90) x (1 + min(broken promises, 3) x 0.5)" },
     ],

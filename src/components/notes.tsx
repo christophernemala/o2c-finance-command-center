@@ -74,7 +74,7 @@ function NoteRow({ note, userId, checker, canPost, Scope }: { note: AdjustmentNo
     <p className="text-xs text-muted">{note.customer} ({note.account}){note.invoice ? <> · against <span className="money">{note.invoice}</span>{note.invoice_open !== null && <> (open <Money value={note.invoice_open}/>)</>}</> : null}
       {note.due_date ? ` · due ${note.due_date.split("-").reverse().join("/")}` : ""} · {noteReasonLabel[note.reason]} · {note.agent_run_id ? "proposed by the cash application agent" : note.maker === userId ? "proposed by you" : "proposed by a team member"} · {when(note.created_at)}</p>
     <p>{note.memo}</p>
-    {!note.invoice_current && note.status !== "posted" && <p className="text-xs text-danger">The invoice changed after this note was proposed. {note.status === "approved" ? "Withdraw" : "Reject"} it and record a new one.</p>}
+    {note.kind === "credit" && !note.invoice_current && (note.status === "pending" || note.status === "approved") && <p className="text-xs text-danger">The invoice changed after this note was proposed. {note.status === "approved" ? "Withdraw" : "Reject"} it and record a new one.</p>}
     {note.status === "pending" && (checker && note.maker !== userId ? <div className="flex gap-2">{decide("approved")}{decide("rejected")}</div>
       : <p className="text-xs text-muted">Waiting for an approver other than the maker.</p>)}
     {note.status === "pending" && placeholder && <p className="text-xs text-muted">The reference is a placeholder; the approver enters the document number issued in your ERP.</p>}

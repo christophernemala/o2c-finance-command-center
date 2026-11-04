@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!query.success || !customer.success) return new Response("Invalid request", { status: 400 });
   const limited = await apiLimit(auth.user.id, "export"); if (limited) return limited;
   const result = await auth.client.rpc("customer_statement", { p_tenant: query.data.tenant, p_entity: query.data.entity, p_customer: customer.data, p_as_of: dubaiDate() });
-  if (result.error) return new Response("Statement unavailable", { status: /Forbidden/.test(result.error.message) ? 403 : 404 });
+  if (result.error) return new Response("Statement unavailable", { status: /Forbidden/.test(result.error.message) ? 403 : /Customer unavailable/.test(result.error.message) ? 404 : 503 });
   const data = validateStatement(result.data);
   const bytes = await statementPdf(data);
   return new Response(Buffer.from(bytes), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="statement-${data.account.replace(/[^A-Za-z0-9-]/g, "_")}-${data.as_of}.pdf"`, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });

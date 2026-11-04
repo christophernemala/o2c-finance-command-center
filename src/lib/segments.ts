@@ -23,7 +23,7 @@ export function parseSegments(text: string): SegmentPreview {
     const line = index + 2;
     if (cells.length !== 3) { errors.push(`Row ${line}: expected 3 columns.`); return; }
     const [account, category, region] = cells;
-    if (!account || account.length > 60) errors.push(`Row ${line}: account is required (at most 60 characters).`);
+    if (!account || account.length > 100) errors.push(`Row ${line}: account is required (at most 100 characters).`);
     else if (seen.has(account)) errors.push(`Row ${line}: account ${account} appears more than once.`);
     for (const [name, value] of [["category", category], ["region", region]] as const) {
       if (value.length > 60) errors.push(`Row ${line}: ${name} is longer than 60 characters.`);

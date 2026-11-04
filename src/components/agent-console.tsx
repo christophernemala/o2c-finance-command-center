@@ -39,7 +39,7 @@ export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }
     })}</div>
 
     {selectedRun && <Panel title={selected ? `${catalogue[selected.kind].name} agent · live run` : "Agent run"} subtitle="Every reasoning summary, tool call, proposal and posting decision is recorded in PostgreSQL as it happens.">
-      <div className="p-6"><RunStream runId={selectedRun} tenant={data.tenant_id} entity={data.entity_id}/></div></Panel>}
+      <div className="p-6"><RunStream key={selectedRun} runId={selectedRun} tenant={data.tenant_id} entity={data.entity_id}/></div></Panel>}
 
     <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
       <Panel title="Run history" subtitle="Latest 30 runs in this legal entity. Select a run to replay its steps.">

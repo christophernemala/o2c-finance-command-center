@@ -51,7 +51,9 @@ test("external identities require an authorized link session, not an email match
   assert.equal((await service.signInWithExternal(external,tokenHash(invitation))).error,null);
   assert.notEqual(token,invitation);
   assert.equal((await service.getUser()).data.user?.purpose,"login");
+  const login=token;token=invitation; // replay the consumed invitation itself, not the rotated login session
   assert.ok((await service.signInWithExternal(external,tokenHash(invitation))).error,"consumed invitation cannot link again");
+  token=login;
   token=undefined;assert.equal((await service.signInWithExternal(external,null)).error,null,"subsequent login uses the stored issuer and subject");
   assert.ok((await service.signInWithExternal({...external,subject:"different-subject"},null)).error);
   await db.exec("reset role");

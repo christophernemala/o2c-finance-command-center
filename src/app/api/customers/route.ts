@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { parseSegments, singleSegmentRow, type SegmentRow } from "@/lib/segments
 const segment = z.string().trim().max(60).refine(value => !/^[=+\-@]/.test(value) && value.toLowerCase() !== "unassigned");
 const scope = { tenant: z.uuid(), entity: z.uuid(), id: z.uuid() };
 const input = z.discriminatedUnion("intent", [
-  z.object({ intent: z.literal("segment_set"), ...scope, account: z.string().trim().min(1).max(60), category: segment.default(""), region: segment.default(""),
+  z.object({ intent: z.literal("segment_set"), ...scope, account: z.string().trim().min(1).max(100), category: segment.default(""), region: segment.default(""),
     clear_category: z.literal("on").optional().transform(Boolean), clear_region: z.literal("on").optional().transform(Boolean) }),
   z.object({ intent: z.literal("segments_upload"), ...scope }),
 ]);
@@ -38,7 +39,10 @@ export async function POST(request: NextRequest) {
     }
     const result = await auth.client.rpc("set_customer_segments", { p_tenant: data.tenant, p_entity: data.entity, p_id: data.id, p_rows: rows });
     message = result.error ? (/Forbidden/.test(result.error.message) ? "forbidden" : /Unknown customer account/.test(result.error.message) ? "invalid_import" : "failed") : "confirmed";
-  } catch { /* message already set */ }
+  } catch (error) {
+    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+    /* message already set */
+  }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));
   return NextResponse.redirect(destination, { status: 303, headers: { "Cache-Control": "no-store" } });
 }

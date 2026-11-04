@@ -116,6 +116,10 @@ export function agentControl(pool: SqlPool) {
     async scheduleDue(asOf: string) {
       return transaction(pool, async connection => (await connection.query<{ value: string }>("select o2c_private.schedule_due_runs($1) as value", [asOf])).rows.map(row => row.value));
     },
+    async skipRuns(ids: string[]) {
+      if (!ids.length) return 0;
+      return transaction(pool, async connection => (await connection.query<{ value: number }>("select o2c_private.skip_agent_runs($1::uuid[]) as value", [ids])).rows[0]?.value ?? 0);
+    },
   };
 }
 export interface ClaimedRun { id: string; tenant_id: string; entity_id: string; kind: AgentKind; as_of: string; trigger: "manual" | "schedule"; agent_user: string }

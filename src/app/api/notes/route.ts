@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -35,7 +36,10 @@ export async function POST(request: NextRequest) {
       : data.intent === "note_withdraw" ? await auth.client.rpc("withdraw_adjustment_note", { ...s, p_version: data.version, p_reason: data.reason })
       : await auth.client.rpc("post_adjustment_note", { ...s, p_version: data.version });
     message = !result.error ? "confirmed" : /Forbidden|Independent|authority/.test(result.error.message) ? "forbidden" : /Stale|exceeds|already used|ERP|Placeholder|Only an approved/.test(result.error.message) ? "conflict" : "failed";
-  } catch { /* message stays failed */ }
+  } catch (error) {
+    unstable_rethrow(error); // access() redirects to MFA verification by throwing
+    /* message stays failed */
+  }
   destination.searchParams.set("message", message); destination.searchParams.set("nonce", randomUUID().slice(0, 8));
   return NextResponse.redirect(destination, { status: 303, headers: { "Cache-Control": "no-store" } });
 }

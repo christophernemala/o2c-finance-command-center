@@ -4,7 +4,7 @@ import { parseCsv } from "./imports";
 export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 12 * 1024 * 1024, MAX_TOTAL_BYTES = 24 * 1024 * 1024;
 /** truncated: the sheet has more non-empty rows than were read, so totals over rows are incomplete. */
-export interface Sheet { name: string; rows: string[][]; truncated?: boolean }
+export interface Sheet { name: string; rows: string[][]; truncated?: boolean; rows_cut?: boolean; columns_cut?: boolean }
 
 const decode = (value: string) => value.replace(/&(lt|gt|quot|apos|amp|#x[0-9a-f]+|#\d+);/gi, (_, entity: string) => {
   const named: Record<string, string> = { lt: "<", gt: ">", quot: "\"", apos: "'", amp: "&" };
@@ -38,13 +38,13 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
     const name = decode(/\bname="([^"]*)"/.exec(match[0])?.[1] ?? "Sheet");
     const relation = /\br:id="([^"]+)"/.exec(match[0])?.[1];
     const xml = part(targets[relation ?? ""] ?? "");
-    const rows: string[][] = []; let truncated = false;
+    const rows: string[][] = []; let truncated = false; let wide = false;
     for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
       const values: string[] = [];
       for (const cell of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const attributes = cell[1]; const body = cell[2] ?? "";
         const index = columnIndex(/\br="([A-Z]+\d+)"/.exec(attributes)?.[1] ?? ""); const column = index < 0 ? values.length : index;
-        if (column >= MAX_COLUMNS) continue;
+        if (column >= MAX_COLUMNS) { if (decode(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? "") || text(body)) wide = true; continue; }
         const type = /\bt="([^"]+)"/.exec(attributes)?.[1];
         const raw = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1];
         const value = type === "s" ? shared[Number(raw)] ?? "" : type === "inlineStr" ? text(body) : type === "b" ? (raw === "1" ? "TRUE" : "FALSE") : decode(raw ?? "");
@@ -55,7 +55,7 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
       if (rows.length >= MAX_ROWS) { truncated = true; break; }
       rows.push(values);
     }
-    return truncated ? { name, rows, truncated } : { name, rows };
+    return truncated || wide ? { name, rows, truncated: true, ...(truncated ? { rows_cut: true } : {}), ...(wide ? { columns_cut: true } : {}) } : { name, rows };
   });
 }
 
@@ -64,12 +64,14 @@ export function describeWorkbook(bytes: Uint8Array, mediaType: string, sheet: st
   const sheets: Sheet[] = mediaType === XLSX_TYPE ? readXlsx(bytes) : [{ name: "CSV", rows: parseCsv(new TextDecoder().decode(bytes)) }];
   const selected = sheets.find(entry => entry.name === sheet) ?? sheets[0];
   if (!selected) throw new Error("The file has no sheets");
-  const [header = [], ...data] = selected.rows;
+  // Workbooks exported by this app start each sheet with a one-cell title row above the real header.
+  const [first = [], second = []] = selected.rows;
+  const [header = [], ...data] = first.filter(Boolean).length === 1 && second.filter(Boolean).length > 1 ? selected.rows.slice(1) : selected.rows;
   return {
     sheets: sheets.map(entry => ({ name: entry.name, data_rows: Math.max(entry.rows.length - 1, 0), truncated: entry.truncated === true })),
     sheet: selected.name, header, total_rows: data.length, truncated: selected.truncated === true, offset,
     rows: data.slice(offset, offset + limit),
     note: data.length > offset + limit ? `More rows available; continue from offset ${offset + limit}.`
-      : selected.truncated ? `Only the first ${MAX_ROWS} rows were read; the sheet has more. Totals over this sheet are incomplete; say so instead of reporting them as complete.` : "End of sheet.",
+      : selected.truncated ? `Only the first ${[selected.rows_cut && `${MAX_ROWS} rows`, selected.columns_cut && `${MAX_COLUMNS} columns`].filter(Boolean).join(" and ")} were read; the sheet has more. Totals over this sheet are incomplete; say so instead of reporting them as complete.` : "End of sheet.",
   };
 }

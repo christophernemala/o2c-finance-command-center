@@ -20,15 +20,19 @@ export async function GET(request: NextRequest) {
   try {
     const queued = await agentControl(deps.pool).scheduleDue(dubaiDate());
     // Each run stops by the deadline, leaving time for the incident sweep and the outbox before maxDuration.
-    const deadline = started + 240_000;
+    const deadline = started + 240_000; const skipped: string[] = []; const failed: string[] = [];
     for (const run of queued) {
-      if (Date.now() > deadline - 30_000) break;
-      if (await executeRun(run, deps, { deadline })) executed.push(run);
+      if (Date.now() > deadline - 30_000) { skipped.push(run); continue; }
+      // One run's failure (for example a claim error) must not stop the batch, the sweep or the outbox.
+      try { if (await executeRun(run, deps, { deadline })) executed.push(run); }
+      catch (error) { failed.push(run); console.error("Scheduled agent run failed", run, error instanceof Error ? error.message : error); }
     }
+    // Runs left for lack of time are marked, not left queued, so they are visible and free the active-run cap.
+    await agentControl(deps.pool).skipRuns(skipped);
     // Stuck runs produce no finish call, so the sweep is what catches them.
     const incidents = await agentControl(deps.pool).detectIncidents();
     // Retry approved collections emails that were not sent right after approval.
     const outbox = await deliverApproved(deps.pool, collectionSenders(), 25);
-    return Response.json({ queued: queued.length, executed: executed.length, remaining: queued.length - executed.length, incidents, outbox }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ queued: queued.length, executed: executed.length, skipped: skipped.length, failed: failed.length, incidents, outbox }, { headers: { "Cache-Control": "no-store" } });
   } catch { return Response.json({ error: "Scheduler unavailable" }, { status: 503 }); }
 }

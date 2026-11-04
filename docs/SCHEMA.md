@@ -2,9 +2,9 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 21 · public tables: 37 · tables with RLS: 37
+Migrations: 22 · public tables: 37 · tables with RLS: 37
 
-Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
+Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting archived source CSVs into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.
 
 ## adjustment_journals
 

@@ -31,6 +31,8 @@ export async function runCopilot(input: {
   const context: ToolContext = { client: input.client, tenant: input.tenant, entity: input.entity, asOf: input.asOf, actor: "copilot", findings: [], readFile: input.readFile };
   const result = await runLoop({
     call: input.call, model: input.config.model, effort: input.config.copilotEffort, maxTurns: 10,
+    // The route's maxDuration is 300 s; stop well before it so the answer and its trace are saved.
+    deadline: Date.now() + 240_000,
     system: copilotSystemPrompt, tools: toolsFor("copilot", canWrite), context, messages,
     onText: delta => input.emit({ type: "text", delta }),
     onEvent: async (event: LoopEvent) => {
