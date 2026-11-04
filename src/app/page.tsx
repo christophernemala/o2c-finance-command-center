@@ -15,7 +15,7 @@ import { GuardrailsView, IncidentsView, OperationsOverview } from "@/components/
 import { compareFields } from "@/lib/ai/context-compare";
 import { CollectionsView } from "@/components/collections";
 import { emailConfig } from "@/lib/email/resend";
-import { breakdownDimensions, type Breakdown, type BreakdownDimension, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type LicenceAlert, type Segments, type WorklistRow } from "@/types/collections";
+import { breakdownDimensions, type Breakdown, type BreakdownDimension, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type HoldProposal, type LicenceAlert, type Segments, type WorklistRow } from "@/types/collections";
 import { CustomersView } from "@/components/customers";
 import { NotesView } from "@/components/notes";
 import type { AdjustmentNote, ShortPayment } from "@/types/collections";
@@ -72,16 +72,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   }
   if (view === "collections") {
     const allFollowUps = params.followups === "all";
-    const [worklist, callList, followUps, licences] = await Promise.all([auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf }),
+    const [worklist, callList, followUps, licences, holdProposals] = await Promise.all([auth.client.rpc("collections_worklist", { ...scope, p_as_of: asOf }),
       auth.client.rpc("daily_call_list", { ...scope, p_as_of: asOf, p_limit: 15 }), auth.client.rpc("my_follow_ups", { ...scope, p_as_of: asOf, p_all: allFollowUps }),
-      auth.client.rpc("licence_alerts", { ...scope, p_as_of: asOf, p_days: 30 })]);
+      auth.client.rpc("licence_alerts", { ...scope, p_as_of: asOf, p_days: 30 }), auth.client.rpc("hold_proposals_list", scope)]);
     const rows = (worklist.error ? [] : worklist.data) as WorklistRow[];
     const customer = typeof params.customer === "string" && uuid.test(params.customer) ? params.customer : rows[0]?.customer_id;
     const [detail, remarks] = customer ? await Promise.all([auth.client.rpc("customer_account", { ...scope, p_customer: customer, p_as_of: asOf }),
       auth.client.rpc("customer_remarks_list", { ...scope, p_customer: customer })]) : [null, null];
     if (!worklist.error) analysis = <CollectionsView data={data} worklist={rows} account={detail && !detail.error ? detail.data as CustomerAccount : null} emailReady={emailConfig() !== null} smsReady={twilioConfig(process.env, "sms") !== null} whatsappReady={twilioConfig(process.env, "whatsapp") !== null} userId={auth.user.id}
       callList={callList.error ? [] : callList.data as CallListRow[]} followUps={followUps.error ? [] : followUps.data as FollowUp[]} allFollowUps={allFollowUps}
-      licences={licences.error ? [] : licences.data as LicenceAlert[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
+      licences={licences.error ? [] : licences.data as LicenceAlert[]} holdProposals={holdProposals.error ? [] : holdProposals.data as HoldProposal[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
   }
   if (view === "customers") {
     const dimension = breakdownDimensions.includes(params.dimension as BreakdownDimension) ? params.dimension as BreakdownDimension : "category";

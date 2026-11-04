@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import type { Snapshot } from "@/types/workspace";
-import { remarkChannels, remarkReasons, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type LicenceAlert, type WorklistRow } from "@/types/collections";
+import { remarkChannels, remarkReasons, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type HoldProposal, type LicenceAlert, type WorklistRow } from "@/types/collections";
 import { addAmounts, formatAed } from "@/lib/money";
 import { Panel, Empty, Money, Badge, KpiAmount } from "./ui";
 import { MutationForm } from "./mutation-form";
@@ -15,8 +15,8 @@ export const reasonLabel = { promised: "Promised to pay", payment_sent: "Says pa
   no_answer: "No answer", wrong_contact: "Wrong contact", escalated: "Escalated", other: "Other" } as const;
 const channelLabel = { call: "Call", email: "Email", meeting: "Meeting", sms: "SMS", whatsapp: "WhatsApp", other: "Other" } as const;
 
-export function CollectionsView({ data, worklist, account, emailReady, smsReady = false, whatsappReady = false, userId, callList, followUps, allFollowUps, licences, remarks }: { data: Snapshot; worklist: WorklistRow[];
-  account: CustomerAccount | null; emailReady: boolean; smsReady?: boolean; whatsappReady?: boolean; userId: string; callList: CallListRow[]; followUps: FollowUp[]; allFollowUps: boolean; licences: LicenceAlert[]; remarks: CustomerRemarks | null }) {
+export function CollectionsView({ data, worklist, account, emailReady, smsReady = false, whatsappReady = false, userId, callList, followUps, allFollowUps, licences, holdProposals = [], remarks }: { data: Snapshot; worklist: WorklistRow[];
+  account: CustomerAccount | null; emailReady: boolean; smsReady?: boolean; whatsappReady?: boolean; userId: string; callList: CallListRow[]; followUps: FollowUp[]; allFollowUps: boolean; licences: LicenceAlert[]; holdProposals?: HoldProposal[]; remarks: CustomerRemarks | null }) {
   const href = (customer: string) => `/?${new URLSearchParams({ view: "collections", tenant: data.tenant_id, entity: data.entity_id, customer })}`;
   const followUpsHref = `/?${new URLSearchParams({ view: "collections", tenant: data.tenant_id, entity: data.entity_id, ...(allFollowUps ? {} : { followups: "all" }) })}`;
   const packHref = `/api/export?${new URLSearchParams({ report: "daily", tenant: data.tenant_id, entity: data.entity_id })}`;
@@ -25,6 +25,9 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
     <div className="workbench-toolbar"><div><p className="eyebrow">Collections workbench</p><h2 className="mt-1 text-xl font-semibold">Outstanding accounts and collection actions</h2></div><div className="flex flex-wrap gap-2"><Link className="button secondary" href={`/?${new URLSearchParams({ view: "agents", tenant: data.tenant_id, entity: data.entity_id })}#agent-collections`}>Open collections agent</Link><Link className="button secondary" href={`/?${new URLSearchParams({ view: "approvals", tenant: data.tenant_id, entity: data.entity_id })}`}>Review allocation proposals</Link><a className="button" href={packHref}>Download daily AR workbook</a></div></div>
     {!emailReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Email sending not configured</p><p className="mt-1">Approved emails stay queued until an administrator connects your email sender.</p></div>}
     {(!smsReady || !whatsappReady) && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning">{!smsReady && "SMS sending is not configured. "}{!whatsappReady && "WhatsApp sending is not configured. "}Approved messages for these channels stay queued.</div>}
+    {holdProposals.length > 0 && <div role="status" className="rounded-xl border border-line bg-warning-soft p-4 text-sm text-warning"><p className="font-semibold">Credit holds proposed by the agent</p>
+      <p className="mt-1">No hold is placed until an approver or admin approves it.</p>
+      <ul className="mt-2 space-y-1">{holdProposals.map(proposal => <li key={proposal.id}><Link className="text-link underline-offset-2 hover:underline" href={href(proposal.customer_id)}>{proposal.customer} ({proposal.account})</Link> · {when(proposal.created_at)}</li>)}</ul></div>}
     <section aria-label="Collections summary" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi label="Overdue AR" value={<KpiAmount value={totalText}/>} note={`${worklist.length} customer${worklist.length === 1 ? "" : "s"}`}/>
       <Kpi label="Broken promises" value={worklist.reduce((sum, row) => sum + row.broken_promises, 0)}/>
@@ -58,7 +61,7 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
     </div>
     }/>
     <section id="customer-workspace" className="scroll-mt-28" aria-label="Selected customer collection workspace">
-      {account ? <CustomerPanel data={data} account={account} userId={userId} remarks={remarks}/> : <Panel title="Customer account"><Empty title="Select a customer">Choose an outstanding account to review contacts, promises, credit and messages.</Empty></Panel>}
+      {account ? <CustomerPanel data={data} account={account} userId={userId} remarks={remarks} holdProposal={holdProposals.find(proposal => proposal.customer_id === account.customer.id) ?? null}/> : <Panel title="Customer account"><Empty title="Select a customer">Choose an outstanding account to review contacts, promises, credit and messages.</Empty></Panel>}
     </section>
   </div>;
 }
@@ -67,7 +70,7 @@ function Kpi({ label, value, note }: { label: string; value: React.ReactNode; no
   return <div className="metric-tile px-6 py-4"><p className="text-xs font-medium text-muted">{label}</p><p className="kpi-value mt-2 !text-3xl">{value}</p>{note && <p className="mt-1 text-xs text-muted">{note}</p>}</div>;
 }
 
-function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; account: CustomerAccount; userId: string; remarks: CustomerRemarks | null }) {
+function CustomerPanel({ data, account, userId, remarks, holdProposal }: { data: Snapshot; account: CustomerAccount; userId: string; remarks: CustomerRemarks | null; holdProposal: HoldProposal | null }) {
   const maker = ["maker", "admin"].includes(data.role); const checker = ["approver", "admin"].includes(data.role);
   const c = account.customer; const Scope = () => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="customer" value={c.id}/></>;
   const overdue = account.invoices.filter(invoice => invoice.days_overdue > 0 && invoice.dispute !== "open");
@@ -81,6 +84,13 @@ function CustomerPanel({ data, account, userId, remarks }: { data: Snapshot; acc
         <p className="mt-1">{account.hold.reason}</p><p className="mt-1 text-xs text-muted">Placed by {account.hold.placed_by_kind === "agent" ? "the credit risk agent" : "a team member"} · {when(account.hold.placed_at)}. Only an approver other than the person who placed it can release it.</p>
         {checker && account.hold.placed_by !== userId && <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="hold_release"/><input type="hidden" name="id" value={account.hold.id}/>
           <label>Release reason<input name="reason" required minLength={5} maxLength={500}/></label><button className="button secondary">Release hold</button></MutationForm>}</div>}
+      {!account.hold && holdProposal && <div role="note" className="rounded-lg border-l-4 border-warning bg-warning-soft p-4"><p className="font-semibold text-warning">Credit hold proposed by the credit risk agent</p>
+        <p className="mt-1">{holdProposal.reason}</p><p className="mt-1 text-xs text-muted">Proposed {when(holdProposal.created_at)}. Not in effect until an approver or admin approves it.</p>
+        {checker ? <div className="mt-2 flex flex-wrap items-end gap-2">
+          <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="hold_decide"/><input type="hidden" name="id" value={holdProposal.id}/><input type="hidden" name="decision" value="approved"/><button className="button">Approve hold</button></MutationForm>
+          <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="hold_decide"/><input type="hidden" name="id" value={holdProposal.id}/><input type="hidden" name="decision" value="rejected"/>
+            <label>Rejection reason<input name="note" required minLength={5} maxLength={500}/></label><button className="button secondary">Reject</button></MutationForm></div>
+          : <p className="mt-1 text-xs text-muted">An approver or admin decides.</p>}</div>}
 
       <section aria-labelledby="remarks-h"><h3 id="remarks-h" className="font-semibold">Remarks</h3>
         {["maker", "approver", "admin"].includes(data.role) && <MutationForm action="/api/collections"><Scope/><input type="hidden" name="intent" value="remark_add"/><input type="hidden" name="id" value={randomUUID()}/>

@@ -2,7 +2,7 @@ import { NextRequest,NextResponse } from "next/server";
 import { authSiteOrigin } from "@/lib/auth-flow";
 import { oidc,oidcSettings,oidcConfiguration,oidcCookieName } from "@/lib/auth/oidc";
 import { sameOrigin,boundedFormRequest } from "@/lib/request-security";
-import { createLoginLimiter,loginLimiterConfig,trustedLoginIp } from "@/lib/login-limiter";
+import { createLoginLimiter,loginLimiterConfig,trustedLoginIp,oidcReservationCookie,sealReservation } from "@/lib/login-limiter";
 import { createClient } from "@/lib/postgres/server";
 import { databasePool } from "@/lib/postgres/pool";
 import { transaction } from "@/lib/postgres/transaction";
@@ -28,6 +28,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
     await c.query("insert into auth.oauth_flows(state_hash,provider,verifier,nonce,link_user_id,link_session_hash,expires_at) values($1,$2,$3,$4,$5,$6,now()+interval '10 minutes')",[tokenHash(state),provider,verifier,nonce,link?.id??null,link?.hash??null]);
   });
   const url=oidc.buildAuthorizationUrl(config,{redirect_uri:`${origin}/api/auth/oidc/${provider}/callback`,scope:"openid email profile",state,nonce,code_challenge:await oidc.calculatePKCECodeChallenge(verifier),code_challenge_method:"S256",prompt:"select_account"});
-  const response=NextResponse.redirect(url,303);response.cookies.set(oidcCookieName(provider,options.secure),state,{...options,maxAge:600});response.headers.set("Cache-Control","no-store");return response;
+  const response=NextResponse.redirect(url,303);response.cookies.set(oidcCookieName(provider,options.secure),state,{...options,maxAge:600});
+  response.cookies.set(oidcReservationCookie,sealReservation(attempt.ticket,limit.secret),{httpOnly:true,secure:options.secure,sameSite:"lax",path:"/",maxAge:600});response.headers.set("Cache-Control","no-store");return response;
  }catch{return NextResponse.redirect(failure,{status:303,headers:{"Cache-Control":"no-store"}});}
 }

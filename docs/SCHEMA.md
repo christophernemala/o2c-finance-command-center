@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 20 · public tables: 36 · tables with RLS: 36
+Migrations: 21 · public tables: 37 · tables with RLS: 37
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, except for inserting archived source CSVs into `source_files` under its RLS insert policy.
 
@@ -430,6 +430,26 @@ References: customers, entities, users
 | whatsapp_opt_in | boolean | no |
 | consent_note | text | yes |
 
+## customer_hold_proposals
+
+RLS: enabled · policies: scope_read (SELECT)
+References: agent_runs, customers, entities, users
+
+| Column | Type | Null |
+|---|---|---|
+| id | uuid | no |
+| tenant_id | uuid | no |
+| entity_id | uuid | no |
+| customer_id | uuid | no |
+| reason | text | no |
+| proposed_by | uuid | no |
+| agent_run_id | uuid | no |
+| status | text | no |
+| decided_by | uuid | yes |
+| decided_at | timestamp with time zone | yes |
+| decision_note | text | yes |
+| created_at | timestamp with time zone | no |
+
 ## customer_holds
 
 RLS: enabled · policies: scope_read (SELECT)
@@ -449,6 +469,7 @@ References: agent_runs, customers, entities, users
 | released_by | uuid | yes |
 | released_at | timestamp with time zone | yes |
 | release_reason | text | yes |
+| approved_by | uuid | yes |
 
 ## customer_remarks
 
@@ -718,9 +739,11 @@ RLS: enabled · policies: tenant_read (SELECT)
 | decide_collection_message | definer |
 | decide_credit_limit | definer |
 | decide_guardrail_stage | definer |
+| decide_hold_proposal | definer |
 | edge_failures | definer |
 | enqueue_agent_job | definer |
 | execute_action | definer |
+| hold_proposals_list | definer |
 | licence_alerts | definer |
 | member_role | definer |
 | my_follow_ups | definer |

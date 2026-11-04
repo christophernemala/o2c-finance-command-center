@@ -3,7 +3,7 @@ import type { AgentStep } from "@/types/agents";
 const labels: Record<string, string> = {
   get_ar_overview: "Read AR position", list_invoices: "Read invoices", get_cash_match_candidates: "Match bank credits", get_ar_kpi_pack: "Compute KPI pack",
   propose_receipt: "Propose receipt", propose_allocation: "Propose allocation", auto_post_if_policy_allows: "Policy auto-post check",
-  record_finding: "Record finding", propose_collection_message: "Propose collections email", get_collections_worklist: "Collections worklist", get_customer_account: "Customer account", place_credit_hold: "Place credit hold", read_uploaded_file: "Read uploaded file",
+  record_finding: "Record finding", propose_collection_message: "Propose collections email", get_collections_worklist: "Collections worklist", get_customer_account: "Customer account", place_credit_hold: "Propose credit hold", read_uploaded_file: "Read uploaded file",
 };
 const text = (value: unknown) => typeof value === "string" ? value : JSON.stringify(value, null, 2);
 /** One persisted agent step. Server-renderable; also used inside the live stream. */

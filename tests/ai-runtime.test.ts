@@ -79,6 +79,18 @@ test("loop validates tool input, reports refusals and caps turns", async () => {
   assert.equal(refused.status, "failed");
   const looping = await runLoop({ call: async () => reply([use("x", "get_ar_overview", {})]), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
   assert.match(looping.error ?? "", /Stopped after 2/);
+  let calls = 0;
+  const expired = await runLoop({ call: async () => { calls++; return reply([say("late")], "end_turn"); }, model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, deadline: Date.now() - 1, onEvent: async () => {} });
+  assert.deepEqual([expired.status, calls], ["failed", 0], "no model turn starts after the deadline");
+  assert.match(expired.error ?? "", /time budget/);
+  // A real request keeps the event loop alive; the stub holds a timer so the unref'd abort timer can fire.
+  const hanging: ModelCaller = (_params, _onText, signal) => new Promise((_resolve, reject) => {
+    const alive = setTimeout(() => reject(new Error("deadline not enforced")), 5000);
+    signal?.addEventListener("abort", () => { clearTimeout(alive); reject(new Error("aborted")); });
+  });
+  const aborted = await runLoop({ call: hanging, model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, deadline: Date.now() + 50, onEvent: async () => {} });
+  assert.deepEqual([aborted.status, aborted.turns], ["failed", 1], "a turn still running at the deadline is aborted");
+  assert.match(aborted.error ?? "", /time budget/);
 });
 
 test("AR pack workbook keeps decimal strings", () => {

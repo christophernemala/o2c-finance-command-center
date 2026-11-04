@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createLoginLimiter, loginLimiterConfig, trustedLoginIp, sealReservation, openReservation } from "../src/lib/login-limiter";
+import { createLoginLimiter, loginLimiterConfig, trustedLoginIp, sealReservation, openReservation, settleOidcReservation } from "../src/lib/login-limiter";
 const settings = { url: "https://test.upstash.io", token: "test-only-token", secret: "test-only-secret-32-characters-long" };
 test("OAuth and MFA reservations cannot be changed or signed with another key", () => {
   const ticket={key:`o2c:{login}:account:${"a".repeat(64)}`,ipKey:`o2c:{login}:ip:${"b".repeat(64)}`,id:"00000000-0000-4000-8000-000000000001"};
@@ -90,4 +90,16 @@ test("API limits use separate private user keys and enforce valid denial replies
   assert.equal(new Set(keys).size, 3);
   const malformed = createLoginLimiter(config, async () => Response.json({ result: [0, 0] }));
   await assert.rejects(malformed.reserveApi("private-user", "export"));
+});
+test("a successful provider sign-in releases its slot, or hands it to MFA when a code is still required", async () => {
+  const commands: unknown[][] = [];
+  const transport: typeof fetch = async (_url, options) => { const command = JSON.parse(options!.body as string); commands.push(command); return new Response(JSON.stringify({ result: 2 })); };
+  const ticket = { key: `o2c:{login}:account:${"a".repeat(64)}`, ipKey: `o2c:{login}:ip:${"b".repeat(64)}`, id: "00000000-0000-4000-8000-000000000001" };
+  const sealed = sealReservation(ticket, settings.secret);
+  assert.equal(await settleOidcReservation(sealed, false, settings, transport), null);
+  assert.deepEqual(commands.map(command => command.slice(2)), [[2, ticket.key, ticket.ipKey, ticket.id]]);
+  const handed = await settleOidcReservation(sealed, true, settings, transport);
+  assert.deepEqual(openReservation(handed ?? undefined, settings.secret), ticket); assert.equal(commands.length, 1, "MFA releases it later");
+  assert.equal(await settleOidcReservation(`x${sealed}`, false, settings, transport), null); assert.equal(commands.length, 1, "a forged cookie releases nothing");
+  assert.equal(await settleOidcReservation(sealed, false, null, transport), null);
 });

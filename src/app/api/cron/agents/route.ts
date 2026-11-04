@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
   const deps = aiDependencies(); const started = Date.now(); const executed: string[] = [];
   try {
     const queued = await agentControl(deps.pool).scheduleDue(dubaiDate());
+    // Each run stops by the deadline, leaving time for the incident sweep and the outbox before maxDuration.
+    const deadline = started + 240_000;
     for (const run of queued) {
-      if (Date.now() - started > 200_000) break;
-      if (await executeRun(run, deps)) executed.push(run);
+      if (Date.now() > deadline - 30_000) break;
+      if (await executeRun(run, deps, { deadline })) executed.push(run);
     }
     // Stuck runs produce no finish call, so the sweep is what catches them.
     const incidents = await agentControl(deps.pool).detectIncidents();

@@ -53,6 +53,13 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
   Verified locally (TypeScript, 164 tests, build) and on a disposable PostgreSQL 16. Not verified live.
 
+- [x] Remaining review fixes (Codex P1):
+  - agent credit holds are proposals; a human approver or admin activates or rejects them (audited, idempotent), and pending proposals keep the run awaiting approval
+  - scheduled agent runs stop at the cron deadline: no model turn starts after it, and a turn still running is aborted
+  - a successful Google or Microsoft sign-in releases its rate-limit slot (handed to MFA when a code is still required)
+
+  Verified locally (TypeScript, tests, build). Not verified live.
+
 ## In progress
 
 - None. Hosted verification remains blocked below.

@@ -6,10 +6,11 @@ import { createClient } from "@/lib/postgres/server";
 import { databasePool } from "@/lib/postgres/pool";
 import { transaction } from "@/lib/postgres/transaction";
 import { sessionCookieOptions } from "@/lib/auth/cookie-options";
+import { loginLimiterConfig,oidcReservationCookie,reservationCookie,settleOidcReservation } from "@/lib/login-limiter";
 export async function GET(request:NextRequest,{params}:{params:Promise<{provider:string}>}){
  const {provider}=await params;if(provider!=="google" && provider!=="microsoft")return new NextResponse("Not found",{status:404});
  const origin=authSiteOrigin();if(!origin)return new NextResponse("Sign-in unavailable",{status:503});
- const target=new URL("/login?error=oauth",origin);
+ const target=new URL("/login?error=oauth",origin);let mfaReservation:string|null=null;
  try{
   const state=request.nextUrl.searchParams.get("state"),cookie=request.cookies.get(oidcCookieName(provider,sessionCookieOptions().secure))?.value;
   if(!validToken(state) || state!==cookie || request.nextUrl.search.length>8192)throw new Error("Invalid state");
@@ -22,7 +23,14 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{provider
   const external=validateProviderClaims(provider,claims,settings.issuer);
   const client=await createClient();const signed=await client.auth.signInWithExternal(external,flow.link_session_hash);
   if(signed.error){target.pathname="/signup";target.search="?error=link";}
-  else{target.pathname=await authenticationAssurance(client)==="mfa"?"/auth/verify":"/";target.search="";}
+  else{
+   const mfa=await authenticationAssurance(client)==="mfa";target.pathname=mfa?"/auth/verify":"/";target.search="";
+   // A successful sign-in frees its rate-limit slot, so repeat sign-ins from one office address are not locked out.
+   mfaReservation=await settleOidcReservation(request.cookies.get(oidcReservationCookie)?.value,mfa,loginLimiterConfig());
+  }
  }catch{/* Do not expose provider tokens, errors or profile data in URLs. */}
- const response=NextResponse.redirect(target,{status:303,headers:{"Cache-Control":"no-store"}});response.cookies.set(oidcCookieName(provider,sessionCookieOptions().secure),"",{...sessionCookieOptions(),maxAge:0});return response;
+ const response=NextResponse.redirect(target,{status:303,headers:{"Cache-Control":"no-store"}});response.cookies.set(oidcCookieName(provider,sessionCookieOptions().secure),"",{...sessionCookieOptions(),maxAge:0});
+ response.cookies.set(oidcReservationCookie,"",{httpOnly:true,secure:sessionCookieOptions().secure,sameSite:"lax",path:"/",maxAge:0});
+ if(mfaReservation)response.cookies.set(reservationCookie,mfaReservation,{httpOnly:true,secure:sessionCookieOptions().secure,sameSite:"lax",path:"/",maxAge:900});
+ return response;
 }

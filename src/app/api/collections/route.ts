@@ -24,6 +24,7 @@ const input = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("limit_propose"), ...scope, id: z.uuid(), customer: z.uuid(), limit: decimal, reason: z.string().trim().min(5).max(500) }),
   z.object({ intent: z.literal("limit_decide"), ...scope, id: z.uuid(), customer: z.uuid(), decision: z.enum(["active", "rejected"]) }),
   z.object({ intent: z.literal("hold_place"), ...scope, id: z.uuid(), customer: z.uuid(), reason: z.string().trim().min(5).max(500) }),
+  z.object({ intent: z.literal("hold_decide"), ...scope, id: z.uuid(), customer: z.uuid(), decision: z.enum(["approved", "rejected"]), note: z.string().trim().max(500).optional() }),
   z.object({ intent: z.literal("remark_add"), ...scope, id: z.uuid(), customer: z.uuid(), invoice: z.union([z.uuid(), z.literal("")]), reason: z.enum(remarkReasons),
     channel: z.enum(remarkChannels), note: z.string().trim().min(3).max(1000), next: z.union([z.iso.date(), z.literal("")]),
     promise_amount: z.union([decimal, z.literal("")]), promise_date: z.union([z.iso.date(), z.literal("")]) }),
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
     else if (data.intent === "limit_propose") result = await auth.client.rpc("propose_credit_limit", { ...s, p_id: data.id, p_customer: data.customer, p_limit: data.limit, p_reason: data.reason });
     else if (data.intent === "limit_decide") result = await auth.client.rpc("decide_credit_limit", { ...s, p_id: data.id, p_decision: data.decision });
     else if (data.intent === "hold_place") result = await auth.client.rpc("place_customer_hold", { ...s, p_id: data.id, p_customer: data.customer, p_reason: data.reason });
+    else if (data.intent === "hold_decide") result = await auth.client.rpc("decide_hold_proposal", { ...s, p_id: data.id, p_decision: data.decision, p_note: data.note || null });
     else if (data.intent === "remark_add") result = await auth.client.rpc("add_customer_remark", { ...s, p_id: data.id, p_customer: data.customer, p_invoice: data.invoice || null,
       p_reason: data.reason, p_channel: data.channel, p_note: data.note, p_next: data.next || null,
       p_promise_amount: data.reason === "promised" ? data.promise_amount || null : null, p_promise_date: data.reason === "promised" ? data.promise_date || null : null });

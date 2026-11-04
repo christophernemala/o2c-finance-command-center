@@ -41,6 +41,7 @@ const routines = {
   decide_credit_limit: ["p_tenant", "p_entity", "p_id", "p_decision"],
   place_customer_hold: ["p_tenant", "p_entity", "p_id", "p_customer", "p_reason"],
   release_customer_hold: ["p_tenant", "p_entity", "p_id", "p_reason"],
+  decide_hold_proposal: ["p_tenant", "p_entity", "p_id", "p_decision", "p_note"], hold_proposals_list: ["p_tenant", "p_entity"],
   collections_worklist: ["p_tenant", "p_entity", "p_as_of"], customer_account: ["p_tenant", "p_entity", "p_customer", "p_as_of"],
   customer_statement: ["p_tenant", "p_entity", "p_customer", "p_as_of"],
   add_customer_remark: ["p_tenant", "p_entity", "p_id", "p_customer", "p_invoice", "p_reason", "p_channel", "p_note", "p_next", "p_promise_amount", "p_promise_date"],

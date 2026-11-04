@@ -83,14 +83,31 @@ test("collections and credit controls in PostgreSQL", async t => {
       assert.equal((await deliverApproved(pool, ok)).claimed, 0, "a failed message is not retried after three attempts");
     });
 
-    await t.test("credit holds: an agent may place one; only a different human approver releases it", async () => {
+    await t.test("credit holds: an agent only proposes one; a human approver activates it; only a different human approver releases it", async () => {
       await db.exec("reset role");
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Credit risk agent','queued','credit_risk','manual',current_date)", [id(100), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "a".repeat(64)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
       await db.exec("set role authenticated");
       await db.query("select public.place_customer_hold($1,$2,$3,$4,'INV-4 is 20 days overdue')", [T, E, id(80), C2]);
-      await assert.rejects(db.query("select public.release_customer_hold($1,$2,$3,'agent tries')", [T, E, id(80)]), /Forbidden/);
+      assert.equal((await db.query<{ v: string }>("select public.place_customer_hold($1,$2,$3,$4,'INV-4 again') as v", [T, E, id(82), C2])).rows[0].v, id(80), "one pending proposal per customer");
+      await assert.rejects(db.query("select public.decide_hold_proposal($1,$2,$3,'approved',null)", [T, E, id(80)]), /Forbidden/, "the agent cannot approve its own proposal");
+      assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','done',null,0,0,0,null,null) as v", [T, E, id(100)])).rows[0].v, "awaiting_approval");
+      await db.exec("reset role");
+      assert.equal((await db.query("select 1 from public.customer_holds where customer_id=$1", [C2])).rowCount, 0, "a proposal is not a hold");
+      await asUser(4);
+      await assert.rejects(db.query("select public.decide_hold_proposal($1,$2,$3,'approved',null)", [T, E, id(80)]), /Forbidden/, "makers cannot activate holds");
+      await asUser(2);
+      const pending = (await db.query<{ v: { id: string; customer_id: string }[] }>("select public.hold_proposals_list($1,$2) as v", [T, E])).rows[0].v;
+      assert.deepEqual(pending.map(row => [row.id, row.customer_id]), [[id(80), C2]]);
+      await assert.rejects(db.query("select public.decide_hold_proposal($1,$2,$3,'rejected','no')", [T, E, id(80)]), /rejection reason/);
+      await db.query("select public.decide_hold_proposal($1,$2,$3,'approved',null)", [T, E, id(80)]);
+      await db.query("select public.decide_hold_proposal($1,$2,$3,'approved',null)", [T, E, id(80)]);
+      await assert.rejects(db.query("select public.decide_hold_proposal($1,$2,$3,'rejected','Changed my mind')", [T, E, id(80)]), /already decided/);
+      await db.exec("reset role");
+      assert.deepEqual((await db.query("select placed_by_kind,approved_by from public.customer_holds where id=$1", [id(80)])).rows[0], { placed_by_kind: "agent", approved_by: id(2) });
+      assert.equal((await db.query("select 1 from public.audit_events where record_id=$1 and operation='credit_hold.proposal_approved'", [id(80)])).rowCount, 1, "replays add no audit events");
+      await db.exec("set role authenticated");
       await asUser(4);
       await assert.rejects(db.query("select public.release_customer_hold($1,$2,$3,'maker tries')", [T, E, id(80)]), /Forbidden/);
       await asUser(2);

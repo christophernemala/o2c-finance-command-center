@@ -15,7 +15,7 @@ const preview = (value: unknown, limit = 6000) => { const json = serializeResult
  * The agent acts through a short-lived session for the tenant's agent identity, so PostgreSQL applies
  * the agent role (read + propose + policy auto-post) to every tool call.
  */
-export async function executeRun(runId: string, deps: { pool: SqlPool; config: AiConfig | null; call: ModelCaller | null }): Promise<ClaimedRun | null> {
+export async function executeRun(runId: string, deps: { pool: SqlPool; config: AiConfig | null; call: ModelCaller | null }, options: { deadline?: number } = {}): Promise<ClaimedRun | null> {
   const token = newToken();
   const run = await agentControl(deps.pool).claim(runId, tokenHash(token));
   if (!run) return null;
@@ -42,7 +42,7 @@ export async function executeRun(runId: string, deps: { pool: SqlPool; config: A
     if (active.error) throw new Error("Guardrails unavailable");
     const guardrails = parseGuardrails(active.data);
     const result = await runLoop({
-      guardrails,
+      guardrails, deadline: options.deadline,
       call: deps.call, model: deps.config.model, effort: deps.config.agentEffort, maxTurns: definition.maxTurns,
       system: agentSystemPrompt(definition), tools: tools.filter(entry => definition.tools.includes(entry.name)), context,
       messages: [{ role: "user", content: agentKickoff({ asOf: run.as_of, entity: run.entity_id, trigger: run.trigger }) }],

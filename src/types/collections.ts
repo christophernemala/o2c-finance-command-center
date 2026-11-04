@@ -26,6 +26,9 @@ export interface CallListRow {
 export interface FollowUp {
   customer_id: string; customer: string; account: string; due: string; days_late: number; last_reason: RemarkReason; last_note: string; owner: string; remark_id: string;
 }
+export interface HoldProposal {
+  id: string; customer_id: string; customer: string; account: string; reason: string; agent_run_id: string; proposed_by: string; created_at: string;
+}
 export interface LicenceAlert {
   id: string; customer_id: string; customer: string; account: string; licence_number: string; authority: string; expiry_date: string; days_left: number; expired: boolean;
 }

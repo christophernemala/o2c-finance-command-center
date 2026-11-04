@@ -5,7 +5,7 @@ import { toolDefinitions, type AgentTool, type ToolContext } from "./tools";
 import { blockFor, evaluateGuardrails, inputHash, type Guardrail, type GuardrailHit } from "./guardrails";
 
 type Params = Anthropic.Beta.Messages.MessageCreateParamsNonStreaming;
-export type ModelCaller = (params: Params, onText?: (delta: string) => void) => Promise<Anthropic.Beta.BetaMessage>;
+export type ModelCaller = (params: Params, onText?: (delta: string) => void, signal?: AbortSignal) => Promise<Anthropic.Beta.BetaMessage>;
 export type LoopEvent =
   | { type: "thinking"; text: string }
   | { type: "message"; text: string }
@@ -16,8 +16,8 @@ export interface LoopResult { status: "succeeded" | "failed"; text: string; erro
 
 export function anthropicCaller(apiKey: string): ModelCaller {
   const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 5 * 60 * 1000 });
-  return async (params, onText) => {
-    const stream = client.beta.messages.stream(params);
+  return async (params, onText, signal) => {
+    const stream = client.beta.messages.stream(params, signal ? { signal } : undefined);
     if (onText) stream.on("text", onText);
     return stream.finalMessage();
   };
@@ -37,20 +37,27 @@ export async function runLoop(options: {
   call: ModelCaller; model: string; effort: Effort; system: string; tools: AgentTool[]; context: ToolContext;
   messages: Anthropic.Beta.BetaMessageParam[]; maxTurns: number; onEvent: (event: LoopEvent) => Promise<void>; onText?: (delta: string) => void;
   guardrails?: Guardrail[];
+  /** Epoch milliseconds. No model turn starts after it, and a turn still running at that time is aborted. */
+  deadline?: number;
 }): Promise<LoopResult> {
   const usage = emptyUsage(); let served = options.model; let finalText = "";
   const definitions = toolDefinitions(options.tools);
   const registry = new Map(options.tools.map(entry => [entry.name, entry]));
   const seen = new Map<string, number>();
+  const timedOut = (turn: number): LoopResult => ({ status: "failed", text: finalText, error: "Stopped: the run's time budget ran out.", usage, model: served, turns: turn });
   for (let turn = 1; turn <= options.maxTurns; turn++) {
-    const message = await options.call({
+    const remaining = options.deadline === undefined ? null : options.deadline - Date.now();
+    if (remaining !== null && remaining <= 0) return timedOut(turn - 1);
+    const signal = remaining === null ? undefined : AbortSignal.timeout(remaining);
+    let message: Anthropic.Beta.BetaMessage;
+    try { message = await options.call({
       model: options.model, max_tokens: 16000,
       betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
       thinking: { type: "adaptive", display: "summarized" }, output_config: { effort: options.effort },
       cache_control: { type: "ephemeral" },
       system: [{ type: "text", text: options.system }],
       tools: definitions, tool_choice: { type: "auto" }, messages: options.messages,
-    }, options.onText);
+    }, options.onText, signal); } catch (error) { if (signal?.aborted) return timedOut(turn); throw error; }
     served = message.model;
     usage.input += message.usage.input_tokens; usage.output += message.usage.output_tokens;
     usage.cacheRead += message.usage.cache_read_input_tokens ?? 0; usage.cacheWrite += message.usage.cache_creation_input_tokens ?? 0;

@@ -58,3 +58,12 @@ test("collections offers phone outreach only with channel consent and shows actu
   assert.match(html, /Accepted by provider/); assert.match(html, /SMS/); assert.match(html, /name="phone"/);
   assert.match(html, /Consent evidence/);
 });
+
+test("an agent hold proposal is shown as pending; only approvers can approve or reject it", () => {
+  const holdProposals = [{ id: "h1", customer_id: "c1", customer: "Customer One", account: "C1", reason: "INV-1 is 120 days overdue", agent_run_id: "r1", proposed_by: "agent", created_at: "2026-10-16T10:00:00Z" }];
+  const maker = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "maker" } as Snapshot, account, holdProposals }));
+  assert.match(maker, /Credit holds proposed by the agent/); assert.match(maker, /Not in effect until an approver or admin approves it/);
+  assert.doesNotMatch(maker, /Approve hold/); assert.doesNotMatch(maker, /Credit hold active/);
+  const approver = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "approver" } as Snapshot, account, holdProposals }));
+  assert.match(approver, /Approve hold/); assert.match(approver, /value="hold_decide"/); assert.match(approver, /name="note" required/);
+});

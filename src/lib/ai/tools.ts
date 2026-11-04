@@ -162,12 +162,12 @@ export const tools: AgentTool[] = [
   }),
   tool({
     name: "place_credit_hold", writes: true, actors: ["agent"],
-    description: "Place a credit hold on a customer with a reason citing the overdue amounts and days from tool results. Only a human approver can release a hold; you cannot. Returns the existing hold if one is already open.",
+    description: "Propose a credit hold on a customer with a reason citing the overdue amounts and days from tool results. The hold takes effect only when a human approver approves it; only a human can release it. Returns the existing hold or pending proposal if one is already open.",
     schema: z.strictObject({ customer_id: uuid, reason: z.string().min(5).max(500) }),
     async run(input, context) {
       const id = await call(context, "place_customer_hold", { p_id: randomUUID(), p_customer: input.customer_id, p_reason: input.reason });
-      await context.record?.("finding", { severity: "critical", kind: "finding", title: "Credit hold placed", detail: input.reason, data: { customer_id: input.customer_id, hold_id: id } });
-      return { hold_id: id, note: "Hold active. Only a human approver can release it." };
+      await context.record?.("proposal", { kind: "credit_hold", hold_proposal_id: id, customer_id: input.customer_id, reason: input.reason });
+      return { hold_proposal_id: id, note: "Pending human approval. No hold is in effect yet." };
     },
   }),
   tool({

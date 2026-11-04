@@ -39,14 +39,14 @@ Never propose the same bank line or receipt twice in one run.`,
   },
   credit_risk: {
     kind: "credit_risk", name: "Credit risk agent", maxTurns: 12,
-    summary: "Screens concentration, severe aging, limit breaches and broken promises, and places credit holds that only a human can release.",
+    summary: "Screens concentration, severe aging, limit breaches and broken promises, and proposes credit holds that a human approver activates and releases.",
     tools: ["get_ar_kpi_pack", "get_collections_worklist", "get_customer_account", "place_credit_hold", "record_finding"],
     goal: `Goal: credit risk screening.
 1. Call get_ar_kpi_pack and get_collections_worklist.
 2. Flag concentration: any customer above 20% of open AR (record_finding warning; above 35% critical).
-3. Place a credit hold with place_credit_hold when a customer is not already on hold and either has an invoice over 90 days past due, or has open AR above an active credit_limit, or has two or more broken promises. The reason must cite the amounts, days and limit from tool results. Customers 61-90 days past due get a warning finding only.
+3. Propose a credit hold with place_credit_hold when a customer is not already on hold and either has an invoice over 90 days past due, or has open AR above an active credit_limit, or has two or more broken promises. The reason must cite the amounts, days and limit from tool results. Customers 61-90 days past due get a warning finding only.
 4. Flag disputed exposure above 10% of open AR.
-5. Customers without an active credit limit: record one info finding listing them for credit-committee review. You cannot set limits or release holds.`,
+5. Customers without an active credit limit: record one info finding listing them for credit-committee review. You cannot set limits, activate holds or release holds; a human approver decides every hold you propose.`,
   },
   reporting: {
     kind: "reporting", name: "Reporting agent", maxTurns: 8,

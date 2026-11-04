@@ -1,3 +1,22 @@
+## Agent hold proposals, cron deadline, provider sign-in limits — 2026-11-04
+
+Migration `202610160011_agent_hold_proposals.sql` (apply before deploying this source):
+
+- **Agent credit holds are proposals.** `place_customer_hold` called by the agent identity records a
+  pending row in `customer_hold_proposals`; nothing is held until a human approver or admin calls
+  `decide_hold_proposal` (approve places the hold with `placed_by_kind='agent'` and `approved_by`;
+  reject requires a reason). Decisions are audited and replay-safe; pending proposals keep the run
+  `awaiting_approval`. Human-placed holds and human-only release are unchanged.
+- **Cron deadline.** `/api/cron/agents` passes a deadline to every run. No model turn starts after it,
+  and a model call still running at the deadline is aborted and the run is recorded as failed.
+- **Provider sign-in rate limit.** A successful Google or Microsoft callback releases its limiter slot
+  (or hands it to MFA, which releases it after the code verifies), so repeat sign-ins from one office
+  IP are no longer locked out for 15 minutes.
+
+Tested locally: TypeScript, all 171 tests, production build. On a local PostgreSQL 16 the new
+migrations applied as an upgrade over the earlier schema, a second run was a no-op, RLS is on for every
+public table, and `anon` cannot execute the new routines. Not verified on the hosted database or Vercel.
+
 ## Email sign-in recovery — 2026-10-18
 
 Added `/login/code` and `/api/auth/email-code` for existing confirmed accounts.

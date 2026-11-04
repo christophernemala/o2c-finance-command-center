@@ -4,6 +4,8 @@ import { isIP } from "node:net";
 interface LimiterConfig { url: string; token: string; secret: string }
 export interface Ticket { key: string; ipKey: string; id: string }
 export const reservationCookie = "o2c-auth-reservation";
+/** Carries the provider sign-in slot from the redirect to its callback. */
+export const oidcReservationCookie = "o2c-oidc-reservation";
 export function sealReservation(ticket: Ticket, secret: string): string {
   const payload = Buffer.from(JSON.stringify(ticket)).toString("base64url");
   return `${payload}.${createHmac("sha256", secret).update(payload).digest("base64url")}`;
@@ -122,4 +124,17 @@ return {1, 0}
       if (result !== 0 && result !== 1 && result !== 2) throw new Error("Invalid login protection result");
     },
   };
+}
+
+/**
+ * After a successful provider callback: with MFA still pending the slot moves to the MFA reservation
+ * cookie (released once the code verifies); otherwise it is released now. Returns the sealed value to
+ * store as the MFA reservation, or null.
+ */
+export async function settleOidcReservation(sealed: string | undefined, mfaPending: boolean, config: LimiterConfig | null, transport: typeof fetch = fetch): Promise<string | null> {
+  if (!config) return null;
+  const ticket = openReservation(sealed, config.secret); if (!ticket) return null;
+  if (mfaPending) return sealReservation(ticket, config.secret);
+  try { await createLoginLimiter(config, transport).succeed(ticket); } catch { /* Conservative reservation expiry. */ }
+  return null;
 }
