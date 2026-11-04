@@ -7,7 +7,10 @@ import { arPackWorkbook, validateArPack } from "@/lib/ar-pack";
 import { entities } from "@/lib/workspace";
 import { dailyPackWorkbook, validateDailyPack } from "@/lib/daily-pack";
 // Only an authorization refusal is a 403; anything else (an outage, a bad date) is a 503 so it is not mistaken for missing access.
-const failure = (message: string) => /Forbidden|Unauthenticated|Invalid entity scope/.test(message) ? new NextResponse("Forbidden", { status: 403 }) : new NextResponse("Export unavailable", { status: 503 });
+const failure = (message: string) => {
+  if (/Forbidden|Unauthenticated|Invalid entity scope/.test(message)) return new NextResponse("Forbidden", { status: 403 });
+  console.error("Export failed", message); return new NextResponse("Export unavailable", { status: 503 });
+};
 export async function GET(request: NextRequest) {
   try {
     const auth = await routeAccess(); if (auth === "mfa") return NextResponse.redirect(new URL("/auth/verify", request.url), 303); if (!auth) return new NextResponse("Unauthorized", { status: 401 });
