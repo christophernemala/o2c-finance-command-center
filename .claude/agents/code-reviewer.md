@@ -45,7 +45,7 @@ Authorization and controls
 Frontend
 - Server Components by default; client state only for real interaction. No financial data in browser
   storage, no optimistic financial updates.
-- Colours and type come from tokens (`--ink`, `--primary` teal action colour, status tokens) and the
+- Colours and type come from tokens (`--ink`, `--primary` blue action colour, status tokens) and the
   type scale in `STYLEGUIDE.md`. Flag hard-coded palette classes (`bg-blue-500`, `text-slate-800`, purple),
   colour-only status, missing empty states, and tables that can overflow a 390px viewport.
 

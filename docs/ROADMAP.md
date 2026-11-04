@@ -10,13 +10,15 @@ enforced in PostgreSQL and tested. UI-only is not done.
 - [x] Copilot with streamed answers, scoped tools, CSV and .xlsx analysis
 - [x] AR pack: aging, countback DSO, 30-day CEI, concentration; .xlsx export
 
-## Slice 2: collections and credit operations
-- Dunning ladder with templates by aging stage; outbound email through a provider
-  (for example Resend or SES), with approval before first send to each customer
-- Dispute workflow (open, investigate, resolve, credit note request); promise-to-pay
-  capture and broken-promise detection
-- Credit limits and order holds, with maker/checker on limit changes
-- Statement of account PDF per customer
+## Slice 2: collections and credit operations (built in PR #6; not live-verified)
+- [x] Collections outbox with reminder/firm/final-notice tones by age; email (Resend), SMS and
+  WhatsApp replies (Twilio); independent approval before every send
+- [x] Dispute flags, credit and debit notes with maker/checker; promise-to-pay capture and
+  broken-promise detection
+- [x] Credit limits (maker/checker) and credit holds (agents propose, humans place and release);
+  holds do not block ERP orders until a connector exists
+- [x] Statement of account PDF per customer
+- [ ] Editable message templates per aging stage; WhatsApp approved templates and delivery receipts
 
 ## Slice 3: data in and compliance
 - Connectors: Oracle Fusion AR, SAP S/4, Zoho Books, Odoo (pull invoices,

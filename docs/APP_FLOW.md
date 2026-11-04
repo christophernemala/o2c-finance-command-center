@@ -1,6 +1,6 @@
 # Application flow
 
-Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each screen. The clickable prototype for slice 2 is linked from `docs/TRACKER.md`.
+Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each screen. The clickable prototype for slice 2 is linked from `docs/design/README.md`.
 
 ## Screen map
 
@@ -35,6 +35,6 @@ Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each
 
 7. **Morning collections.** The collections agent ranks overdue customers and drafts messages. A controller reviews and submits a draft to the outbox, and a manager approves it before the platform submits it through Resend. Controllers can also propose SMS or WhatsApp replies to contacts with recorded channel consent; these use the same independent approval flow and Twilio sender.
 8. **Promises and disputes.** A promise to pay is logged on an invoice, and a broken promise raises a flag. A dispute removes the invoice from dunning and auto-match until it is resolved.
-9. **Credit holds and limits.** An agent or maker places a hold, and only an approver can release it. Limit changes need maker/checker approval.
+9. **Credit holds and limits.** A maker, approver or admin places a hold. The credit risk agent only proposes one, which a human approver or admin approves or rejects. Only a different human approver or admin releases an active hold. Limit changes need maker/checker approval.
 10. **Statement of account.** On the customer page, generate the PDF statement and download it or attach it to an email.
 11. **Agent operations.** Incidents are detected automatically, then investigated through the trace and the handoff comparison. A guardrail is drafted, simulated on past runs, and promoted from Monitor to Warn to Block with approval.

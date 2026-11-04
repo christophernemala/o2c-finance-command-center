@@ -1,3 +1,32 @@
+## Review hardening — 2026-11-04
+
+Migration `202610160012_review_hardening.sql` (apply after `202610160011`, before deploying this source):
+
+- An agent session can act only in its own run's entity, through `require_scope` and `propose_action`.
+- `claim_agent_run` never revives a disabled agent identity or takes over a non-agent account.
+- Queued runs that never start expire after an hour, and the cron batch marks the runs it had no
+  time for, so they stop holding the three-active-run cap.
+- An account promise ignores invoices issued after it was recorded.
+- Retries of notes, remarks and contacts must repeat the whole payload, or they get an idempotency
+  conflict. A guardrail without a tool is invalid. DSO counts invoice sales only. The agent console
+  always shows the active policy. The approvals list carries `agent_run_id`. "Unassigned" is
+  reserved in any letter case.
+
+App changes:
+- Every email-code guess spends the account's sign-in budget.
+- Codes are sent after the response, so the response time no longer reveals registered addresses.
+- Mutation routes keep the MFA redirect instead of reporting a failure.
+- A failed audit write ends the agent run.
+- Manual runs and the copilot get a time budget.
+- Smaller fixes to status codes, the PDF and the spreadsheet reader, plus documentation corrections.
+
+Tested locally:
+- TypeScript, all 174 tests and the production build pass.
+- On a local PostgreSQL 16 the migration applied as an upgrade, a second run was a no-op, RLS is on
+  for every public table, and `authenticated` cannot execute the new private routines.
+
+Not verified on the hosted database or Vercel.
+
 ## Agent hold proposals, cron deadline, provider sign-in limits — 2026-11-04
 
 Migration `202610160011_agent_hold_proposals.sql` (apply before deploying this source):

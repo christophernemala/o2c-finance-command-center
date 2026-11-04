@@ -11,7 +11,8 @@ Next.js route handlers
   ├─ src/lib/ai         Claude client, tool registry, loop, agents, runner, copilot
   └─ src/lib/xlsx-read  bounded .xlsx/.csv reader (fflate, no new dependency)
 PostgreSQL (source of truth and enforcement)
-  RLS on every public table · SECURITY DEFINER routines for every write
+  RLS on every public table · SECURITY DEFINER routines for every write (two RLS-checked
+  exceptions: source CSV archival into source_files, and a user's own profile name/avatar)
   numeric(15,2) money · composite tenant/entity keys · append-only journals, audit, agent steps
 ```
 
@@ -20,6 +21,30 @@ PostgreSQL (source of truth and enforcement)
 set a transaction-local session hash and run `SET LOCAL ROLE authenticated`;
 `auth.uid()` resolves the user from the live session table. Browser-supplied
 roles, tenant IDs or tokens grant nothing.
+
+## Authentication, sessions and browser security
+
+- **Sessions.** Invited accounts use scrypt password hashes (imported bcrypt is accepted). The
+  browser gets a random 256-bit HttpOnly session cookie; only its SHA-256 hash is stored in the
+  private auth schema. Sessions expire and are revoked on logout, activation or password reset, and
+  when an account is disabled. There is no JWT secret or browser refresh token.
+- **MFA.** TOTP factors are encrypted with AES-256-GCM and per-user associated data; verification is
+  serialized and records the consumed counter to reject replay. Financial RLS checks the session's
+  assurance level independently of the route and UI checks.
+- **Sign-in methods.** Password plus TOTP; a six-digit email code for existing confirmed accounts
+  (ten minutes, single use, browser-bound, five guesses per code, every guess charged to the
+  account's rate limit); and Google or single-tenant Microsoft OIDC with explicit linking from
+  Account security or an invitation. A matching email alone never signs anyone in; the stable
+  issuer and subject are the key, and enrolled TOTP stays required. Registration requests are
+  reviewed by an administrator; they do not create accounts.
+- **Rate limits.** Durable Upstash Redis budgets per account and per IP for every sign-in method,
+  and per user for API routes. A successful sign-in releases its slot. Outages fail closed.
+- **Browser controls.** Protected responses are dynamic and no-store. CSP uses per-request script
+  nonces and same-origin connections. Every POST route checks Origin and bounds the body before
+  parsing. No financial records or tokens go into browser storage.
+- **Deployment caveats.** Privileged database administrators can still alter the database. Backups,
+  archives and restore evidence are deployment responsibilities. Live provider sign-in and email
+  delivery are not verified (see `docs/RELEASE.md`).
 
 ## Agent runtime
 
@@ -156,7 +181,7 @@ Migration `202610160003_collections_credit.sql`. Sender in `src/lib/collections/
 | `collection_messages` | Proposed by a maker, an admin or the collections agent within its run. There is no free-text recipient: the email goes to one of the customer's live contacts. The invoices must be overdue, undisputed and open, and belong to that customer. The total is recomputed from the ledger. An approver or admin other than the maker must approve before anything is sent. A customer has at most one message pending, approved or sending (unique index). The invoices and total are re-checked against the ledger at approval and again at sending; if anything changed, approval is refused ("Stale evidence") or the message fails instead of sending. Archiving a contact withdraws messages queued for it. |
 | `payment_promises` | Makers and admins record them, directly or through a "promised" remark. Status is derived when read by `o2c_private.promise_state`: an invoice promise is **kept** once that invoice is fully paid (and treated as cancelled if the invoice was voided); an account promise is kept once nothing is overdue; otherwise it is **broken** after its date. A maker, approver or admin can also mark a promise kept or cancelled with a reason (`resolve_payment_promise`, audited). The worklist, the account view and the credit risk agent all read the same derived status. |
 | `credit_limits` | A maker or admin proposes a limit, and a different approver or admin activates it. One active and one pending limit per customer. |
-| `customer_holds` | A maker, approver, admin or the agent (within a run) may place a hold, and `placed_by_kind` records which. Only a **human** approver or admin who did not place the hold may release it. The agent has no release tool. |
+| `customer_holds` | A maker, approver or admin may place a hold directly. The agent (within a run) only **proposes** one: `place_customer_hold` records a pending `customer_hold_proposals` row, and nothing is held until a human approver or admin approves it (`decide_hold_proposal`; rejection needs a reason; both audited). The approved hold keeps `placed_by_kind='agent'` and records `approved_by`. Only a **human** approver or admin who did not place the hold may release it. The agent has no release tool. |
 
 **Send pipeline.** The steps are approve, claim, build, send, complete.
 - Approving a message schedules delivery after the response (`after()`). The daily cron retries.
@@ -222,8 +247,9 @@ Uploads go to `/api/copilot/files`:
 - it is stored in `copilot_files` (owner-only, SHA-256 digest, immutable).
 
 `read_uploaded_file` pages rows to the model. The .xlsx reader only decompresses
-the workbook, shared-string and sheet parts. Each part is capped at 20 MB
-uncompressed (zip-bomb guard), and reads are capped at 5,000 rows and 60 columns.
+the workbook, shared-string and sheet parts. Each part is capped at 12 MB
+uncompressed and the whole workbook at 24 MB (zip-bomb guard), and reads are capped at
+5,000 rows and 60 columns; a sheet cut by either limit is reported as truncated.
 
 ## Reporting
 

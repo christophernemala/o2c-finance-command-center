@@ -38,6 +38,9 @@ All fonts are locally served with their SIL Open Font Licenses; builds do not fe
 exact amounts or animate a monetary value. Use sentence-case labels and explicit
 action names such as “Download daily AR workbook” and “Review allocation proposals”.
 
+- Never truncate monetary values. Use horizontal scrolling for long amount columns.
+- Status text accompanies colour; never rely on colour alone, and no colour-only approvals.
+
 Panels: 20px radius; controls: 12–13px; risk cards: 16px. Use a 4/8px spacing rhythm,
 20–24px panel gaps and 16px mobile gutters. Keep tables horizontally scrollable
 inside their panel. Main action targets are at least 44px; chart-mode controls

@@ -1,8 +1,8 @@
 # O2C Finance Command Center
 
 An agentic accounts-receivable (order-to-cash) platform for UAE finance teams. AI
-agents read the ledger, propose cash application, propose collections emails, place
-credit holds and write management reports. Every step they take is recorded and visible.
+agents read the ledger, propose cash application, propose collections emails, propose
+credit holds (a human approver places them) and write management reports. Every step they take is recorded and visible.
 Every money movement still goes through PostgreSQL-enforced maker/checker
 controls. The one exception is policy auto-posting: two humans can approve a
 policy that lets the agent post exact matches within AED limits.
@@ -119,8 +119,11 @@ Tests never call the live Claude API.
 
 These limits are deliberate. Read them before you sell or demo the product.
 
-- **Email only, no SMS or WhatsApp.** Collections email through Resend is built and tested
-  locally against a stubbed provider, but has not yet sent a live message.
+- **Messaging is approval-gated and not live-verified.** Collections email (Resend) and SMS and
+  WhatsApp (Twilio) are built and tested locally against stubbed providers, but none has sent a
+  live message. WhatsApp is limited to free-form replies inside the 24-hour customer-service
+  window: there are no approved templates for proactive messages, no delivery receipts and no
+  opt-out webhooks, so a message outside the window is rejected by Twilio and recorded as failed.
 - **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
   statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
 - **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
@@ -130,7 +133,8 @@ These limits are deliberate. Read them before you sell or demo the product.
 - **No statutory general ledger.** The cash-control journal only (bank → unapplied
   cash → AR). No period locks, FX, write-offs or refunds.
 - **ECL is display-only for supplied runs.** There is no calibrated model.
-- **Not yet available:** SSO/OIDC, tenant self-signup, billing, Arabic UI.
+- **Not yet available:** enterprise SSO (SAML or tenant-wide SSO), tenant self-signup, billing,
+  Arabic UI. Google and Microsoft sign-in is built but needs OAuth credentials and is not live-verified.
 - **No external certifications or audits:** no SOC 2, ISO 27001 or penetration test
   has been performed.
 - **Live verification pending:** the hosted deployment has not been tested with real

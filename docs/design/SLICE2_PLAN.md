@@ -202,7 +202,7 @@ Migration `202610160001_agent_operations.sql`.
 - Detectors in SQL (`detect_agent_incidents(window)`):
   - tool error rate above threshold;
   - same tool and input three or more times in one run (loop);
-  - run stuck over 20 minutes;
+  - run stuck: still running with no step for 10 minutes (see B1a item 4);
   - refusal or max-tokens stop;
   - failed send.
 - Run at the end of every agent run and by cron.
@@ -256,7 +256,7 @@ Server:
 Agents:
 - `draft_collection_message` becomes `propose_collection_message`.
 - New tools `get_customer_account` and `get_broken_promises`.
-- Credit holds: the agent may place one, only a human releases it. This is my default; flag it if you disagree.
+- Credit holds: the agent only proposes one; a human approver or admin activates it, and only a different human releases it (changed from the original default in `202610160011_agent_hold_proposals.sql`).
 
 ### B3. UI
 

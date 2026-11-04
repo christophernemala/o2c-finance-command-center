@@ -23,9 +23,9 @@ Help UAE finance teams collect cash faster and with fewer errors. AI agents do t
 | Policy auto-posting of exact cash matches within AED limits approved by two people | Built (slice 1) |
 | Copilot over ledger data and uploaded CSV or Excel files | Built (slice 1) |
 | AR pack: aging, countback DSO, 30-day CEI, Excel export | Built (slice 1) |
-| Collections outbox with approval; email (Resend), SMS and WhatsApp replies (Twilio) | Slice 2 |
-| Disputes, promises to pay, credit limits and holds, PDF statements | Slice 2 |
-| Agent operations: health, agent map, incidents, guardrails | Slice 2 |
+| Collections outbox with approval; email (Resend), SMS and WhatsApp replies (Twilio; WhatsApp only inside the 24-hour window) | Built (slice 2), not live-verified |
+| Disputes, promises to pay, credit limits and holds, PDF statements | Built (slice 2) |
+| Agent operations: health, agent map, incidents, guardrails | Built (slice 2) |
 | ERP and bank connectors, VAT/TRN fields, e-invoicing readiness | Slice 3 |
 | Billing, SSO, Arabic UI, UAE hosting | Slice 4 |
 
