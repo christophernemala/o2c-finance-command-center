@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { amountExceeds } from "../money";
+import { amount, amountExceeds } from "../money";
 
 export type GuardrailStage = "monitor" | "warn" | "block";
 export type GuardrailKind = "deny_tool" | "max_amount" | "require_field" | "max_identical_calls";
@@ -35,8 +35,12 @@ function violation(rule: Guardrail, tool: string, input: Record<string, unknown>
   const target = rule.params.tool;
   if (rule.kind === "deny_tool") return target === tool ? `${tool} is not allowed for this agent` : null;
   if (rule.kind === "max_amount") {
-    if (target !== tool || typeof input.amount !== "string" || typeof rule.params.limit !== "string") return null;
-    try { return amountExceeds(input.amount, rule.params.limit) ? `Amount AED ${input.amount} exceeds the AED ${rule.params.limit} limit` : null; } catch { return null; }
+    if (target !== tool) return null;
+    // Only an unusable limit skips the rule (and is logged); an unusable amount fails closed.
+    let limit: string;
+    try { limit = amount(rule.params.limit); } catch { console.error("Guardrail limit unusable", rule.id); return null; }
+    if (typeof input.amount !== "string") return `${tool} amount missing or invalid`;
+    try { return amountExceeds(input.amount, limit) ? `Amount AED ${input.amount} exceeds the AED ${limit} limit` : null; } catch { return `${tool} amount missing or invalid`; }
   }
   if (rule.kind === "require_field") {
     const field = String(rule.params.field); const value = input[field];

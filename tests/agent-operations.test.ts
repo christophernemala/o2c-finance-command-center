@@ -145,7 +145,7 @@ test("guardrail evaluation order, canonical hashing and block results", () => {
   assert.deepEqual(hits.map(hit => [hit.rule.kind, hit.action]), [["deny_tool", "observed"], ["max_amount", "blocked"], ["require_field", "warned"], ["max_identical_calls", "blocked"]]);
   assert.deepEqual(blockFor(hits), { blocked_by: "max_amount", rule_id: "max_amount", stage: "block", reason: "Amount AED 1000.01 exceeds the AED 1000.00 limit" });
   assert.deepEqual(evaluateGuardrails(rules, "propose_receipt", { amount: "1000.00", customer_id: "c" }, 1).map(hit => hit.action), ["observed"], "at the limit is allowed");
-  assert.equal(blockFor(evaluateGuardrails(rules, "propose_receipt", { amount: "not money" }, 1).filter(hit => hit.rule.kind === "max_amount")), null);
+  assert.equal(blockFor(evaluateGuardrails(rules, "propose_receipt", { amount: "not money" }, 1).filter(hit => hit.rule.kind === "max_amount"))?.reason, "propose_receipt amount missing or invalid", "an unparseable amount fails closed");
   assert.equal(canonicalJson({ b: 1, a: { d: [2, { y: 1, x: 0 }], c: null } }), '{"a":{"c":null,"d":[2,{"x":0,"y":1}]},"b":1}');
   assert.equal(inputHash("t", { a: 1, b: 2 }), inputHash("t", { b: 2, a: 1 }));
   assert.notEqual(inputHash("t", { a: 1 }), inputHash("u", { a: 1 }));
@@ -174,4 +174,16 @@ test("tool loop records guardrail hits and never runs a blocked tool", async () 
   assert.deepEqual(events, ["tool_call", "tool_result", "tool_call", "tool_result", "tool_call", "guardrail:blocked", "tool_result", "message"]);
   assert.equal(lastResults[2].is_error, true);
   assert.deepEqual(JSON.parse(lastResults[2].content), { blocked_by: "No repeats", rule_id: "g1", stage: "block", reason: "Identical get_ar_overview call repeated 3 times in this run (limit 2)" });
+});
+
+test("a max_amount guardrail fails closed on a missing or malformed amount", async () => {
+  const rule = { id: "r1", name: "Cap", kind: "max_amount" as const, params: { tool: "propose_receipt", limit: "1000.00" }, stage: "block" as const, version: 1 };
+  const blocked = (amount: unknown) => blockFor(evaluateGuardrails([rule], "propose_receipt", amount === undefined ? {} : { amount }, 1));
+  for (const bad of [1000, 5, "1000.555", "1,000", "", undefined]) assert.match(blocked(bad)?.reason ?? "", /amount missing or invalid/, `blocks ${JSON.stringify(bad)}`);
+  assert.match(blocked("1000.01")?.reason ?? "", /exceeds/);
+  assert.equal(blocked("999.99"), null);
+  assert.equal(blocked("1000.00"), null);
+  assert.equal(blockFor(evaluateGuardrails([rule], "other_tool", { amount: 5 }, 1)), null, "other tools are not affected");
+  const broken = { ...rule, params: { tool: "propose_receipt", limit: "lots" } };
+  assert.equal(blockFor(evaluateGuardrails([broken], "propose_receipt", { amount: "5.00" }, 1)), null, "an unusable limit skips the rule");
 });
