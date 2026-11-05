@@ -113,3 +113,19 @@ test("sealed values reject tampering, other keys and reservation tickets", () =>
   const ticket = { key: `o2c:{login}:account:${"a".repeat(64)}`, ipKey: `o2c:{login}:ip:${"b".repeat(64)}`, id: "00000000-0000-4000-8000-000000000001" };
   assert.equal(openValue(sealReservation(ticket, settings.secret), settings.secret), null, "a reservation ticket does not open as a value");
 });
+test("repeated code requests for one address hit the account limit from any IP", async () => {
+  const slots = new Map<string, number>();
+  const transport: typeof fetch = async (_url, options) => {
+    const [, script, , account, ip] = JSON.parse(options!.body as string) as string[];
+    assert.match(String(script), /ZADD/);
+    const used = [slots.get(account) ?? 0, slots.get(ip) ?? 0];
+    const allowed = used[0] < 5 && used[1] < 30;
+    if (allowed) { slots.set(account, used[0] + 1); slots.set(ip, used[1] + 1); }
+    return new Response(JSON.stringify({ result: allowed ? [1, 0] : [0, 900] }));
+  };
+  const limiter = createLoginLimiter(settings, transport);
+  for (let i = 0; i < 5; i++) assert.ok((await limiter.reserve("victim@example.invalid", `198.51.100.${i}`)).allowed);
+  const spam = await limiter.reserve("Victim@Example.invalid", "203.0.113.9");
+  assert.equal(spam.allowed, false, "a sixth request from a new IP is refused, so the route answers 429");
+  assert.equal(spam.retryAfter, 900);
+});
