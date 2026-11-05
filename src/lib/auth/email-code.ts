@@ -14,10 +14,12 @@ export async function requestEmailCode(pool:SqlPool,email:string,binding:string,
   return user.email;
  });
  if(!recipient)return;
- try{await send(recipient,code);}catch{
-  await transaction(pool,async connection=>{await connection.query('delete from auth.email_login_codes where token_hash=$1',[tokenHash(binding)]);});
-  throw Error('Email delivery unavailable');
- }
+ try{await send(recipient,code);}catch{await discardEmailCode(pool,binding);throw Error('Email delivery unavailable');}
+}
+/** Removes an undelivered challenge so a failed send never leaves a live code behind. */
+export async function discardEmailCode(pool:SqlPool,binding:string){
+ if(!validToken(binding))return;
+ await transaction(pool,async connection=>{await connection.query('delete from auth.email_login_codes where token_hash=$1',[tokenHash(binding)]);});
 }
 export async function consumeEmailCode(connection:SqlConnection,binding:string,code:string,secret:string):Promise<string|null>{
  if(!validToken(binding)||!/^\d{6}$/.test(code)||secret.length<32)return null;
@@ -27,4 +29,11 @@ export async function consumeEmailCode(connection:SqlConnection,binding:string,c
  if(!timingSafeEqual(Buffer.from(row.code_hash,'hex'),digest(secret,binding,code)))return null;
  await connection.query('delete from auth.email_login_codes where token_hash=$1',[tokenHash(binding)]);
  return row.user_id;
+}
+/** Background delivery: on failure, log and delete the code. Never throws, because it runs after the response. */
+export async function deliverEmailCode(pool:SqlPool,binding:string,send:()=>Promise<void>){
+ try{await send();}catch(error){
+  console.error('Email sign-in code not delivered',error instanceof Error?error.message:error);
+  try{await discardEmailCode(pool,binding);}catch{console.error('Undelivered email sign-in code not removed; it expires in ten minutes');}
+ }
 }

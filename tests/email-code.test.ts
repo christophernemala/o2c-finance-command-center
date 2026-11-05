@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { migratedDatabase } from './pg-helper';
-import { requestEmailCode } from '../src/lib/auth/email-code';
+import { requestEmailCode, deliverEmailCode } from '../src/lib/auth/email-code';
 import { authService } from '../src/lib/auth/service';
 import { newToken, tokenHash } from '../src/lib/auth/crypto';
 
@@ -33,6 +33,12 @@ test('email codes are bound, hashed, single-use, limited and preserve MFA', asyn
   await db.exec('reset role');assert.equal((await db.query<{n:number}>('select count(*)::int n from auth.users')).rows[0].n,1);
   const failed=newToken();await assert.rejects(requestEmailCode(pool,'member@example.com',failed,secret,async()=>{throw Error('provider failed');}));
   await db.exec('reset role');assert.equal((await db.query<{n:number}>('select count(*)::int n from auth.email_login_codes where token_hash=$1',[tokenHash(failed)])).rows[0].n,0);
+  // Route path: the send callback only schedules delivery, so the failure happens later in the background.
+  let background:Promise<void>=Promise.resolve();const late=newToken();let lateCode='';
+  await requestEmailCode(pool,'member@example.com',late,secret,async(_to,value)=>{lateCode=value;background=deliverEmailCode(pool,late,async()=>{throw Error('provider failed');});});
+  await background;
+  await db.exec('reset role');assert.equal((await db.query<{n:number}>('select count(*)::int n from auth.email_login_codes where token_hash=$1',[tokenHash(late)])).rows[0].n,0,'an undelivered background code is removed');
+  assert.ok((await service.signInWithEmailCode(late,lateCode,secret)).error,'an undelivered code cannot sign in');
   await db.query("insert into auth.mfa_factors(id,user_id,status,secret_ciphertext) values(gen_random_uuid(),$1,'verified','test-only-ciphertext')",[id]);
   const mfa=newToken();await requestEmailCode(pool,'member@example.com',mfa,secret,send);const previous=session;
   assert.equal((await service.signInWithEmailCode(mfa,code,secret)).error,null);assert.notEqual(session,previous);

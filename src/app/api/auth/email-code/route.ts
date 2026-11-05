@@ -8,7 +8,7 @@ import { postgresConfig } from '@/lib/postgres/config';
 import { databasePool } from '@/lib/postgres/pool';
 import { createClient } from '@/lib/postgres/server';
 import { newToken,encryptionKey,validToken } from '@/lib/auth/crypto';
-import { requestEmailCode,emailCodeCookie } from '@/lib/auth/email-code';
+import { requestEmailCode,deliverEmailCode,emailCodeCookie } from '@/lib/auth/email-code';
 import { emailDeliverySettings,sendEmailCode } from '@/lib/auth/email-delivery';
 import { sessionCookieOptions } from '@/lib/auth/cookie-options';
 export async function POST(request:NextRequest){
@@ -27,9 +27,10 @@ export async function POST(request:NextRequest){
    const attempt=await createLoginLimiter(settings).reserve(parsed.data,trustedLoginIp(request.headers));
    if(!attempt.allowed)return new NextResponse('Too many code requests. Try again later.',{status:429,headers:{'Retry-After':String(attempt.retryAfter),'Cache-Control':'no-store'}});
    const binding=newToken();
-   // Delivery runs after the response, so registered and unknown addresses answer in the same time.
-   // A failed send is logged; the unused code expires in ten minutes.
-   await requestEmailCode(databasePool(),parsed.data,binding,settings.secret,async(to,code)=>{after(()=>sendEmailCode(to,code).catch(error=>{console.error('Email sign-in code not delivered',error instanceof Error?error.message:error);}));});
+   // Delivery runs after the response, so registered and unknown addresses answer in the same time and the same way.
+   // A failed send is logged and its code deleted, so no undelivered code stays usable.
+   const pool=databasePool();
+   await requestEmailCode(pool,parsed.data,binding,settings.secret,async(to,code)=>{after(()=>deliverEmailCode(pool,binding,()=>sendEmailCode(to,code)));});
    destination.searchParams.set('step','verify');const response=NextResponse.redirect(destination,{status:303,headers:{'Cache-Control':'no-store'}});
    response.cookies.set(name,binding,{...options,maxAge:600});response.cookies.set(accountCookie,sealValue(`${binding}:${parsed.data}`,settings.secret),{...options,maxAge:600});return response;
   }
