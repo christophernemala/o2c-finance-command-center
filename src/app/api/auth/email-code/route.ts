@@ -28,7 +28,7 @@ export async function POST(request:NextRequest){
    if(!attempt.allowed)return new NextResponse('Too many code requests. Try again later.',{status:429,headers:{'Retry-After':String(attempt.retryAfter),'Cache-Control':'no-store'}});
    const binding=newToken();
    // Delivery runs after the response, so registered and unknown addresses answer in the same time and the same way.
-   // A failed send is logged and its code deleted, so no undelivered code stays usable.
+   // A failed send is logged and its code deleted; if that delete fails, the code expires in ten minutes.
    const pool=databasePool();
    await requestEmailCode(pool,parsed.data,binding,settings.secret,async(to,code)=>{after(()=>deliverEmailCode(pool,binding,()=>sendEmailCode(to,code)));});
    destination.searchParams.set('step','verify');const response=NextResponse.redirect(destination,{status:303,headers:{'Cache-Control':'no-store'}});
