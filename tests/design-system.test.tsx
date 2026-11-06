@@ -19,7 +19,8 @@ test("sorting compares amounts exactly and keeps missing values last", () => {
   assert.deepEqual(sortRows(rows, columns, "unknown:asc").map(row => row.id), ["a", "b", "c", "d"], "an unknown sort keeps the given order");
   assert.deepEqual(sortRows(rows, columns, undefined, "  zE ").map(row => row.id), ["a"]);
   const broken = [...rows, { id: "e", customer: "Bad", balance: "not-a-number" }];
-  assert.deepEqual(sortRows(broken, columns, "balance:asc").map(row => row.id), ["c", "a", "b", "d", "e"], "a malformed amount sorts last, after missing ones, instead of throwing");
+  assert.deepEqual(sortRows(broken, columns, "balance:asc").map(row => row.id), ["c", "a", "b", "d", "e"], "a malformed amount sorts last with the missing ones instead of throwing");
+  assert.deepEqual(sortRows(broken, columns, "balance:desc").map(row => row.id), ["b", "a", "c", "d", "e"], "and stays last when the order is reversed");
 });
 
 test("the data table renders sortable headers, a filter and phone cards", () => {

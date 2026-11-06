@@ -84,17 +84,13 @@ export function sortRows<Row>(rows: Row[], columns: Column<Row>[], sort?: string
   const column = columns.find(entry => entry.key === key && entry.sortValue);
   if (!column) return filtered;
   const sign = direction === "desc" ? -1 : 1;
+  // A malformed amount never breaks the whole table: it is treated exactly like a missing one.
+  const valueOf = (row: Row) => { const raw = column.sortValue!(row); return raw !== null && column.numeric && decimalOrNull(raw) === null ? null : raw; };
   const compare = (a: string | null, b: string | null) => {
-    if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1; // Missing values last in either direction.
-    if (column.numeric) {
-      // A malformed amount never breaks the whole table: it sorts last, like a missing one.
-      const [x, y] = [decimalOrNull(a), decimalOrNull(b)];
-      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
-      return sign * x.comparedTo(y);
-    }
-    return sign * a.localeCompare(b);
+    if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1; // Missing values last in either direction, in their given order.
+    return sign * (column.numeric ? new Decimal(a).comparedTo(new Decimal(b)) : a.localeCompare(b));
   };
-  return [...filtered].sort((a, b) => compare(column.sortValue!(a), column.sortValue!(b)));
+  return [...filtered].sort((a, b) => compare(valueOf(a), valueOf(b)));
 }
 export function DataTable<Row>({ caption, rows, columns, rowKey, sort, query, hrefFor, empty }: {
   caption: string; rows: Row[]; columns: Column<Row>[]; rowKey: (row: Row) => string; sort?: string; query?: string;
