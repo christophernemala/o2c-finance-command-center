@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { authRequestOrigin, authSiteOrigin, authenticationAssurance, verifiedWorkspace } from "../src/lib/auth-flow";
+import { authRequestOrigin, authSiteOrigin, authenticationAssurance, offHostSession, verifiedWorkspace } from "../src/lib/auth-flow";
 import { signupPasswordSchema } from "../src/lib/validation";
 
 test("authentication accepts only fixed safe application origins", () => {
@@ -52,4 +52,29 @@ test("second-factor assurance requires provider evidence and fails closed on err
     const client={auth:{mfa:{getAuthenticatorAssuranceLevel:async()=>({data:{currentLevel:current,nextLevel:next},error:null})}}} as unknown as Parameters<typeof authenticationAssurance>[0];
     assert.equal(await authenticationAssurance(client),expected);
   }
+});
+
+test("off-host provider requests never query sessions before the IP limiter", async () => {
+  const calls: string[] = [];
+  const deps = (opts: { cookie: boolean; allowed?: boolean; live?: boolean | "throw" }) => ({
+    hasCookie: opts.cookie,
+    reserve: async () => { calls.push("reserve"); return { allowed: opts.allowed ?? true, retryAfter: opts.allowed === false ? 42 : 0, release: async () => { calls.push("release"); } }; },
+    lookup: async () => { calls.push("lookup"); if (opts.live === "throw") throw new Error("db down"); return opts.live ?? false; },
+  });
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: false })), { state: "signed-out" });
+  assert.deepEqual(calls, [], "no cookie: no limiter call and no database query");
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: true, allowed: false })), { state: "limited", retryAfter: 42 });
+  assert.deepEqual(calls, ["reserve"], "over budget: the session is never looked up");
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: false })), { state: "signed-out" });
+  assert.deepEqual(calls, ["reserve", "lookup"], "a forged or stale cookie keeps its slot");
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: "throw" })), { state: "signed-out" });
+  assert.deepEqual(calls, ["reserve", "lookup"], "a failed lookup is treated as signed out and keeps its slot");
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: true })), { state: "signed-in" });
+  assert.deepEqual(calls, ["reserve", "lookup", "release"], "a real session returns its slot");
+  await assert.rejects(offHostSession({ hasCookie: true, reserve: async () => { throw new Error("limiter down"); }, lookup: async () => { throw new Error("must not run"); } }), /limiter down/, "a limiter outage propagates so the route fails closed");
 });

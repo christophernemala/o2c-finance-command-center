@@ -1,5 +1,5 @@
 import { NextRequest,NextResponse } from "next/server";
-import { authSiteOrigin,authRequestOrigin } from "@/lib/auth-flow";
+import { authSiteOrigin,authRequestOrigin,offHostSession } from "@/lib/auth-flow";
 import { oidc,oidcSettings,oidcConfiguration,oidcCookieName } from "@/lib/auth/oidc";
 import { sameOrigin,boundedFormRequest } from "@/lib/request-security";
 import { createLoginLimiter,loginLimiterConfig,trustedLoginIp,oidcReservationCookie,sealReservation } from "@/lib/login-limiter";
@@ -20,8 +20,20 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
  const requestOrigin=request.headers.get("origin")!;
  if(requestOrigin!==origin){
   // Check the session itself, not just the cookie: a stale cookie is an ordinary sign-in, not a link.
-  let signedIn=false;try{signedIn=!!(await (await createClient()).auth.getUser()).data.user;}catch{signedIn=false;}
-  return NextResponse.redirect(new URL(signedIn?"/auth/security?error=host":"/login",signedIn?requestOrigin:origin),{status:303,headers:{"Cache-Control":"no-store"}});
+  // The lookup sits behind the per-IP limiter; if the limiter is unavailable, fail closed to the stable sign-in page.
+  const signIn=NextResponse.redirect(new URL("/login",origin),{status:303,headers:{"Cache-Control":"no-store"}});
+  try{
+   const jar=await cookies(),secure=sessionCookieOptions().secure;
+   const limiter=createLoginLimiter(limit),ip=trustedLoginIp(request.headers);
+   const session=await offHostSession({
+    hasCookie:!!jar.get(secure?"__Host-o2c-session":"o2c-session")?.value,
+    reserve:async()=>{const slot=await limiter.reserveIp(ip);return {allowed:slot.allowed,retryAfter:slot.retryAfter,release:()=>limiter.succeed(slot.ticket)};},
+    lookup:async()=>!!(await (await createClient()).auth.getUser()).data.user,
+   });
+   if(session.state==="limited")return new NextResponse("Too many sign-in attempts",{status:429,headers:{"Retry-After":String(session.retryAfter),"Cache-Control":"no-store"}});
+   if(session.state==="signed-in")return NextResponse.redirect(new URL("/auth/security?error=host",requestOrigin),{status:303,headers:{"Cache-Control":"no-store"}});
+  }catch{/* Fail closed below. */}
+  return signIn;
  }
  const failure=new URL("/login?error=oauth",origin);
  try{
