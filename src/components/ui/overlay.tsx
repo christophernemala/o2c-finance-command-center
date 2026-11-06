@@ -17,20 +17,22 @@ export function Sheet({ trigger, title, children, triggerClassName = "button sec
 }
 
 /**
- * Toast for the result of a server action (?message=…). It is announced once in a polite live region,
- * and the flag is removed from the address bar so a refresh doesn't repeat it.
+ * Toast for the result of a server action (?message=…&nonce=…). It is announced once in a polite live region,
+ * and the flags are removed from the address bar so a refresh doesn't repeat it.
+ * `id` names this occurrence (the action's nonce), so the same text returning later shows again.
  */
-export function Toast({ message, tone = "info" }: { message?: string; tone?: "info" | "success" | "danger" }) {
-  // Remember which message was dismissed (or timed out); a different message shows again without resetting state in an effect.
+export function Toast({ message, id, tone = "info" }: { message?: string; id?: string; tone?: "info" | "success" | "danger" }) {
+  const occurrence = message ? `${id ?? ""}\u0000${message}` : null;
+  // Remember which occurrence was dismissed (or timed out); a new one shows without resetting state in an effect.
   const [hidden, setHidden] = useState<string | null>(null);
   useEffect(() => {
-    if (!message) return;
+    if (!occurrence) return;
     const url = new URL(window.location.href);
     if (url.searchParams.has("message")) { url.searchParams.delete("message"); url.searchParams.delete("nonce"); window.history.replaceState(null, "", url); }
-    const timer = window.setTimeout(() => setHidden(message), 6000);
+    const timer = window.setTimeout(() => setHidden(occurrence), 6000);
     return () => window.clearTimeout(timer);
-  }, [message]);
+  }, [occurrence]);
   return <div className="ds-toast-region" role="status" aria-live="polite">
-    {message && hidden !== message && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(message)}>×</button></div>}
+    {occurrence && hidden !== occurrence && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(occurrence)}>×</button></div>}
   </div>;
 }
