@@ -21,5 +21,7 @@ export function formatEntityTime(value: string | Date, timeZone: string, locale 
 /** A calendar date (due date, as-of date) shown without shifting it through any zone. */
 export function formatCalendarDate(value: string, locale = "en"): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Invalid date");
-  return new Intl.DateTimeFormat(locale, { timeZone: "UTC", dateStyle: "medium" }).format(new Date(`${value}T00:00:00Z`));
+  const date = new Date(`${value}T00:00:00Z`); // Impossible dates such as 2026-02-31 must not roll over to another day.
+  if (!Number.isFinite(date.valueOf()) || date.toISOString().slice(0, 10) !== value) throw new Error("Invalid date");
+  return new Intl.DateTimeFormat(locale, { timeZone: "UTC", dateStyle: "medium" }).format(date);
 }

@@ -10,8 +10,11 @@ test("minor units follow ISO 4217, not the runtime's display digits", () => {
   assert.equal(minorUnits("LBP"), 2, "ICU shows LBP with 0 digits; ISO says 2");
   for (const code of ["CLF", "XDR", "HRK", "ZWL", "aed", "XXX", ""]) assert.equal(isCurrency(code), false, code);
   assert.throws(() => minorUnits("XDR"), /Unsupported currency/);
-  assert.ok(currencyCodes.length > 150 && new Set(currencyCodes).size === currencyCodes.length, "no duplicates");
-  for (const code of currencyCodes) assert.doesNotThrow(() => new Intl.NumberFormat("en", { style: "currency", currency: code }), code);
+  // Intl accepts any well-formed three-letter code, so membership is pinned explicitly: a change to the list must change this test.
+  assert.equal(currencyCodes.length, 156);
+  assert.equal(new Set(currencyCodes).size, currencyCodes.length, "no duplicates");
+  for (const code of ["USD", "EUR", "GBP", "INR", "AED", "SAR", "KWD", "BHD", "OMR", "JPY", "ZWG", "SLE", "XCG", "VES"]) assert.ok(isCurrency(code), code);
+  for (const withdrawn of ["CUC", "HRK", "SLL", "ZWL", "VEF", "MRO"]) assert.equal(isCurrency(withdrawn), false, `${withdrawn} is withdrawn`);
 });
 
 test("amounts are validated against their currency's decimal places", () => {
@@ -47,7 +50,10 @@ test("formatting uses the currency's own decimals and the locale's numerals", ()
   const formatMoney = (...args: Parameters<typeof format>) => format(...args).replace(/\u00a0/g, " ");
   assert.equal(formatMoney("1.234", "KWD"), "KWD 1.234");
   assert.equal(formatMoney("1234", "JPY"), "JPY 1,234");
-  assert.equal(formatMoney("-1234567.5", "AED"), "−AED 1,234,567.50");
+  assert.equal(formatMoney("-1234567.5", "AED"), "-AED 1,234,567.50", "the locale places the sign");
+  assert.equal(formatMoney("-0.5", "AED"), "-AED 0.50", "a negative amount under one keeps its sign");
+  assert.match(format("-1.5", "BHD", "ar-BH"), /^\u200f?\u061c?-?.*١٫٥٠٠/u, "RTL keeps the locale's own sign and marks");
+  assert.throws(() => format("1.2345", "KWD"), /at most 3 decimal places/, "display never rounds silently");
   assert.equal(formatMoney("1234567.5", "INR", "en-IN"), "INR 12,34,567.50");
   assert.equal(formatMoney("1234.5", "EUR", "de-DE"), "1.234,50 EUR");
   assert.match(formatMoney("1.891", "BHD", "ar-BH"), /٫٨٩١/, "fraction digits follow the locale");

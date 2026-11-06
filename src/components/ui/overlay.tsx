@@ -21,15 +21,16 @@ export function Sheet({ trigger, title, children, triggerClassName = "button sec
  * and the flag is removed from the address bar so a refresh doesn't repeat it.
  */
 export function Toast({ message, tone = "info" }: { message?: string; tone?: "info" | "success" | "danger" }) {
-  const [visible, setVisible] = useState(Boolean(message));
+  // Remember which message was dismissed (or timed out); a different message shows again without resetting state in an effect.
+  const [hidden, setHidden] = useState<string | null>(null);
   useEffect(() => {
     if (!message) return;
     const url = new URL(window.location.href);
     if (url.searchParams.has("message")) { url.searchParams.delete("message"); url.searchParams.delete("nonce"); window.history.replaceState(null, "", url); }
-    const timer = window.setTimeout(() => setVisible(false), 6000);
+    const timer = window.setTimeout(() => setHidden(message), 6000);
     return () => window.clearTimeout(timer);
   }, [message]);
   return <div className="ds-toast-region" role="status" aria-live="polite">
-    {visible && message && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setVisible(false)}>×</button></div>}
+    {message && hidden !== message && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(message)}>×</button></div>}
   </div>;
 }

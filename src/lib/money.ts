@@ -73,11 +73,17 @@ export function formatMoney(value: string, currency: string, locale = "en"): str
   const decimal = new Money(value);
   if (!decimal.isFinite()) throw new Error("Invalid amount");
   const units = minorUnits(currency);
+  // Display never rounds silently: more decimals than the currency allows is a caller error (use roundMoney first).
+  if (decimal.decimalPlaces() > units) throw new Error(`A ${currency} amount has at most ${units} decimal places`);
   const [integer, fraction = ""] = decimal.abs().toFixed(units).split(".");
-  const parts = new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code", minimumFractionDigits: units, maximumFractionDigits: units }).formatToParts(BigInt(integer));
+  const negative = decimal.isNegative() && !decimal.isZero();
+  // Format a signed integer so the locale places the minus sign and any bidi marks itself;
+  // -0.5 has integer part 0, so it is formatted as -1 and the integer digit swapped for 0.
+  const whole = BigInt(integer); const signed = negative ? (whole === 0n ? -1n : -whole) : whole;
+  const parts = new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "code", minimumFractionDigits: units, maximumFractionDigits: units }).formatToParts(signed);
   // formatToParts on a BigInt emits a zero fraction of the right length; swap in the real digits, in the locale's numerals.
   const digits = localDigits(locale);
-  const text = parts.map(part => part.type === "fraction" ? [...fraction].map(d => digits[Number(d)]).join("") : part.value).join("");
-  return `${decimal.isNegative() && !decimal.isZero() ? "−" : ""}${text}`;
+  return parts.map(part => part.type === "fraction" ? [...fraction].map(d => digits[Number(d)]).join("")
+    : part.type === "integer" && negative && whole === 0n ? digits[0] : part.value).join("");
 }
 function localDigits(locale: string): string[] { const format = new Intl.NumberFormat(locale, { useGrouping: false }); return Array.from({ length: 10 }, (_, d) => format.format(d)); }

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import Decimal from "decimal.js";
 import { cn } from "@/lib/utils";
@@ -12,8 +13,9 @@ export function Button({ tone = "primary", className, ...props }: ButtonHTMLAttr
 }
 
 /** Labelled input. The error is announced and tied to the field with aria-describedby. */
-export function Input({ label, hint, error, id, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; id: string }) {
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+export function Input({ label, hint, error, id, className, "aria-describedby": callerDescribedBy, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; id: string }) {
+  // Keep any description the caller already points at, then add the hint and error.
+  const describedBy = [callerDescribedBy, hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
   return <div className={cn("ds-field", className)}><label htmlFor={id}>{label}</label>
     <input id={id} {...props} aria-invalid={error ? true : undefined} aria-describedby={describedBy}/>
     {hint && <p id={`${id}-hint`} className="ds-hint">{hint}</p>}{error && <p id={`${id}-error`} className="ds-error" role="alert">{error}</p>}</div>;
@@ -25,7 +27,7 @@ export function Select({ label, id, options, className, ...props }: SelectHTMLAt
 
 export function Card({ title, subtitle, action, children, className }: { title?: string; subtitle?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return <section className={cn("workspace-panel", className)}>
-    {title && <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5"><div className="min-w-0"><h2 className="text-base font-semibold">{title}</h2>{subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}</div>{action}</header>}
+    {(title || subtitle || action) && <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5"><div className="min-w-0">{title && <h2 className="text-base font-semibold">{title}</h2>}{subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}</div>{action}</header>}
     {children}</section>;
 }
 
@@ -74,6 +76,7 @@ export interface Column<Row> {
   /** Value used to sort and filter: a decimal string for amounts (compared exactly) or plain text. */
   sortValue?: (row: Row) => string | null; numeric?: boolean; align?: "end"; primary?: boolean;
 }
+function decimalOrNull(value: string): Decimal | null { try { const decimal = new Decimal(value); return decimal.isFinite() ? decimal : null; } catch { return null; } }
 export function sortRows<Row>(rows: Row[], columns: Column<Row>[], sort?: string, query?: string): Row[] {
   const term = query?.trim().toLowerCase();
   const filtered = term ? rows.filter(row => columns.some(column => (column.sortValue?.(row) ?? "").toLowerCase().includes(term))) : rows;
@@ -83,7 +86,13 @@ export function sortRows<Row>(rows: Row[], columns: Column<Row>[], sort?: string
   const sign = direction === "desc" ? -1 : 1;
   const compare = (a: string | null, b: string | null) => {
     if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1; // Missing values last in either direction.
-    return sign * (column.numeric ? new Decimal(a).comparedTo(new Decimal(b)) : a.localeCompare(b));
+    if (column.numeric) {
+      // A malformed amount never breaks the whole table: it sorts last, like a missing one.
+      const [x, y] = [decimalOrNull(a), decimalOrNull(b)];
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+      return sign * x.comparedTo(y);
+    }
+    return sign * a.localeCompare(b);
   };
   return [...filtered].sort((a, b) => compare(column.sortValue!(a), column.sortValue!(b)));
 }
@@ -92,16 +101,27 @@ export function DataTable<Row>({ caption, rows, columns, rowKey, sort, query, hr
   /** Builds the same URL with a new sort or filter, so the view keeps its other parameters. */
   hrefFor: (change: { sort?: string; q?: string }) => string; empty?: ReactNode;
 }) {
+  const filterId = useId();
   const shown = sortRows(rows, columns, sort, query);
   const [sortKey, direction] = (sort ?? "").split(":");
+  const sortable = columns.filter(column => column.sortValue);
+  const keep = (omit: string) => [...new URLSearchParams(hrefFor({}).split("?")[1] ?? "")].filter(([name]) => name !== omit);
   const primary = columns.find(column => column.primary) ?? columns[0];
   return <div className="ds-table">
     <form method="get" action={hrefFor({}).split("?")[0]} className="ds-table-filter" role="search">
-      {[...new URLSearchParams(hrefFor({}).split("?")[1] ?? "")].filter(([name]) => name !== "q").map(([name, value]) => <input key={name} type="hidden" name={name} value={value}/>)}
-      <label htmlFor={`${caption}-filter`} className="sr-only">Filter {caption}</label>
-      <input id={`${caption}-filter`} name="q" defaultValue={query} placeholder="Filter" type="search"/>
+      {keep("q").map(([name, value]) => <input key={name} type="hidden" name={name} value={value}/>)}
+      <label htmlFor={filterId} className="sr-only">Filter {caption}</label>
+      <input id={filterId} name="q" defaultValue={query} placeholder="Filter" type="search"/>
     </form>
-    {shown.length === 0 ? (empty ?? <EmptyState title="Nothing to show">{query ? "No rows match this filter." : "There are no rows yet."}</EmptyState>) : <>
+    {sortable.length > 0 && <form method="get" action={hrefFor({}).split("?")[0]} className="ds-table-sort">
+      {/* Phones get no column headers, so sorting moves into this control. */}
+      {keep("sort").map(([name, value]) => <input key={name} type="hidden" name={name} value={value}/>)}
+      <label htmlFor={`${filterId}-sort`}>Sort</label>
+      <select id={`${filterId}-sort`} name="sort" defaultValue={sort ?? ""}><option value="">Default order</option>
+        {sortable.flatMap(column => [<option key={`${column.key}:asc`} value={`${column.key}:asc`}>{column.header} ↑</option>, <option key={`${column.key}:desc`} value={`${column.key}:desc`}>{column.header} ↓</option>])}</select>
+      <button type="submit" className="button secondary">Apply</button>
+    </form>}
+    {shown.length === 0 ? (empty ?? <EmptyState title="Nothing to show">{query?.trim() ? "No rows match this filter." : "There are no rows yet."}</EmptyState>) : <>
       <table className="ds-table-wide"><caption className="sr-only">{caption}</caption><thead><tr>{columns.map(column => {
         const active = sortKey === column.key; const next = active && direction !== "desc" ? "desc" : "asc";
         return <th key={column.key} scope="col" className={cn(column.align === "end" && "text-right")} aria-sort={active ? (direction === "desc" ? "descending" : "ascending") : undefined}>

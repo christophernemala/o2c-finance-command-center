@@ -48,7 +48,7 @@ The `/dashboard`, `/invoices`, `/customers`, `/cashflow` and `/reconciliation` r
 
 **Where:** `src/app/page.tsx`. When an RPC fails, `analysis` is never set. The agents, operations, collections, customers, notes, incidents and guardrails views all behave this way.
 
-**Effect:** the page renders the frame with nothing in it. The user cannot tell whether the view is empty, failed, or forbidden.
+**Effect:** most of these views fall back to a generic "Workspace unavailable" panel, and the customers view shows nothing at all. The user cannot tell whether the view is empty, failed, or forbidden.
 
 **Fix:** each view returns a tagged result, and an `ErrorState` names the problem (forbidden, unavailable or invalid) with a retry link.
 
@@ -60,11 +60,11 @@ The `/dashboard`, `/invoices`, `/customers`, `/cashflow` and `/reconciliation` r
 
 **Fix:** route `error.tsx` through the design-system `ErrorState`, so the copy depends on the kind of failure. Add `global-error.tsx` for errors thrown in the layout.
 
-### 3. Tables overflow on phones
+### 3. Tables scroll sideways on phones
 
-**Where:** 14 `<table>` elements across 10 components. Only 4 are wrapped in `overflow-x-auto`. Examples include `workspace.tsx` (receivables, cash application), `reports.tsx`, `customers.tsx` and `chart-explorer.tsx`.
+**Where:** 14 `<table>` elements across 9 components. Most sit inside an `overflow-auto` panel, so the page itself does not overflow. Examples include `workspace.tsx` (receivables, cash application), `reports.tsx`, `customers.tsx` and `chart-explorer.tsx`.
 
-**Effect:** at 375 px, wide finance tables push the page sideways or get clipped.
+**Effect:** at 375 px, wide finance tables have to be scrolled sideways inside their panel. Columns such as the amount or the status end up off screen, and the header row no longer lines up with what the reader is looking at.
 
 **Fix:** one `DataTable` that is sortable and filterable. Below 640 px it becomes stacked cards: the label on the left, the value on the right, and the key amount pinned at the top.
 

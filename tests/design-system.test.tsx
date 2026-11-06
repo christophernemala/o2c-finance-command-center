@@ -18,6 +18,8 @@ test("sorting compares amounts exactly and keeps missing values last", () => {
   assert.deepEqual(sortRows(rows, columns, "customer:asc").map(row => row.id), ["b", "c", "d", "a"]);
   assert.deepEqual(sortRows(rows, columns, "unknown:asc").map(row => row.id), ["a", "b", "c", "d"], "an unknown sort keeps the given order");
   assert.deepEqual(sortRows(rows, columns, undefined, "  zE ").map(row => row.id), ["a"]);
+  const broken = [...rows, { id: "e", customer: "Bad", balance: "not-a-number" }];
+  assert.deepEqual(sortRows(broken, columns, "balance:asc").map(row => row.id).slice(0, 3), ["c", "a", "b"], "a malformed amount sorts last instead of throwing");
 });
 
 test("the data table renders sortable headers, a filter and phone cards", () => {
@@ -27,8 +29,13 @@ test("the data table renders sortable headers, a filter and phone cards", () => 
   assert.match(html, /href="\/\?view=receivables&amp;sort=balance%3Aasc"/, "clicking the active column flips it");
   assert.match(html, /<input type="hidden" name="view" value="receivables"\/>/, "the filter keeps the other parameters");
   assert.match(html, /class="ds-table-cards"/);
+  assert.match(html, /class="ds-table-sort"[\s\S]*<option value="balance:desc" selected="">Balance ↓<\/option>/, "phones get a sort control");
   assert.match(html, /KWD.9,999,999,999,999,999.990/, "three decimals, no precision lost");
   assert.match(renderToStaticMarkup(<DataTable caption="Empty" rows={[]} columns={columns} rowKey={row => row.id} query="x" hrefFor={() => "/"}/>), /No rows match this filter/);
+  assert.match(renderToStaticMarkup(<DataTable caption="Empty" rows={[]} columns={columns} rowKey={row => row.id} query="   " hrefFor={() => "/"}/>), /There are no rows yet/, "a blank filter is no filter");
+  const two = renderToStaticMarkup(<><DataTable caption="Same" rows={rows} columns={columns} rowKey={row => row.id} hrefFor={() => "/"}/><DataTable caption="Same" rows={rows} columns={columns} rowKey={row => row.id} hrefFor={() => "/"}/></>);
+  const ids = [...two.matchAll(/<input id="([^"]+)"[^>]*name="q"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, 2, "two tables with the same caption get distinct filter ids");
 });
 
 test("KPI and error states are explicit", () => {

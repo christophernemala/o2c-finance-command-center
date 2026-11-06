@@ -33,4 +33,5 @@ test("display names the zone and calendar dates never shift", () => {
   assert.match(formatEntityTime("2026-03-31T19:45:00Z", "Asia/Dubai"), /Mar 31, 2026.*11:45.*GMT\+4/);
   assert.equal(formatCalendarDate("2026-03-31"), "Mar 31, 2026");
   assert.throws(() => formatCalendarDate("31/03/2026"));
+  assert.throws(() => formatCalendarDate("2026-02-31"), /Invalid date/, "impossible dates never roll over to another day");
 });
