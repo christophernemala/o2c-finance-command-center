@@ -15,6 +15,20 @@ export function authSiteOrigin(env: Record<string, string | undefined> = process
     return url.origin;
   } catch { return null; }
 }
+/**
+ * The origin a browser-posted auth form may come from, or null. On a preview both Vercel-injected hosts are valid:
+ * the stable branch URL and this deployment's own URL. The matched origin is returned, so redirects and cookies stay
+ * on the host the user is on. OAuth still uses authSiteOrigin(), because its redirect URI must be registered in advance.
+ */
+export function authRequestOrigin(requestOrigin: string | null, env: Record<string, string | undefined> = process.env): string | null {
+  const site = authSiteOrigin(env);
+  if (!site || !requestOrigin) return null;
+  if (requestOrigin === site) return site;
+  const preview = env.VERCEL === "1" && env.VERCEL_ENV === "preview";
+  const deployment = env.VERCEL_URL ?? "";
+  if (preview && /^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(deployment) && requestOrigin === `https://${deployment}`) return requestOrigin;
+  return null;
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Never derive financial access from email, provider claims, or signup metadata. */
 export async function authenticationAssurance(client: Pick<WorkspaceClient, "auth">): Promise<"ready" | "mfa" | "unavailable"> {

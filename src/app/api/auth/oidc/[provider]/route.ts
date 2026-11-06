@@ -1,5 +1,5 @@
 import { NextRequest,NextResponse } from "next/server";
-import { authSiteOrigin } from "@/lib/auth-flow";
+import { authSiteOrigin,authRequestOrigin } from "@/lib/auth-flow";
 import { oidc,oidcSettings,oidcConfiguration,oidcCookieName } from "@/lib/auth/oidc";
 import { sameOrigin,boundedFormRequest } from "@/lib/request-security";
 import { createLoginLimiter,loginLimiterConfig,trustedLoginIp,oidcReservationCookie,sealReservation } from "@/lib/login-limiter";
@@ -14,7 +14,9 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
  const bounded=await boundedFormRequest(request,1024);if(bounded instanceof Response)return bounded;
  const {provider}=await params;if(provider!=="google" && provider!=="microsoft")return new NextResponse("Not found",{status:404});
  const origin=authSiteOrigin(),limit=loginLimiterConfig();
- if(!origin || !limit || !oidcSettings(provider) || request.headers.get("origin")!==origin)return new NextResponse("Identity provider unavailable",{status:503});
+ if(!origin || !limit || !oidcSettings(provider) || !authRequestOrigin(request.headers.get("origin")))return new NextResponse("Identity provider unavailable",{status:503});
+ // The redirect URI is registered for the stable origin only, so a preview deployment URL starts over there.
+ if(request.headers.get("origin")!==origin)return NextResponse.redirect(new URL("/login",origin),{status:303,headers:{"Cache-Control":"no-store"}});
  const failure=new URL("/login?error=oauth",origin);
  try{
   const ip=trustedLoginIp(request.headers);const attempt=await createLoginLimiter(limit).reserve(`oidc-${provider}-${ip}`,ip);

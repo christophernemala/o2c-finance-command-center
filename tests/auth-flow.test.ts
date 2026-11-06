@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { authSiteOrigin, authenticationAssurance, verifiedWorkspace } from "../src/lib/auth-flow";
+import { authRequestOrigin, authSiteOrigin, authenticationAssurance, verifiedWorkspace } from "../src/lib/auth-flow";
 import { signupPasswordSchema } from "../src/lib/validation";
 
 test("authentication accepts only fixed safe application origins", () => {
@@ -14,6 +14,18 @@ test("authentication accepts only fixed safe application origins", () => {
   // The stable branch URL wins over the per-deployment URL, so OAuth redirect URIs survive new pushes.
   assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-abc123-team.vercel.app", VERCEL_BRANCH_URL:"finance-git-branch-team.vercel.app" }), "https://finance-git-branch-team.vercel.app");
   for (const host of ["evil.example","finance.vercel.app/evil"]) assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-abc123-team.vercel.app", VERCEL_BRANCH_URL:host }),null, "an invalid branch URL never falls back silently");
+});
+test("auth forms accept both preview hosts and keep the user on the host they used", () => {
+  const preview = { VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-abc123-team.vercel.app", VERCEL_BRANCH_URL:"finance-git-branch-team.vercel.app" };
+  assert.equal(authRequestOrigin("https://finance-git-branch-team.vercel.app", preview), "https://finance-git-branch-team.vercel.app");
+  assert.equal(authRequestOrigin("https://finance-abc123-team.vercel.app", preview), "https://finance-abc123-team.vercel.app", "the per-deployment URL is the host Vercel served");
+  for (const origin of ["https://evil.vercel.app", "http://finance-abc123-team.vercel.app", "https://finance-abc123-team.vercel.app.evil.example", "null", null]) assert.equal(authRequestOrigin(origin, preview), null);
+  // Production accepts only the configured site, even when a deployment URL is injected.
+  const production = { VERCEL:"1", VERCEL_ENV:"production", VERCEL_URL:"finance-abc123-team.vercel.app", AUTH_SITE_URL:"https://finance.example" };
+  assert.equal(authRequestOrigin("https://finance.example", production), "https://finance.example");
+  assert.equal(authRequestOrigin("https://finance-abc123-team.vercel.app", production), null);
+  assert.equal(authRequestOrigin("https://finance-abc123-team.vercel.app", { ...preview, VERCEL_URL:"evil.example" }), null);
+  assert.equal(authRequestOrigin("https://finance.example", {}), null, "no configured site means no auth origin");
 });
 test("authentication requires a server-verified confirmed identity and existing workspace membership", async () => {
   const tenant = "12345678-1234-4234-8234-123456789abc";
