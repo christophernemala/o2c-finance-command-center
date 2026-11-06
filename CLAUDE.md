@@ -13,7 +13,7 @@ Rules live in `AGENTS.md`; follow it first. This file adds only what a coding se
 | Real-PostgreSQL suites | `npm run test:postgres`, `npm run test:postgres:http` (need `POSTGRES_TEST_ADMIN_URL`) |
 | Schema doc | `npm run docs:schema` regenerates `docs/SCHEMA.md`; `tests/schema-doc.test.ts` fails if it drifts |
 
-Check each command's exit code (`cmd; echo $?`). Do not infer success from grepping output.
+Check each command's exit code: run `cmd; echo $?` to read it by hand. In a script, keep the status (`cmd; status=$?; echo "$status"; exit "$status"`) or chain with `&&`, because a trailing `echo` exits 0. Do not infer success from grepping output.
 Lint has 5 pre-existing warnings and must have 0 errors.
 
 CI (`.github/workflows`) runs, in order: `npm audit --audit-level=high`, typecheck, lint, test, build,
