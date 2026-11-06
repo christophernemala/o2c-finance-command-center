@@ -156,12 +156,12 @@ test("tool loop records guardrail hits and never runs a blocked tool", async () 
   const { tools } = await import("../src/lib/ai/tools");
   let rpcCalls = 0;
   const context = { client: { rpc: async () => { rpcCalls++; return { data: { open_ar: "1.00" }, error: null }; } }, tenant: "t", entity: "e", asOf: "2026-10-15", actor: "agent" as const, findings: [] };
-  const use = (n: number) => ({ type: "tool_use", id: `u${n}`, name: "get_ar_overview", input: {} });
+  const toolUse = (n: number) => ({ type: "tool_use", id: `u${n}`, name: "get_ar_overview", input: {} });
   let turn = 0; let lastResults: { is_error?: boolean; content: string }[] = [];
   const call = async (params: { messages: { content: unknown }[] }) => {
     turn++;
     if (turn > 1) lastResults = params.messages.at(-1)!.content as typeof lastResults;
-    const content = turn === 1 ? [use(1), use(2), use(3)] : [{ type: "text", text: "Done.", citations: null }];
+    const content = turn === 1 ? [toolUse(1), toolUse(2), toolUse(3)] : [{ type: "text", text: "Done.", citations: null }];
     return { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content, stop_reason: turn === 1 ? "tool_use" : "end_turn", stop_sequence: null,
       usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } as never;
   };

@@ -21,7 +21,7 @@ export function CustomersView({ data, breakdown, segments }: { data: Snapshot; b
   const drill = (label: string) => breakdown.dimension === "category" ? link("customer", { ...current, category: label })
     : breakdown.dimension === "region" ? link("customer", { ...current, region: label }) : null;
   const maker = ["maker", "admin"].includes(data.role);
-  const Scope = () => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="id" value={randomUUID()}/></>;
+  const scope = () => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="id" value={randomUUID()}/></>;
   const filters = [breakdown.category && `category ${breakdown.category}`, breakdown.region && `region ${breakdown.region}`].filter(Boolean).join(", ");
   // Customer names are not unique (branches), so customer rows carry the account to keep chart labels distinct.
   const chartRows = breakdown.rows.slice(0, 8).map(row => ({ label: row.account ? `${row.label} (${row.account})` : row.label, value: row.open }));
@@ -60,11 +60,11 @@ export function CustomersView({ data, breakdown, segments }: { data: Snapshot; b
           <p className="mt-2 text-muted">Categories: {segments.categories.length ? segments.categories.join(", ") : "none yet"}</p>
           <p className="mt-1 text-muted">Regions: {segments.regions.length ? segments.regions.join(", ") : "none yet"}</p></div>
         {maker ? <div className="space-y-6">
-          <MutationForm action="/api/customers" upload><Scope/><input type="hidden" name="intent" value="segments_upload"/>
+          <MutationForm action="/api/customers" upload>{scope()}<input type="hidden" name="intent" value="segments_upload"/>
             <label>Upload a CSV<input required type="file" name="file" accept=".csv,text/csv"/></label>
             <p className="text-xs text-muted">Columns <code>account,category,region</code>, up to 2,000 rows. Every account must exist; an empty cell clears the value. The file is applied in full or not at all.</p>
             <button className="button secondary">Apply segments</button></MutationForm>
-          <details><summary className="cursor-pointer text-link">Set one customer</summary><MutationForm action="/api/customers"><Scope/><input type="hidden" name="intent" value="segment_set"/>
+          <details><summary className="cursor-pointer text-link">Set one customer</summary><MutationForm action="/api/customers">{scope()}<input type="hidden" name="intent" value="segment_set"/>
             <label>Customer<select name="account" required>{data.customers.map(customer => <option key={customer.id} value={customer.account}>{customer.name} ({customer.account})</option>)}</select></label>
             <div className="grid gap-3 sm:grid-cols-2"><label>Category<input name="category" maxLength={60} list="segment-categories" placeholder="Leave blank to keep"/></label><label>Region<input name="region" maxLength={60} list="segment-regions" placeholder="Leave blank to keep"/></label></div>
             <div className="flex flex-wrap gap-4 text-xs"><label className="inline-flex items-center gap-2"><input type="checkbox" name="clear_category"/>Clear category</label><label className="inline-flex items-center gap-2"><input type="checkbox" name="clear_region"/>Clear region</label></div>
