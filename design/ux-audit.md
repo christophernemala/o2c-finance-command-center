@@ -52,13 +52,13 @@ The `/dashboard`, `/invoices`, `/customers`, `/cashflow` and `/reconciliation` r
 
 **Fix:** each view returns a tagged result, and an `ErrorState` names the problem (forbidden, unavailable or invalid) with a retry link.
 
-### 2. There is no route-level error boundary
+### 2. The error boundary is generic, and errors in the layout are not caught
 
-**Where:** only `src/app/loading.tsx` exists. There is no `error.tsx` or `not-found.tsx` per segment, and `/not-found` is the only one at the root.
+**Where:** `src/app/error.tsx` exists. It shows "Workspace unavailable" with a retry button for every kind of failure. There is no `global-error.tsx`.
 
-**Effect:** a thrown server error shows Next's default error page, which has no navigation and no way back.
+**Effect:** a forbidden view, an outage and a bad link all read the same. An error thrown in the root layout itself falls through to Next's default page, which has no navigation and no way back.
 
-**Fix:** add `src/app/error.tsx` and `global-error.tsx` that use the design-system `ErrorState`.
+**Fix:** route `error.tsx` through the design-system `ErrorState`, so the copy depends on the kind of failure. Add `global-error.tsx` for errors thrown in the layout.
 
 ### 3. Tables overflow on phones
 
