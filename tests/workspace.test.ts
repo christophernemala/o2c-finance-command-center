@@ -81,3 +81,11 @@ test("pagination follows the active collection and omits nonpaginated workspaces
   assert.match(render("receivables", { ...data, pagination: { ...data.pagination, invoices: true } }),/>Next<\/a>/);
   for (const view of ["customers", "cashflow"] as const) assert.doesNotMatch(render(view, { ...data, page: 1 }),/>Previous<\/a>/);
 });
+test("a mutation result reaches the user as one announced toast, keyed by the action's nonce",()=>{
+  const confirmed=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview",message:"confirmed",nonce:"n1"}));
+  assert.match(confirmed,/<div class="ds-toast-region" role="status" aria-live="polite"><div class="ds-toast ds-toast-success"><span>The server confirmed this action\./);
+  const conflict=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview",message:"conflict",nonce:"n2"}));
+  assert.match(conflict,/ds-toast ds-toast-danger"><span>The records changed/);
+  assert.equal((conflict.match(/The records changed/g)??[]).length,1,"the result is shown once, in the toast, not also inline");
+  assert.doesNotMatch(renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview"})),/ds-toast"/);
+});
