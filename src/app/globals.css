@@ -168,7 +168,8 @@ input::placeholder { color: var(--muted); opacity: 1; }
 :root { --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
   --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 20px; --text-xl: 24px; --text-kpi: 32px;
   --radius-pill: 999px; --on-primary: #ffffff; --danger-action: #b72d4d; --shadow-sheet: 0 24px 64px #0b1a3333; --tap: 44px;
-  /* Controls (checkbox, switch): "on" fill and "off" track meet 3:1 against the surface; white marks on them meet 4.5:1. */
+  /* Controls (checkbox, switch): "on" fill and "off" track meet 3:1 against the surface, as do the white tick and knob on them
+     (lowest: knob on the light "off" track, 3.6:1). The tick on the "on" fill reaches 4.8:1 or more. */
   --control-on: #075dcc; --control-off: #7a889c; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .button.danger { background: var(--danger-action); box-shadow: none; }

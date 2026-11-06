@@ -2,7 +2,7 @@
 
 ## Uiverse.io (MIT)
 
-Three controls are adapted from community elements published on [Uiverse.io](https://uiverse.io/) and in its [`uiverse-io/galaxy`](https://github.com/uiverse-io/galaxy) repository. Each was rebuilt on this app's design tokens, keeps the native `<input>` for keyboard and screen-reader support, and meets WCAG contrast for controls.
+Three controls are adapted from community elements published on [Uiverse.io](https://uiverse.io/) and in its [`uiverse-io/galaxy`](https://github.com/uiverse-io/galaxy) repository. All three were rebuilt on this app's design tokens and meet the WCAG 3:1 contrast requirement for controls and graphics. The switch and checkbox keep a native `<input>`, so keyboard, form submission and screen readers work as for any checkbox. The spinner is a `<span>`: decorative (`aria-hidden`) by default, or `role="status"` with a label when it is the only progress cue.
 
 | Control | Source element | Author | Code |
 |---|---|---|---|
