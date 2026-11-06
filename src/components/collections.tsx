@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Snapshot } from "@/types/workspace";
 import { remarkChannels, remarkReasons, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type HoldProposal, type LicenceAlert, type WorklistRow } from "@/types/collections";
 import { addAmounts, formatAed } from "@/lib/money";
-import { Panel, Empty, Money, Badge, KpiAmount } from "./ui";
+import { Panel, Empty, Money, Badge, KpiAmount, Switch } from "./ui";
 import { MutationForm } from "./mutation-form";
 import { CollectionsExplorer } from "./collections-explorer";
 
@@ -130,11 +130,11 @@ function CustomerPanel({ data, account, userId, remarks, holdProposal }: { data:
         {maker && <details className="mt-3"><summary className="cursor-pointer text-link">Add a contact</summary><MutationForm action="/api/collections">{scope()}<input type="hidden" name="intent" value="contact_add"/><input type="hidden" name="id" value={randomUUID()}/>
           <div className="grid gap-3 sm:grid-cols-2"><label>Name<input name="name" required maxLength={120}/></label><label>Email<input name="email" type="email" required maxLength={254}/></label></div>
           <label>Phone (optional, international format)<input name="phone" type="tel" pattern="\+[1-9][0-9]{7,14}" maxLength={16} placeholder="+971501234567"/></label>
-          <div className="flex flex-wrap gap-4">{(["sms", "whatsapp"] as const).map(channel => <label key={channel} className="flex-row items-center gap-2"><input type="checkbox" name={channel} className="!min-h-0 !w-auto"/> Customer opted in to {channelLabel[channel]}</label>)}</div>
+          <div className="flex flex-wrap gap-4">{(["sms", "whatsapp"] as const).map(channel => <label key={channel} className="flex-row items-center gap-2"><input type="checkbox" name={channel}/> Customer opted in to {channelLabel[channel]}</label>)}</div>
           <label>Consent evidence<input name="consent" minLength={5} maxLength={500} placeholder="Customer request date and reference"/></label>
           <p className="text-xs text-muted">Phone messaging requires recorded permission for that channel. Remove this contact to withdraw queued messages and stop future outreach.</p>
           <label>Role<select name="role" defaultValue="ar"><option value="ar">AR</option><option value="ap">AP</option><option value="finance">Finance</option><option value="other">Other</option></select></label>
-          <label className="flex-row items-center gap-2"><input type="checkbox" name="primary" className="!min-h-0 !w-auto"/> Primary contact</label><button className="button secondary">Add contact</button></MutationForm></details>}
+          <Switch name="primary" label="Primary contact"/><button className="button secondary">Add contact</button></MutationForm></details>}
       </section>
 
       <section aria-labelledby="messages-h"><div className="flex flex-wrap items-center justify-between gap-2"><h3 id="messages-h" className="font-semibold">Collections messages</h3><a className="text-link underline-offset-2 hover:underline" href={statementHref}>Download statement (PDF)</a></div>
@@ -155,7 +155,7 @@ function CustomerPanel({ data, account, userId, remarks, holdProposal }: { data:
           <label>Tone<select name="tone" defaultValue={toneFor(oldest)}><option value="reminder">Reminder</option><option value="firm">Firm</option><option value="final_notice">Final notice</option></select></label>
           <label>Subject<input name="subject" required minLength={3} maxLength={200} defaultValue={`Overdue invoices: ${c.account}`}/></label>
           <label>Message<textarea name="body" required minLength={20} maxLength={4000} rows={9} defaultValue={draftBody}/></label>
-          <label className="flex-row items-center gap-2"><input type="checkbox" name="attach" className="!min-h-0 !w-auto" defaultChecked={oldest > 30}/> Attach statement PDF</label>
+          <Switch name="attach" defaultChecked={oldest > 30} label="Attach statement PDF"/>
           <button className="button">Submit for approval</button></MutationForm></details>}
         {maker && overdue.length > 0 && (["sms", "whatsapp"] as const).map(channel => {
           const contacts = account.contacts.filter(contact => contact.phone && (channel === "sms" ? contact.sms_opt_in : contact.whatsapp_opt_in));

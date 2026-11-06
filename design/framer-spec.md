@@ -74,6 +74,9 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 |---|---|
 | **Button** | 48 h, 12/18 padding, radius 12. Primary: gradient fill, `on-primary` text. Secondary: `surface` fill with a 1 px `border`. Danger: `danger` fill. Pressed: scale 0.98 (none with reduced motion). |
 | **Input** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). Hint 12 `muted` below. Error 12 `danger` with a red border, announced. |
+| **Checkbox** | 20 × 20, radius 6, 2 px `muted` border on `surface`. Checked: `control-on` fill (`#075DCC`, dark `#2570D6`) with a white tick that scales in over 0.2 s. Adapted from Uiverse.io (MIT). |
+| **Switch** | 51 × 31 track, radius 16, 27 px white knob with a soft shadow. Off: `control-off` (`#7A889C`, dark `#5B6B82`); on: `control-on`. Row is at least 44 h with the label to the right. Adapted from Uiverse.io (MIT). |
+| **Spinner** | Ring 1 em, 2 px `currentColor` border with the top quarter open, one turn per 1.2 s. Static with reduced motion. Adapted from Uiverse.io (MIT). |
 | **Select** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). No hint or error state yet. |
 | **Card** | `surface`, radius 20, panel shadow. Header 24/20 padding with a bottom hairline: title 16/600, subtitle 14 `muted`, action on the right. |
 | **StatTile** | Label 12 `muted`, value kpi 32. Three states: value, with "As of {date}" when a date is supplied; "—" with "Not enough data: {reason}"; "—" with "Couldn't load." in `danger`, followed by a "Retry" link only when a retry link is supplied. |

@@ -3,7 +3,7 @@ import React from "react"; void React;
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DataTable, ErrorState, MoneyText, StatTile, sortRows, type Column } from "../src/components/ui";
+import { DataTable, ErrorState, MoneyText, Spinner, StatTile, Switch, sortRows, type Column } from "../src/components/ui";
 
 type Row = { id: string; customer: string; balance: string | null };
 const rows: Row[] = [{ id: "a", customer: "Zeta", balance: "10.5" }, { id: "b", customer: "Alpha", balance: "9999999999999999.99" }, { id: "c", customer: "Mid", balance: "10.49" }, { id: "d", customer: "None", balance: null }];
@@ -45,4 +45,11 @@ test("KPI and error states are explicit", () => {
   assert.match(renderToStaticMarkup(<StatTile label="DSO" state={{ kind: "value", value: "42 days", asOf: "2026-03-31" }}/>), /42 days.*Mar 31, 2026/);
   const forbidden = renderToStaticMarkup(<ErrorState kind="forbidden" retryHref="/x"/>);
   assert.match(forbidden, /role="alert"/); assert.match(forbidden, /don&#x27;t have access/);
+});
+
+test("switches and spinners keep native semantics", () => {
+  const html = renderToStaticMarkup(<Switch name="attach" defaultChecked label="Attach statement PDF"/>);
+  assert.match(html, /<label class="ds-switch-row"><input type="checkbox" role="switch" class="ds-switch" name="attach" checked=""\/><span>Attach statement PDF<\/span><\/label>/);
+  assert.match(renderToStaticMarkup(<Spinner/>), /<span class="ds-spinner" aria-hidden="true"><\/span>/, "decorative by default");
+  assert.match(renderToStaticMarkup(<Spinner label="Loading"/>), /role="status" aria-label="Loading"/);
 });

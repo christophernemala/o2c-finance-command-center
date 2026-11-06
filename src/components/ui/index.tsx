@@ -18,3 +18,4 @@ export function KpiAmount({ value }: { value: string }) {
 }
 export { Button, Input, Select, Card, MoneyText, DateTime, StatTile, EmptyState, ErrorState, Skeleton, DataTable, sortRows, type Column, type StatState, type ErrorKind } from "./ds";
 export { Sheet, Toast } from "./overlay";
+export { Switch, Spinner } from "./controls";
