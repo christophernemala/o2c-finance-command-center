@@ -18,6 +18,12 @@ test("provider controls are disabled until server configuration is available",()
  assert.match(html,/Continue with.*Google/);assert.match(html,/Continue with.*Microsoft/);
  assert.equal((html.match(/disabled=""/g)??[]).length,2);
 });
+test("provider linking is disabled away from the stable auth origin, where the session cookie isn't sent",()=>{
+ const html=renderToStaticMarkup(createElement(SocialSignin,{link:true,offHost:true}));
+ assert.equal((html.match(/disabled=""/g)??[]).length,2);
+ assert.match(html,/only be connected from this preview’s stable address/);
+ assert.doesNotMatch(renderToStaticMarkup(createElement(SocialSignin,{offHost:true,available:false})),/stable address/,"sign-in itself is not affected");
+});
 test("invited activation collects details and posts to the real password activation route",()=>{
  const html=renderToStaticMarkup(createElement(RegistrationForm,{available:true,invitedEmail:"invite@example.com"}));
  assert.match(html,/action="\/api\/auth\/signup"/);assert.match(html,/name="password"/);assert.match(html,/name="confirm"/);assert.match(html,/readOnly/);

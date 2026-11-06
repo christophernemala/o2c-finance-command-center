@@ -15,8 +15,14 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
  const {provider}=await params;if(provider!=="google" && provider!=="microsoft")return new NextResponse("Not found",{status:404});
  const origin=authSiteOrigin(),limit=loginLimiterConfig();
  if(!origin || !limit || !oidcSettings(provider) || !authRequestOrigin(request.headers.get("origin")))return new NextResponse("Identity provider unavailable",{status:503});
- // The redirect URI is registered for the stable origin only, so a preview deployment URL starts over there.
- if(request.headers.get("origin")!==origin)return NextResponse.redirect(new URL("/login",origin),{status:303,headers:{"Cache-Control":"no-store"}});
+ // The redirect URI is registered for the stable origin only. The session cookie is host-only, so a signed-in user
+ // linking a provider from a deployment URL is told to use the stable URL; never turn a link into a fresh sign-in.
+ const requestOrigin=request.headers.get("origin")!;
+ if(requestOrigin!==origin){
+  const jar=await cookies(),secure=sessionCookieOptions().secure;
+  const signedIn=!!jar.get(secure?"__Host-o2c-session":"o2c-session")?.value;
+  return NextResponse.redirect(new URL(signedIn?"/auth/security?error=host":"/login",signedIn?requestOrigin:origin),{status:303,headers:{"Cache-Control":"no-store"}});
+ }
  const failure=new URL("/login?error=oauth",origin);
  try{
   const ip=trustedLoginIp(request.headers);const attempt=await createLoginLimiter(limit).reserve(`oidc-${provider}-${ip}`,ip);

@@ -1,8 +1,9 @@
 import { SocialSignin } from "@/components/social-signin";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/postgres/server";
-import { authenticationAssurance } from "@/lib/auth-flow";
+import { authenticationAssurance, authSiteOrigin } from "@/lib/auth-flow";
 import { AuthShell } from "@/components/auth-shell";
 import { MutationForm } from "@/components/mutation-form";
 export const dynamic = "force-dynamic";
@@ -14,12 +15,15 @@ export default async function Security({ searchParams }: { searchParams: Promise
   if (assurance === "mfa") redirect("/auth/verify");
   if (assurance !== "ready") throw new Error("Authentication unavailable");
   const params = await searchParams;
+  // Linking returns to the stable auth origin, where this host-only session cookie isn't sent.
+  const site = authSiteOrigin(), host = (await headers()).get("host");
+  const offHost = !!site && !!host && new URL(site).host !== host;
   const factors = await client.auth.mfa.listFactors(); if (factors.error) throw new Error("Security settings unavailable");
   const verified = factors.data.totp.some(factor => factor.status === "verified");
   // Read an existing pending factor; a GET never creates or changes security settings.
   const pending = factors.data.totp.some(factor => factor.status === "unverified") ? await client.auth.mfa.pendingFactor() : null;
   return <AuthShell><h1 className="text-3xl font-semibold">Account security</h1>
-    {params.error && <p role="alert" className="mt-5 text-danger">{params.error === "link" ? "That provider account could not be connected. Use a provider account with the same work email that is not linked to another user, or try again later." : "The authenticator could not be verified. Try the current code."}</p>}
+    {params.error && <p role="alert" className="mt-5 text-danger">{params.error === "host" ? "Providers can only be connected from this preview’s stable address. Sign in there and connect it from Account security." : params.error === "link" ? "That provider account could not be connected. Use a provider account with the same work email that is not linked to another user, or try again later." : "The authenticator could not be verified. Try the current code."}</p>}
     {verified ? <p role="status" className="mt-5 text-success">Authenticator verification is enabled for your account. You’ll need its code when you sign in.</p>
       : pending?.data ? <><p className="mt-5 leading-6 text-muted">In your authenticator app, add a new account using this setup key. Keep it private.</p>
         <code className="mt-4 block break-all rounded bg-surface-muted p-4">{pending.data.secret}</code>
@@ -28,7 +32,7 @@ export default async function Security({ searchParams }: { searchParams: Promise
           <label className="mt-5">Authenticator code<input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} required/></label><button className="button mt-5 w-full">Verify and enable</button></MutationForm></>
       : <><p className="mt-5 leading-6 text-muted">Add an authenticator app to protect your work account with a second factor.</p>
         <MutationForm action="/api/auth/enroll"><input type="hidden" name="intent" value="enroll"/><button className="button mt-5 w-full">Set up authenticator</button></MutationForm></>}
-    <section className="mt-8 border-t border-line pt-6"><h2 className="mb-4 font-semibold">Connect your work identity</h2><SocialSignin link/></section>
+    <section className="mt-8 border-t border-line pt-6"><h2 className="mb-4 font-semibold">Connect your work identity</h2><SocialSignin link offHost={offHost}/></section>
     <Link href="/" className="mt-6 block text-link">Return to workspace</Link>
   </AuthShell>;
 }
