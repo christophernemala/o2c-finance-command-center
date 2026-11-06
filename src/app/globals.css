@@ -171,8 +171,9 @@ input::placeholder { color: var(--muted); opacity: 1; }
   --radius-pill: 999px; --on-primary: #ffffff; --danger-action: #b72d4d; --shadow-sheet: 0 24px 64px #0b1a3333; --tap: 44px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .button.danger { background: var(--danger-action); box-shadow: none; }
-/* Installed on iOS the page runs under the status bar and notch (viewport-fit=cover), so keep content inside the safe area. */
-body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+/* Installed on iOS the page runs under the status bar, notch and home indicator (viewport-fit=cover), so keep content inside the safe area.
+   Every inset is zero in an ordinary browser. When the phone tab bar arrives it takes over the bottom inset. */
+body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 .ds-field { display: grid; gap: var(--space-2); }
 .ds-field > label { display: block; font-size: var(--text-sm); }
 .ds-field [aria-invalid="true"] { border-color: var(--danger); }

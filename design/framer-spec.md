@@ -1,6 +1,6 @@
 # Framer spec
 
-This spec lets the app be rebuilt one-to-one as a Framer prototype. Items marked **(target)** are the agreed design that step 4 of PR #10 builds; they are not in the app yet. Every value comes from `src/app/globals.css` and `src/components/ui`. If a value here and the code disagree, the code wins; fix this file to match.
+This spec lets the app be rebuilt one-to-one as a Framer prototype. Items marked **(target)** are agreed design that is not in the app yet; each says which step of PR #10 builds it. Every value comes from `src/app/globals.css` and `src/components/ui`. If a value here and the code disagree, the code wins; fix this file to match.
 
 Frames: **iPhone 375 × 812** (safe areas: top 47, bottom 34) and **Desktop 1440 × 900**.
 
@@ -76,7 +76,7 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 | **Input** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). Hint 12 `muted` below. Error 12 `danger` with a red border, announced. |
 | **Select** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). No hint or error state yet. |
 | **Card** | `surface`, radius 20, panel shadow. Header 24/20 padding with a bottom hairline: title 16/600, subtitle 14 `muted`, action on the right. |
-| **StatTile** | Label 12 `muted`, value kpi 32. Three states: value, with "As of {date}" when a date is supplied; "—" with "Not enough data: {reason}"; "—" with "Couldn't load. Retry" in `danger`. |
+| **StatTile** | Label 12 `muted`, value kpi 32. Three states: value, with "As of {date}" when a date is supplied; "—" with "Not enough data: {reason}"; "—" with "Couldn't load." in `danger`, followed by a "Retry" link only when a retry link is supplied. |
 | **Badge** | Pill, 12/500, 4/12 padding, soft fill with matching text colour. Positive, pending, failed, info, neutral. |
 | **DataTable** (≥ 640 px) | Filter field above, max 360 w. Header row `surface-muted`, 11/600 `muted`. Cells 14/16 padding, hairline between rows. Amount columns right-aligned with tabular numerals. A sortable header shows ↑ or ↓ when active. |
 | **DataTable** (< 640 px) | Stacked cards: the primary column first in 16/600, then label/value rows (label `muted` left, value right). Hairline between cards. Never scrolls sideways. |
@@ -90,7 +90,7 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 
 ## Navigation
 
-- **Phone (target):** today the phone shows a collapsible "Workspaces" menu. The target is a bottom tab bar, 56 h plus the bottom safe area, `surface` with a top hairline. Five tabs, each icon 24 above a 11/500 label:
+- **Phone (target):** today the phone shows a collapsible "Workspaces" menu. The target, built in step 4, is a bottom tab bar, 56 h plus the bottom safe area, `surface` with a top hairline. Five tabs, each icon 24 above a 11/500 label:
   1. Overview
   2. Receivables
   3. Collections
