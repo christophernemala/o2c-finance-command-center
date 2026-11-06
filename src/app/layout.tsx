@@ -18,4 +18,4 @@ export const metadata: Metadata = {
 };
 // viewport-fit=cover lets the layout use env(safe-area-inset-*) around the notch and home indicator.
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0b1224" };
-export default function Layout({ children }: { children: React.ReactNode }) { return <html lang="en" data-theme="light" className={`${bodyFont.variable} ${headingFont.variable} ${moneyFont.variable}`}><body><a className="skip button" href="#main">Skip to content</a>{children}</body></html>; }
+export default function Layout({ children }: { children: React.ReactNode }) { return <html lang="en" className={`${bodyFont.variable} ${headingFont.variable} ${moneyFont.variable}`}><body><a className="skip button" href="#main">Skip to content</a>{children}</body></html>; }
