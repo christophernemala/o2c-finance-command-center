@@ -55,7 +55,7 @@ export function CollectionsView({ data, worklist, account, emailReady, smsReady 
           {licences.length ? <ul className="divide-y divide-line">{licences.map(row => <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 px-6 py-3 text-sm">
             <div className="min-w-0"><Link className="font-medium text-link underline-offset-2 hover:underline" href={href(row.customer_id)}>{row.customer}</Link><p className="money mt-1 text-xs text-muted">{row.authority} {row.licence_number} · expires {ddmmyyyy(row.expiry_date)}</p></div>
             <Badge value={row.expired ? "failed" : "review"} label={row.expired ? `Expired ${-row.days_left}d ago` : `${row.days_left}d left`}/></li>)}</ul>
-            : <Empty title="No licence alerts">Record customers' trade licences on their account to be warned before they expire.</Empty>}
+            : <Empty title="No licence alerts">Record customers&apos; trade licences on their account to be warned before they expire.</Empty>}
         </Panel>
       </div>
     </div>
