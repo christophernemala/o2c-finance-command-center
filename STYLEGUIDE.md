@@ -22,7 +22,7 @@ This supersedes the navy/teal treatment. Keep the existing O2C identity and work
 | `--danger` / soft | `#B72D4D` / `#FFF0F3` | Failure, critical items and credit holds |
 | `--glass` | `#FFFFFFC9` | Translucent header and scope controls |
 
-There is no green or teal status/action colour. Charts use a five-tone blue family
+Green is used only for the `--success` status, never for actions or links; there is no teal. Charts use a five-tone blue family
 with textual legends and exact figures, so colour never carries a value alone.
 Glass is reserved for navigation and chrome. Money, evidence and financial forms
 remain on opaque white surfaces. Browsers without backdrop-filter keep the white
