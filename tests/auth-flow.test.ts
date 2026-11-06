@@ -11,6 +11,9 @@ test("authentication accepts only fixed safe application origins", () => {
   assert.equal(authSiteOrigin({ AUTH_SITE_URL: "http://127.0.0.1:4174", AUTH_LOGIN_IP_SOURCE: "loopback", VERCEL: "1" }), null);
   assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-git-branch-team.vercel.app", AUTH_SITE_URL:"https://finance.example" }), "https://finance-git-branch-team.vercel.app");
   for (const host of ["evil.example","finance.vercel.app/evil","finance.vercel.app@evil.example",undefined]) assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:host }),null);
+  // The stable branch URL wins over the per-deployment URL, so OAuth redirect URIs survive new pushes.
+  assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-abc123-team.vercel.app", VERCEL_BRANCH_URL:"finance-git-branch-team.vercel.app" }), "https://finance-git-branch-team.vercel.app");
+  for (const host of ["evil.example","finance.vercel.app/evil"]) assert.equal(authSiteOrigin({ VERCEL:"1", VERCEL_ENV:"preview", VERCEL_URL:"finance-abc123-team.vercel.app", VERCEL_BRANCH_URL:host }),null, "an invalid branch URL never falls back silently");
 });
 test("authentication requires a server-verified confirmed identity and existing workspace membership", async () => {
   const tenant = "12345678-1234-4234-8234-123456789abc";

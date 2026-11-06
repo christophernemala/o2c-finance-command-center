@@ -3,10 +3,12 @@ interface WorkspaceClient { auth: AuthService; rpc(name: "workspace_access"): Pr
 
 export function authSiteOrigin(env: Record<string, string | undefined> = process.env): string | null {
   try {
-    // Vercel injects this hostname; never derive callback origins from request headers.
+    // Vercel injects these hostnames; never derive callback origins from request headers.
+    // Previews use the stable branch URL (the same on every push) so OAuth redirect URIs can be registered once.
     const preview = env.VERCEL === "1" && env.VERCEL_ENV === "preview";
-    if (preview && !/^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(env.VERCEL_URL ?? "")) return null;
-    const url = new URL(preview ? `https://${env.VERCEL_URL}` : env.AUTH_SITE_URL ?? "");
+    const previewHost = env.VERCEL_BRANCH_URL || env.VERCEL_URL || "";
+    if (preview && !/^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(previewHost)) return null;
+    const url = new URL(preview ? `https://${previewHost}` : env.AUTH_SITE_URL ?? "");
     const local = url.protocol === "http:" && url.hostname === "127.0.0.1"
       && (env.NODE_ENV === "development" || env.AUTH_LOGIN_IP_SOURCE === "loopback") && env.VERCEL !== "1";
     if ((!local && url.protocol !== "https:") || url.username || url.password || url.pathname !== "/" || url.search || url.hash) return null;
