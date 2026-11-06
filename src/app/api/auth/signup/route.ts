@@ -3,12 +3,13 @@ import { createClient } from "@/lib/postgres/server";
 import { postgresConfig } from "@/lib/postgres/config";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { authSiteOrigin } from "@/lib/auth-flow";
+import { registrationSchema } from "@/lib/auth/registration";
 import { signupPasswordSchema } from "@/lib/validation";
 import { createLoginLimiter, loginLimiterConfig, trustedLoginIp } from "@/lib/login-limiter";
 
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
-  const body = await boundedFormRequest(request, 4096);
+  const body = await boundedFormRequest(request, 24_576);
   if (body instanceof Response) return body;
   const origin = authSiteOrigin();
   if (!origin || request.headers.get("origin") !== origin) return new NextResponse("Sign-in connection unavailable", { status: 503 });
@@ -26,7 +27,10 @@ export async function POST(request: NextRequest) {
     const limiter = createLoginLimiter(limiterSettings);
     const attempt = await limiter.reserve(user.email, trustedLoginIp(request.headers));
     if (!attempt.allowed) return new NextResponse("Too many activation attempts. Please try again later.", { status: 429, headers: { "Retry-After": String(attempt.retryAfter), "Cache-Control": "no-store" } });
-    const result = await client.auth.updateUser({ password: password.data.password });
+    const detailValues=Object.fromEntries([...form.entries()].filter(([key])=>key!=="password" && key!=="confirm"));
+    const details=registrationSchema.safeParse(detailValues);
+    if(!details.success || details.data.email!==user.email.toLowerCase()){destination.searchParams.set("error","details");return finish();}
+    const result = await client.auth.updateUser({ password: password.data.password, registration: details.data });
     if (result.error) { destination.searchParams.set("error", "invalid"); return finish(); }
     try { await limiter.succeed(attempt.ticket); } catch { /* Reservation expires conservatively. */ }
     destination.pathname = "/login";

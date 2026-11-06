@@ -19,6 +19,9 @@ export function aggregateAmount(value: unknown): string {
 export function addAmounts(values: string[]): string {
   return values.reduce((sum, value) => sum.plus(amount(value)), new Money(0)).toFixed(2);
 }
+export function amountExceeds(value: string, limit: string): boolean {
+  return new Money(amount(value)).gt(amount(limit));
+}
 export function subtractAmounts(left: string, right: string): string {
   return new Money(amount(left)).minus(amount(right)).toFixed(2);
 }

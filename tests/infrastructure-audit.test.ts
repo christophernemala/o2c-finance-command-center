@@ -20,7 +20,7 @@ test("infrastructure audit runs read-only and identifies access/index invariants
     for (const migration of ["202610040001_workspaces.sql", "202610050001_insights.sql"]) {
       await db.exec(await readFile(new URL(`../postgres/migrations/${migration}`, import.meta.url), "utf8"));
     }
-    const sql = await readFile(new URL("../.agents/skills/supabase-principal-architect-infrastructure-optimization/scripts/audit.sql", import.meta.url), "utf8");
+    const sql = await readFile(new URL("../scripts/db-audit.sql", import.meta.url), "utf8");
     await db.exec("begin read only");
     const baseline = (await db.query<{ audit: Audit }>(sql)).rows[0].audit;
     assert.equal(baseline.removal_authorized, false);

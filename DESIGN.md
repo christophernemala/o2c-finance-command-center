@@ -12,9 +12,17 @@ External galleries are references; they do not override finance controls.
 | Cash application | Bank direction, receipt, invoice, residual and evidence | Debit bank lines cannot become receipts; conflicting allocations cannot overconsume balances |
 | ECL review | Preserved model, exposure, date, scenarios and overlays | Display supplied runs; no invented rates or silently mutable inputs |
 | Approval inbox | Maker, checker, exact amount, records and accounting impact | Maker cannot approve; execution requires the same approved version and current authority |
-| Agent activity | Proposal, pending approval, executing, posted, failed, unknown | Unconnected runtime is explicit; job completion alone does not imply financial posting |
+| Copilot | Streamed answer, visible tool usage, attached files, per-user history | Answers come from tool calls under the user's role; missing AI key is shown, never simulated |
+| AI agents | Agent cards, live step stream, run history with cost, schedules, auto-execution policy | Every step is a database record; proposals wait for a checker unless an independently activated policy posts an exact match within limits |
+| Reports | Aging, countback DSO, 30-day CEI, top debtors, KPI inputs, .xlsx pack | Figures and their inputs come from one SQL routine; unavailable inputs stay unavailable |
 | Import review | Exact mapping, rejected rows, control total, digest and commit state | Invalid files cannot stage; independent checker commits preserved rows atomically |
 | Audit explorer | Actor, operation, timestamp, affected record and evidence | Domain operations append evidence in the same database transaction |
+
+The owner-approved visual direction is liquid white with iOS blue actions and glass
+navigation, as defined in `STYLEGUIDE.md`. Finance values and approval evidence stay
+on opaque surfaces. Chart selection changes analytical focus only. Collection risk
+filters classify whole accounts by their oldest unpaid invoice; invoice aging charts
+remain separate and use non-overlapping invoice balance bands.
 
 Scope switches use authenticated server navigation. Remount tenant/entity client
 forms so a previous file preview cannot cross into the new workspace. No monetary
