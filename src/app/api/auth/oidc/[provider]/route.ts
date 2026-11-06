@@ -19,8 +19,8 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
  // linking a provider from a deployment URL is told to use the stable URL; never turn a link into a fresh sign-in.
  const requestOrigin=request.headers.get("origin")!;
  if(requestOrigin!==origin){
-  const jar=await cookies(),secure=sessionCookieOptions().secure;
-  const signedIn=!!jar.get(secure?"__Host-o2c-session":"o2c-session")?.value;
+  // Check the session itself, not just the cookie: a stale cookie is an ordinary sign-in, not a link.
+  let signedIn=false;try{signedIn=!!(await (await createClient()).auth.getUser()).data.user;}catch{signedIn=false;}
   return NextResponse.redirect(new URL(signedIn?"/auth/security?error=host":"/login",signedIn?requestOrigin:origin),{status:303,headers:{"Cache-Control":"no-store"}});
  }
  const failure=new URL("/login?error=oauth",origin);

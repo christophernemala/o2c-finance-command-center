@@ -17,7 +17,7 @@ export default async function Security({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   // Linking returns to the stable auth origin, where this host-only session cookie isn't sent.
   const site = authSiteOrigin(), host = (await headers()).get("host");
-  const offHost = !!site && !!host && new URL(site).host !== host;
+  const offHost = !!site && !!host && new URL(site).host.toLowerCase() !== host.toLowerCase();
   const factors = await client.auth.mfa.listFactors(); if (factors.error) throw new Error("Security settings unavailable");
   const verified = factors.data.totp.some(factor => factor.status === "verified");
   // Read an existing pending factor; a GET never creates or changes security settings.
