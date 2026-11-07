@@ -50,7 +50,7 @@ PostgreSQL is the enforcement point; the app and the UI are not. Read `docs/ARCH
   (`src/components/workspace.tsx`) or a view component. Mutations are form POSTs to `src/app/api/*/route.ts`,
   which check session, MFA and Origin, call a routine, then 303-redirect back with `?message=…&nonce=…`;
   the page shows the result in a `Toast`.
-- **Agents.** `src/lib/ai`: every tool in `tools.ts` is a zod schema. The finance tools each map to exactly one
+- **Agents.** `src/lib/ai`: every tool in `tools.ts` has a Zod schema. The finance tools each map to exactly one
   routine; `record_finding` only records a step, and the copilot-only `read_uploaded_file` reads an attached file.
   A tool's `agent_steps` record (`agent_record_step`) is a separate transaction, so a write can commit before its step
   record fails; the loop then throws `PersistenceError` and aborts the run rather than reporting the tool as failed. `runner.ts`
