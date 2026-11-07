@@ -22,7 +22,7 @@ There is one route, `/`, which shows one of 17 views chosen by `?view=`.
 
 | View | What the user does |
 |---|---|
-| `overview` (also `/dashboard`) | KPIs (open, overdue, DSO, CEI), aging, recent activity |
+| `overview` (also `/dashboard`) | KPIs (open, overdue, DSO, CEI), aging, charts, open invoices and review priorities |
 | `receivables` (also `/invoices`) | Invoice list, paged |
 | `reconciliation` (also `/reconciliation`) | Cash application: match bank lines to invoices, approve, post |
 | `approvals` | Maker/checker queue |
@@ -30,7 +30,7 @@ There is one route, `/`, which shows one of 17 views chosen by `?view=`.
 | `customers` (also `/customers`) | Outstanding by category, region or account; segment upload |
 | `notes` | Credit and debit notes: propose, approve, post |
 | `cashflow` (also `/cashflow`) | 13-week cashflow |
-| `reports` | AR pack, daily Excel export |
+| `reports` | AR pack, downloadable as an Excel workbook (the daily collections pack is on `collections`) |
 | `agents` | Run agents, see runs and steps |
 | `operations` | Agent health, agent map, edge failures |
 | `incidents` | Agent incidents |

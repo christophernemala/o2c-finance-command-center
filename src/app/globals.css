@@ -194,7 +194,7 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-are
 .ds-table-cards { display: none; list-style: none; margin: 0; padding: var(--space-2) var(--space-4) var(--space-4); }
 .ds-table-cards > li { padding: var(--space-4) 0; border-bottom: 1px solid var(--border); }
 .ds-table-cards > li:last-child { border-bottom: 0; }
-.ds-card-primary { font-weight: 600; margin-bottom: var(--space-2); }
+.ds-card-primary { font-size: var(--text-base); font-weight: 600; margin-bottom: var(--space-2); }
 .ds-table-cards dl { display: grid; gap: var(--space-1); margin: 0; }
 .ds-table-cards dl > div { display: flex; justify-content: space-between; gap: var(--space-4); font-size: var(--text-sm); }
 .ds-table-cards dt { color: var(--muted); }
@@ -207,7 +207,7 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-are
 .ds-sheet > header h2 { font-size: var(--text-base); font-weight: 600; }
 .ds-sheet-close, .ds-toast button { min-width: var(--tap); min-height: var(--tap); border: 0; background: transparent; color: var(--muted); font-size: 22px; }
 .ds-sheet-body { padding: var(--space-6); overflow-y: auto; }
-@media (max-width: 639px) { .ds-sheet { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: var(--radius-panel) var(--radius-panel) 0 0; padding-bottom: env(safe-area-inset-bottom); } }
+@media (max-width: 639px) { .ds-sheet { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: var(--radius-panel) var(--radius-panel) 0 0; padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); } }
 /* Toast: one polite live region, above the mobile tab bar. */
 .ds-toast-region { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--space-6) + env(safe-area-inset-bottom) + 64px); width: min(480px, calc(100vw - 32px)); }
 @media (min-width: 1024px) { .ds-toast-region { bottom: var(--space-6); } }

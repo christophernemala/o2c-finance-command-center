@@ -3,7 +3,7 @@ import React from "react"; void React;
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DataTable, ErrorState, MoneyText, Spinner, StatTile, Switch, sortRows, type Column } from "../src/components/ui";
+import { Button, DataTable, ErrorState, Input, MoneyText, Skeleton, Spinner, StatTile, Switch, sortRows, type Column } from "../src/components/ui";
 
 type Row = { id: string; customer: string; balance: string | null };
 const rows: Row[] = [{ id: "a", customer: "Zeta", balance: "10.5" }, { id: "b", customer: "Alpha", balance: "9999999999999999.99" }, { id: "c", customer: "Mid", balance: "10.49" }, { id: "d", customer: "None", balance: null }];
@@ -18,6 +18,11 @@ test("sorting compares amounts exactly and keeps missing values last", () => {
   assert.deepEqual(sortRows(rows, columns, "customer:asc").map(row => row.id), ["b", "c", "d", "a"]);
   assert.deepEqual(sortRows(rows, columns, "unknown:asc").map(row => row.id), ["a", "b", "c", "d"], "an unknown sort keeps the given order");
   assert.deepEqual(sortRows(rows, columns, undefined, "  zE ").map(row => row.id), ["a"]);
+  // Adjacent amounts above Number.MAX_SAFE_INTEGER are equal as Numbers; only an exact decimal comparison orders them.
+  const huge = [{ id: "y", customer: "Y", balance: "9007199254740992.2" }, { id: "x", customer: "X", balance: "9007199254740992.1" }];
+  assert.equal(Number(huge[0].balance), Number(huge[1].balance), "the fixture really is indistinguishable as a Number");
+  assert.deepEqual(sortRows(huge, columns, "balance:asc").map(row => row.id), ["x", "y"]);
+  assert.deepEqual(sortRows([...huge].reverse(), columns, "balance:desc").map(row => row.id), ["y", "x"]);
   const broken = [...rows, { id: "e", customer: "Bad", balance: "not-a-number" }];
   assert.deepEqual(sortRows(broken, columns, "balance:asc").map(row => row.id), ["c", "a", "b", "d", "e"], "a malformed amount sorts last with the missing ones instead of throwing");
   assert.deepEqual(sortRows(broken, columns, "balance:desc").map(row => row.id), ["b", "a", "c", "d", "e"], "and stays last when the order is reversed");
@@ -52,4 +57,20 @@ test("switches and spinners keep native semantics", () => {
   assert.match(html, /<label class="ds-switch-row"><input type="checkbox" role="switch" class="ds-switch" name="attach" checked=""\/><span>Attach statement PDF<\/span><\/label>/);
   assert.match(renderToStaticMarkup(<Spinner/>), /<span class="ds-spinner" aria-hidden="true"><\/span>/, "decorative by default");
   assert.match(renderToStaticMarkup(<Spinner label="Loading"/>), /role="status" aria-label="Loading"/);
+});
+
+test("primitives: buttons don't submit by default, caller validity is kept, skeleton widths stay positive", () => {
+  assert.match(renderToStaticMarkup(<Button>Open</Button>), /type="button"/);
+  assert.match(renderToStaticMarkup(<Button type="submit">Save</Button>), /type="submit"/);
+  assert.match(renderToStaticMarkup(<Input id="ref" label="Reference" aria-invalid/>), /aria-invalid="true"/, "externally validated fields stay invalid");
+  assert.match(renderToStaticMarkup(<Input id="ref" label="Reference" error="Required"/>), /aria-invalid="true"/);
+  assert.doesNotMatch(renderToStaticMarkup(<Input id="ref" label="Reference"/>), /aria-invalid/);
+  const widths = [...renderToStaticMarkup(<Skeleton lines={10}/>).matchAll(/width:(-?\d+)%/g)].map(match => Number(match[1]));
+  assert.equal(widths.length, 10); assert.ok(widths.every(width => width > 0), widths.join(","));
+});
+
+test("a sort request for a non-sortable column is not announced as a sort", () => {
+  const plain: Column<Row>[] = [{ key: "customer", header: "Customer", cell: row => row.customer, primary: true }, { key: "note", header: "Note", cell: () => "—" }];
+  const html = renderToStaticMarkup(<DataTable rows={rows} columns={plain} caption="Accounts" rowKey={row => row.id} sort="note:asc" hrefFor={() => "/?"}/>);
+  assert.doesNotMatch(html, /aria-sort/);
 });

@@ -56,10 +56,10 @@ test("second-factor assurance requires provider evidence and fails closed on err
 
 test("off-host provider requests never query sessions before the IP limiter", async () => {
   const calls: string[] = [];
-  const deps = (opts: { cookie: boolean; allowed?: boolean; live?: boolean | "throw" }) => ({
+  const deps = (opts: { cookie: boolean; allowed?: boolean; live?: "login" | "invitation" | null | "throw" }) => ({
     hasCookie: opts.cookie,
     reserve: async () => { calls.push("reserve"); return { allowed: opts.allowed ?? true, retryAfter: opts.allowed === false ? 42 : 0, release: async () => { calls.push("release"); } }; },
-    lookup: async () => { calls.push("lookup"); if (opts.live === "throw") throw new Error("db down"); return opts.live ?? false; },
+    lookup: async () => { calls.push("lookup"); if (opts.live === "throw") throw new Error("db down"); return opts.live ?? null; },
   });
   calls.length = 0;
   assert.deepEqual(await offHostSession(deps({ cookie: false })), { state: "signed-out" });
@@ -68,13 +68,16 @@ test("off-host provider requests never query sessions before the IP limiter", as
   assert.deepEqual(await offHostSession(deps({ cookie: true, allowed: false })), { state: "limited", retryAfter: 42 });
   assert.deepEqual(calls, ["reserve"], "over budget: the session is never looked up");
   calls.length = 0;
-  assert.deepEqual(await offHostSession(deps({ cookie: true, live: false })), { state: "signed-out" });
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: null })), { state: "signed-out" });
   assert.deepEqual(calls, ["reserve", "lookup"], "a forged or stale cookie keeps its slot");
   calls.length = 0;
   assert.deepEqual(await offHostSession(deps({ cookie: true, live: "throw" })), { state: "signed-out" });
   assert.deepEqual(calls, ["reserve", "lookup"], "a failed lookup is treated as signed out and keeps its slot");
   calls.length = 0;
-  assert.deepEqual(await offHostSession(deps({ cookie: true, live: true })), { state: "signed-in" });
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: "login" })), { state: "signed-in", purpose: "login" });
   assert.deepEqual(calls, ["reserve", "lookup", "release"], "a real session returns its slot");
+  calls.length = 0;
+  assert.deepEqual(await offHostSession(deps({ cookie: true, live: "invitation" })), { state: "signed-in", purpose: "invitation" }, "the purpose routes an activation back to the activation page");
+  assert.deepEqual(calls, ["reserve", "lookup", "release"]);
   await assert.rejects(offHostSession({ hasCookie: true, reserve: async () => { throw new Error("limiter down"); }, lookup: async () => { throw new Error("must not run"); } }), /limiter down/, "a limiter outage propagates so the route fails closed");
 });

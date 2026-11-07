@@ -11,7 +11,8 @@ test("minor units follow ISO 4217, not the runtime's display digits", () => {
   for (const code of ["CLF", "XDR", "HRK", "ZWL", "aed", "XXX", ""]) assert.equal(isCurrency(code), false, code);
   assert.throws(() => minorUnits("XDR"), /Unsupported currency/);
   // Intl accepts any well-formed three-letter code, so membership is pinned explicitly: a change to the list must change this test.
-  assert.equal(currencyCodes.length, 156);
+  assert.equal(currencyCodes.length, 155);
+  assert.ok(!isCurrency("ANG"), "ANG was withdrawn when XCG replaced it (ISO 4217 amendment 176)");
   assert.equal(new Set(currencyCodes).size, currencyCodes.length, "no duplicates");
   for (const code of ["USD", "EUR", "GBP", "INR", "AED", "SAR", "KWD", "BHD", "OMR", "JPY", "ZWG", "SLE", "XCG", "VES"]) assert.ok(isCurrency(code), code);
   for (const withdrawn of ["CUC", "HRK", "SLL", "ZWL", "VEF", "MRO"]) assert.equal(isCurrency(withdrawn), false, `${withdrawn} is withdrawn`);

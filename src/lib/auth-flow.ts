@@ -29,25 +29,28 @@ export function authRequestOrigin(requestOrigin: string | null, env: Record<stri
   if (preview && /^[a-z0-9][a-z0-9-]*\.vercel\.app$/.test(deployment) && requestOrigin === `https://${deployment}`) return requestOrigin;
   return null;
 }
-type OffHostSession = { state: "signed-in" | "signed-out" } | { state: "limited"; retryAfter: number };
+type SessionPurpose = "login" | "invitation";
+type OffHostSession = { state: "signed-in"; purpose: SessionPurpose } | { state: "signed-out" } | { state: "limited"; retryAfter: number };
 /**
  * Whether a provider request from a non-stable preview host comes from a live session (a link attempt) or not
  * (an ordinary sign-in). No cookie means no database query. With a cookie, an IP slot is spent before the session
  * lookup, so forged cookies cannot force unthrottled queries; the slot is returned only for a real session.
+ * The session purpose is returned so invitation activations go back to activation, not to Account security.
  * A limiter failure propagates, so the caller fails closed.
  */
 export async function offHostSession(deps: {
   hasCookie: boolean;
   reserve(): Promise<{ allowed: boolean; retryAfter: number; release(): Promise<void> }>;
-  lookup(): Promise<boolean>;
+  lookup(): Promise<SessionPurpose | null>;
 }): Promise<OffHostSession> {
   if (!deps.hasCookie) return { state: "signed-out" };
   const slot = await deps.reserve();
   if (!slot.allowed) return { state: "limited", retryAfter: slot.retryAfter };
-  let signedIn = false;
-  try { signedIn = await deps.lookup(); } catch { signedIn = false; }
-  if (signedIn) { try { await slot.release(); } catch { /* The slot expires on its own. */ } }
-  return { state: signedIn ? "signed-in" : "signed-out" };
+  let purpose: SessionPurpose | null = null;
+  try { purpose = await deps.lookup(); } catch { purpose = null; }
+  if (!purpose) return { state: "signed-out" };
+  try { await slot.release(); } catch { /* The slot expires on its own. */ }
+  return { state: "signed-in", purpose };
 }
 const UUID =/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Never derive financial access from email, provider claims, or signup metadata. */
