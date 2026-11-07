@@ -12,8 +12,8 @@ export function emailDeliverySettings(env:Record<string,string|undefined>=proces
 export async function sendEmailCode(to:string,code:string){
  const settings=emailDeliverySettings();
  if(!settings||!address.test(to)||!/^\d{6}$/.test(code))throw Error('Email delivery unavailable');
- const subject='Your O2C sign-in code';
- const text=`Your O2C sign-in code is ${code}.\n\nIt expires in 10 minutes. Enter it in the same browser where you requested it. Never share this code.\n\nIf you did not request it, you can ignore this email.`;
+ const subject='Your Closewise sign-in code';
+ const text=`Your Closewise sign-in code is ${code}.\n\nIt expires in 10 minutes. Enter it in the same browser where you requested it. Never share this code.\n\nIf you did not request it, you can ignore this email.`;
  if(settings.kind==='resend'){
   const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${settings.key}`,'Content-Type':'application/json'},body:JSON.stringify({from:settings.from,to:[to],subject,text}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error('Email delivery unavailable');

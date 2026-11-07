@@ -8,32 +8,34 @@ Frames: **iPhone 375 × 812** (safe areas: top 47, bottom 34) and **Desktop 1440
 
 ### Colour
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `canvas` | `#F3F6FC` | `#0B1220` | Page background |
-| `surface` | `#FFFFFF` | `#111A2B` | Cards, sheets, inputs |
-| `surface-muted` | `#EEF3FB` | `#182338` | Table headers, hover, skeleton |
-| `ink` | `#14243E` | `#E6ECF5` | Primary text |
-| `muted` | `#52647D` | `#9FB0C6` | Secondary text, labels |
-| `border` | `#DBE5F3` | `#2A3A55` | Hairlines (1 px) |
-| `primary` | `#075DCC` | `#5AA2FF` | Accent, focus, active nav |
-| Primary button fill | `#075DCC → #2874D8` (135°) | `#2570D6 → #1F6BD1` (135°) | Primary button background |
-| `on-primary` | `#FFFFFF` | `#FFFFFF` | Text on primary buttons |
-| `primary-soft` | `#E9F1FF` | `#16294A` | Selected chip, eyebrow |
-| `link` | `#075DCC` | `#7DB6FF` | Links |
-| `success` / soft | `#16703A` / `#E8F5EC` | `#5FD18A` / `#12301E` | Positive status (green, so it never reads as a link) |
-| `warning` / soft | `#885515` / `#FFF5E5` | `#F2B65A` / `#33260F` | Pending, review |
-| `danger` / soft | `#B72D4D` / `#FFF0F3` | `#FF8AA0` / `#3A1622` | Failed, rejected, overdue 90+ |
+Light mode only (the owner removed dark mode on 2026-11-06). One violet accent on white, no gradients.
 
-Measured contrast in dark mode, all at or above AA (4.5:1):
+| Token | Value | Use |
+|---|---|---|
+| `canvas` | `#F4F4F6` | Page background |
+| `surface` | `#FFFFFF` | Cards, sheets, inputs |
+| `surface-muted` | `#F1EFF6` | Table headers, hover, skeleton |
+| `ink` | `#16151C` | Primary text |
+| `muted` | `#5F5B6B` | Secondary text, labels |
+| `border` | `#E2E0E8` | Hairlines (1 px) |
+| `primary` | `#6D28D9` | Accent, focus, active nav, primary button fill (solid) |
+| `primary-hover` | `#5B21B6` | Hovered primary button |
+| `on-primary` | `#FFFFFF` | Text on primary buttons |
+| `primary-soft` | `#F3EFFD` | Selected chip, eyebrow |
+| `link` | `#6D28D9` | Links |
+| `success` / soft | `#16703A` / `#E8F5EC` | Positive status |
+| `warning` / soft | `#885515` / `#FFF5E5` | Pending, review |
+| `danger` / soft | `#B72D4D` / `#FFF0F3` | Failed, rejected, overdue 90+ |
+
+Measured contrast, all at or above AA (4.5:1):
 
 | Pair | Ratio |
 |---|---|
-| ink on surface | 14.7 |
-| muted on surface | 7.9 |
-| link on primary-soft | 6.9 |
-| white on button | 4.8 |
-| status text on soft fills | 7.1–8.2 |
+| ink on surface | 18.1 |
+| muted on surface | 6.6 |
+| link on primary-soft | 6.3 |
+| white on button | 7.1 |
+| success on surface | 6.2 |
 
 ### Type
 
@@ -54,17 +56,17 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 
   | Element | Radius |
   |---|---|
-  | Panel | 20 |
+  | Panel | 16 |
   | Control | 12 |
   | Pill | 999 |
-  | Bottom sheet | 20 at the top corners only |
+  | Bottom sheet | 16 at the top corners only |
 
 - **Shadow:**
 
   | Element | Shadow |
   |---|---|
-  | Panel | `0 4 22 #224F8C07`, `0 1 3 #224F8C04` |
-  | Sheet | `0 24 64 #0B1A3333` |
+  | Panel | `0 1 3 #16151C0F`, `0 1 2 #16151C0A` |
+  | Sheet | `0 24 64 #16151C33` |
 
 - **Tap targets** are at least 44 × 44 on touch. Inputs and buttons are 48 high.
 
@@ -72,22 +74,22 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 
 | Component | Spec |
 |---|---|
-| **Button** | 48 h, 12/18 padding, radius 12. Primary: gradient fill, `on-primary` text. Secondary: `surface` fill with a 1 px `border`. Danger: `danger` fill. Pressed: scale 0.98 (none with reduced motion). |
-| **Input** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). Hint 12 `muted` below. Error 12 `danger` with a red border, announced. |
-| **Checkbox** | 20 × 20, radius 6, 2 px `muted` border on `surface`. Checked: `control-on` fill (`#075DCC`, dark `#2570D6`) with a white tick that scales in over 0.2 s. Adapted from Uiverse.io (MIT). |
-| **Switch** | 51 × 31 track, radius 16, 27 px white knob with a soft shadow. Off: `control-off` (`#7A889C`, dark `#5B6B82`); on: `control-on`. Row is at least 44 h with the label to the right. Adapted from Uiverse.io (MIT). |
+| **Button** | 48 h, 12/18 padding, radius 12. Primary: solid `primary` fill, `on-primary` text. Secondary: `surface` fill with a 1 px `border`. Danger: `danger` fill. Pressed: scale 0.98 (none with reduced motion). |
+| **Input** | Label 14 above; field 48 h, radius 12, 1 px `#8A8696` border. Hint 12 `muted` below. Error 12 `danger` with a red border, announced. |
+| **Checkbox** | 20 × 20, radius 6, 2 px `muted` border on `surface`. Checked: `control-on` fill (`#6D28D9`) with a white tick that scales in over 0.2 s. Adapted from Uiverse.io (MIT). |
+| **Switch** | 51 × 31 track, radius 16, 27 px white knob with a soft shadow. Off: `control-off` (`#8A8696`); on: `control-on`. Row is at least 44 h with the label to the right. Adapted from Uiverse.io (MIT). |
 | **Spinner** | Ring 1 em, 2 px `currentColor` border with the top quarter open, one turn per 1.2 s. Static with reduced motion. Adapted from Uiverse.io (MIT). |
-| **Select** | Label 14 above; field 48 h, radius 12, 1 px `#9BACC4` border (dark: `#3A4D6D`). No hint or error state yet. |
-| **Card** | `surface`, radius 20, panel shadow. Header 24/20 padding with a bottom hairline: title 16/600, subtitle 14 `muted`, action on the right. |
+| **Select** | Label 14 above; field 48 h, radius 12, 1 px `#8A8696` border. No hint or error state yet. |
+| **Card** | `surface`, radius 16, panel shadow. Header 24/20 padding with a bottom hairline: title 16/600, subtitle 14 `muted`, action on the right. |
 | **StatTile** | Label 12 `muted`, value kpi 32. Three states: value, with "As of {date}" when a date is supplied; "—" with "Not enough data: {reason}"; "—" with "Couldn't load." in `danger`, followed by a "Retry" link only when a retry link is supplied. |
 | **Badge** | Pill, 12/500, 4/12 padding, soft fill with matching text colour. Positive, pending, failed, info, neutral. |
 | **DataTable** (≥ 640 px) | Filter field above, max 360 w. Header row `surface-muted`, 11/600 `muted`. Cells 14/16 padding, hairline between rows. Amount columns right-aligned with tabular numerals. A sortable header shows ↑ or ↓ when active. |
 | **DataTable** (< 640 px) | Stacked cards: the primary column first in 16/600, then label/value rows (label `muted` left, value right). Hairline between cards. Never scrolls sideways. |
-| **Sheet** | Phone: bottom sheet, full width, top corners 20, max 90 % height, safe-area padding at the bottom. Desktop: centred, 560 w. Header has the title and a 44 × 44 close button. Backdrop `#0B1A3366`. |
-| **Toast** | `ink` fill with `surface` text (dark: `surface-muted` with a border), radius 12. Bottom-centre, 64 px above the tab bar on phones, 24 px from the bottom on desktop. Info and success toasts auto-dismiss after 6 s; danger toasts stay until dismissed. The dismiss button is 44 × 44. |
+| **Sheet** | Phone: bottom sheet, full width, top corners 16, max 90 % height, safe-area padding at the bottom and sides. Desktop: centred, 560 w. Header has the title and a 44 × 44 close button. Backdrop `#16151C66`. |
+| **Toast** | `ink` fill with `surface` text, radius 12. Bottom-centre, 64 px above the tab bar on phones, 24 px from the bottom on desktop. Info and success toasts auto-dismiss after 6 s; danger toasts stay until dismissed. The dismiss button is 44 × 44. |
 | **EmptyState** | Centred: 40 × 4 `primary` rule, title 16/600, body 14 `muted` max 512 w, optional action. |
 | **ErrorState** | Like the empty state; a "Try again" secondary button appears when a retry link is supplied. Copy depends on the kind: forbidden, unavailable or invalid. |
-| **Skeleton** | 14 h bars, radius 7, `surface-muted → border` shimmer over 1.4 s. Widths 92 / 78 / 64 %. Static with reduced motion. |
+| **Skeleton** | 14 h bars, radius 7, flat `surface-muted` that pulses to 50 % opacity over 1.4 s. Widths 92 / 78 / 64 %. Static with reduced motion. |
 | **MoneyText** | `MoneyText value currency`: always shows the ISO code and the currency's own decimals: KWD 1.234, JPY 1,234, AED 1,234.50. Tabular numerals, never wraps. |
 | **DateTime** | Timestamps in the supplied entity zone (UTC when none is supplied), with the zone named ("Apr 1, 2026, 1:15 AM GMT+5:30"). Calendar dates are never shifted. |
 

@@ -58,7 +58,7 @@ export function Copilot({ tenant, entity, thread, initial, aiReady }: { tenant: 
   }
   const submit = (event: FormEvent) => { event.preventDefault(); void ask(draft); };
 
-  return <section aria-label="O2C Copilot" className="flex min-h-[640px] flex-col rounded-[22px] border border-line bg-canvas">
+  return <section aria-label="Closewise Copilot" className="flex min-h-[640px] flex-col rounded-[22px] border border-line bg-canvas">
     <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6" aria-live="polite">
       {!turns.length && <div className="mx-auto max-w-2xl py-10 text-center"><span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-link"><Bot size={24} aria-hidden="true"/></span>
         <h2 className="text-xl font-semibold">Ask about your receivables</h2><p className="mt-2 text-sm text-muted">Answers come from live tool calls against this legal entity. Attach a CSV or Excel file to analyse it alongside your ledger.</p>

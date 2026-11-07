@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
     const tenant = request.nextUrl.searchParams.get("tenant") ?? ""; const entity = request.nextUrl.searchParams.get("entity") ?? "";
     if (!auth.memberships.some(row => row.tenant_id === tenant)) return new NextResponse("Forbidden", { status: 403 });
     const asOf = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" }).format(new Date());
-    let bytes: Uint8Array; let fileName = "O2C-receivables-report.xlsx";
+    let bytes: Uint8Array; let fileName = "Closewise-receivables-report.xlsx";
     if (request.nextUrl.searchParams.get("report") === "pack") {
       const result = await auth.client.rpc("report_ar_pack", { p_tenant: tenant, p_entity: entity, p_as_of: asOf });
       if (result.error) return failure(result.error.message);
       const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";
-      bytes = buildWorkbookBytes(arPackWorkbook(validateArPack(result.data), name)); fileName = `O2C-AR-pack-${asOf}.xlsx`;
+      bytes = buildWorkbookBytes(arPackWorkbook(validateArPack(result.data), name)); fileName = `Closewise-AR-pack-${asOf}.xlsx`;
     } else if (request.nextUrl.searchParams.get("report") === "daily") {
       const scope = { p_tenant: tenant, p_entity: entity };
       const [callList, followUps, licences, remarks, worklist, byCategory, byRegion] = await Promise.all([auth.client.rpc("daily_call_list", { ...scope, p_as_of: asOf, p_limit: 100 }),
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       if ([callList, followUps, licences, remarks, worklist, byCategory, byRegion].some(result => result.error)) return failure([callList, followUps, licences, remarks, worklist, byCategory, byRegion].find(result => result.error)!.error!.message);
       const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";
       bytes = buildWorkbookBytes(dailyPackWorkbook(validateDailyPack({ as_of: asOf, entity: name, callList: callList.data, followUps: followUps.data, licences: licences.data, remarks: remarks.data, worklist: worklist.data, byCategory: byCategory.data, byRegion: byRegion.data })));
-      fileName = `O2C-daily-collections-${asOf}.xlsx`;
+      fileName = `Closewise-daily-collections-${asOf}.xlsx`;
     } else bytes = buildWorkbookBytes(receivablesReport(await snapshot(tenant, entity, asOf, 0)));
     return new NextResponse(new Uint8Array(bytes).buffer, { headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${fileName}"`, "Cache-Control": "private, no-store" } });
   } catch (error) {
