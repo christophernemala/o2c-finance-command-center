@@ -4,11 +4,15 @@ import { Activity, FileDiff, Mail, ArrowDownLeft, ArrowRight, ArrowUpRight, Badg
 import type { Approval, Entity, Membership, PaginatedCollection, Snapshot, Workspace } from "@/types/workspace";
 import { approvalEvidenceCurrent } from "@/lib/approval-evidence";
 import { agingBucket } from "@/lib/money";
-import { Panel, Empty, Money, Badge } from "./ui";
+import { Panel, Empty, Money, Badge, Toast } from "./ui";
 import { MutationForm } from "./mutation-form";
 import { ImportReview } from "./import-review";
 import { CashflowForecast, FinanceCharts } from "./finance-charts";
 import type { ReactNode } from "react";
+/** Plain-language result for the ?message= code a mutation route redirects with. */
+export function actionResult(message: string): string {
+  return message === "confirmed" ? "The server confirmed this action. The workspace now shows its recorded state." : message === "conflict" ? "The records changed or this action conflicts with existing data. Review the refreshed evidence before creating a new proposal." : message === "forbidden" ? "This action requires an authorized independent reviewer. Check your role and the proposal maker." : message === "stale" ? "The invoices changed since this message was drafted: one was paid, disputed or adjusted, or the contact was removed. Reject it and propose a new one." : message === "invalid_import" ? "The import failed validation. Correct all rejected rows before staging it again." : "The action could not be confirmed. Check its recorded state before retrying.";
+}
 const navigation = [
   { id: "overview", name: "Overview", icon: LayoutDashboard, description: "A clear view of your receivables and cash position." },
   { id: "operations", name: "Agent operations", icon: Activity, description: "Health, handoffs, cost and incidents across every agent run, from recorded steps only." },
@@ -32,8 +36,8 @@ const routeFor: Partial<Record<Workspace, string>> = {
   overview: "/dashboard", customers: "/customers", receivables: "/invoices",
   cashflow: "/cashflow", reconciliation: "/reconciliation",
 };
-type Props = { memberships: Membership[]; entityOptions: Entity[]; data: Snapshot; view: Workspace; userId: string; email: string; message?: string; analysis?: ReactNode };
-export function FinanceWorkspace({ memberships, entityOptions, data, view, userId, email, message, analysis }: Props) {
+type Props = { memberships: Membership[]; entityOptions: Entity[]; data: Snapshot; view: Workspace; userId: string; email: string; message?: string; nonce?: string; analysis?: ReactNode };
+export function FinanceWorkspace({ memberships, entityOptions, data, view, userId, email, message, nonce, analysis }: Props) {
   const tenant = memberships.find(row => row.tenant_id === data.tenant_id)!; const entity = entityOptions.find(row => row.id === data.entity_id)!;
   const active = navigation.find(row => row.id === view)!;
   const pagerCollections: PaginatedCollection[] = view === "overview" || view === "receivables" ? ["invoices"]
@@ -58,7 +62,7 @@ export function FinanceWorkspace({ memberships, entityOptions, data, view, userI
     <details className="rail px-6 py-4 lg:hidden"><summary className="font-medium">Workspaces · {active.name}</summary><div className="mt-4">{menu}</div></details>
     <main id="main" className="mx-auto max-w-[1840px] space-y-6 px-4 py-6 lg:px-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="mb-2 text-xs font-medium uppercase tracking-[.16em] text-muted">Finance operations / {active.name}</p><h1 className="text-3xl font-semibold tracking-tight">{active.name}</h1><p className="mt-2 text-muted">{active.description}</p></div><Link className="button secondary" href={`/api/export?${new URLSearchParams({ tenant: data.tenant_id, entity: data.entity_id })}`}><Download size={16}/>Export aging & invoices (first 50)</Link></div>
     <div className="scope-bar flex flex-wrap items-center justify-between gap-4 px-5 py-4"><form method="get" className="flex flex-wrap items-end gap-3"><input type="hidden" name="view" value={view}/><label className="text-xs">Tenant<select name="tenant" defaultValue={data.tenant_id}>{memberships.map(row => <option key={row.tenant_id} value={row.tenant_id}>{row.tenant_name}</option>)}</select></label><label className="text-xs">Legal entity<select name="entity" defaultValue={data.entity_id}>{entityOptions.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><button className="button secondary">Open selected entity</button></form><div className="text-xs leading-6 text-muted"><p><span className="font-medium text-ink">Verified snapshot</span> · {new Date(data.fetched_at).toLocaleString("en-AE", { timeZone: "Asia/Dubai" })} GST</p><p>Current balances · aging as of {data.as_of} · refresh to retrieve changes</p></div><form method="get" action="/" aria-label="Refresh financial snapshot"><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="view" value={view}/><input type="hidden" name="page" value={data.page}/><button className="button secondary" type="submit">Refresh statistics</button></form></div>
-    {message && <div role="status" className={message === "confirmed" ? "rounded-lg bg-success-soft p-4 text-success" : "rounded-lg bg-warning-soft p-4 text-warning"}>{message === "confirmed" ? "The server confirmed this action. The workspace now shows its recorded state." : message === "conflict" ? "The records changed or this action conflicts with existing data. Review the refreshed evidence before creating a new proposal." : message === "forbidden" ? "This action requires an authorized independent reviewer. Check your role and the proposal maker." : message === "stale" ? "The invoices changed since this message was drafted: one was paid, disputed or adjusted, or the contact was removed. Reject it and propose a new one." : message === "invalid_import" ? "The import failed validation. Correct all rejected rows before staging it again." : "The action could not be confirmed. Check its recorded state before retrying."}</div>}
+    <Toast message={message && actionResult(message)} id={nonce} tone={message === "confirmed" ? "success" : "danger"}/>
     {view === "overview" && <>{data.totals.invoice_count === 0 && <div role="status" className="rounded-xl border border-line bg-surface-muted p-5 text-sm"><p className="font-medium text-ink">No invoice records in this entity</p><p className="mt-2 text-muted">The recorded AR balance is AED 0.00. Import and independently approve your source invoices to populate balances and aging.</p><Link className="mt-3 inline-block font-medium text-link underline" href={href("imports")}>Open import review</Link></div>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
       { label: "Total AR", value: <Money value={data.totals.open}/>, help: "Posted invoice gross less posted allocations across the selected entity." },
       { label: "Overdue AR", value: <Money value={data.totals.overdue}/>, help: `Open posted invoices due before ${data.as_of}.` },

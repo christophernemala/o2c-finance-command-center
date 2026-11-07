@@ -124,5 +124,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         {list.map(row => <a key={row.id} href={link(row.id)} aria-current={row.id === thread ? "page" : undefined} className="block truncate rounded-xl border border-line bg-surface px-3 py-2 text-sm aria-[current=page]:border-primary aria-[current=page]:text-link">{row.title}</a>)}</nav>
       <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} thread={thread} initial={turns} aiReady={aiReady}/></div>;
   }
-  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} analysis={analysis}/>;
+  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} nonce={typeof params.nonce === "string" ? params.nonce : undefined} analysis={analysis}/>;
 }

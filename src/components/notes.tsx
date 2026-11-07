@@ -11,7 +11,7 @@ const when = (value: string | null) => value ? new Date(value).toLocaleString("e
 /** Credit and debit notes: the record of a document issued in the source system, not the tax document itself. */
 export function NotesView({ data, notes, shortPayments, userId }: { data: Snapshot; notes: AdjustmentNote[]; shortPayments: ShortPayment[]; userId: string }) {
   const maker = ["maker", "admin"].includes(data.role); const checker = ["approver", "admin"].includes(data.role);
-  const Scope = ({ id }: { id: string }) => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="id" value={id}/></>;
+  const scope = (id: string) => <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/><input type="hidden" name="id" value={id}/></>;
   const open = notes.filter(note => note.status === "pending" || note.status === "approved");
   const done = notes.filter(note => note.status === "posted" || note.status === "rejected");
   return <div className="space-y-6">
@@ -21,7 +21,7 @@ export function NotesView({ data, notes, shortPayments, userId }: { data: Snapsh
     </div>
 
     <Panel title="Awaiting decision or posting" subtitle="A different approver decides; posting is a separate step. A credit note reduces one invoice; a debit note adds a new receivable.">
-      {open.length ? <ul className="divide-y divide-line">{open.map(note => <NoteRow key={note.id} note={note} userId={userId} checker={checker} canPost={data.role !== "viewer"} Scope={Scope}/>)}</ul>
+      {open.length ? <ul className="divide-y divide-line">{open.map(note => <NoteRow key={note.id} note={note} userId={userId} checker={checker} canPost={data.role !== "viewer"} scope={scope}/>)}</ul>
         : <Empty title="Nothing waiting">Proposed notes appear here until an approver decides and someone posts them.</Empty>}
     </Panel>
 
@@ -31,7 +31,7 @@ export function NotesView({ data, notes, shortPayments, userId }: { data: Snapsh
           <div className="min-w-0"><p className="font-medium">{row.customer} <span className="money text-xs text-muted">{row.invoice}</span></p><p className="mt-1 text-xs text-muted">Paid <Money value={row.paid}/> of <Money value={row.gross}/></p></div>
           <div className="text-right"><Money value={row.open}/><p className="text-xs text-muted">remaining</p></div>
           {maker && <details className="w-full"><summary className="cursor-pointer text-xs text-link">Propose a credit note for the remainder</summary>
-            <MutationForm action="/api/notes"><Scope id={randomUUID()}/><input type="hidden" name="intent" value="note_propose"/><input type="hidden" name="kind" value="credit"/>
+            <MutationForm action="/api/notes">{scope(randomUUID())}<input type="hidden" name="intent" value="note_propose"/><input type="hidden" name="kind" value="credit"/>
               <input type="hidden" name="customer" value={row.customer_id}/><input type="hidden" name="invoice" value={row.invoice_id}/><input type="hidden" name="due" value=""/><input type="hidden" name="amount" value={row.open}/>
               <div className="grid gap-3 sm:grid-cols-2"><label>Reason<select name="reason" defaultValue="bank_charges"><option value="bank_charges">Bank charges</option><option value="short_payment">Short payment</option></select></label>
                 <label>Credit note number<input name="reference" required maxLength={60} placeholder="From your ERP"/></label></div>
@@ -40,7 +40,7 @@ export function NotesView({ data, notes, shortPayments, userId }: { data: Snapsh
       </Panel>
 
       <Panel title="Record a note" subtitle="Enter a note already issued in your source system.">
-        {maker ? <div className="p-6"><MutationForm action="/api/notes"><Scope id={randomUUID()}/><input type="hidden" name="intent" value="note_propose"/>
+        {maker ? <div className="p-6"><MutationForm action="/api/notes">{scope(randomUUID())}<input type="hidden" name="intent" value="note_propose"/>
           <div className="grid gap-3 sm:grid-cols-2"><label>Type<select name="kind" defaultValue="credit"><option value="credit">Credit note</option><option value="debit">Debit note</option></select></label>
             <label>Customer<select name="customer" required>{data.customers.map(customer => <option key={customer.id} value={customer.id}>{customer.name} ({customer.account})</option>)}</select></label></div>
           <div className="grid gap-3 sm:grid-cols-2"><label>Invoice (required for a credit note)<select name="invoice" defaultValue=""><option value="">None</option>{data.invoices.filter(invoice => invoice.lifecycle === "posted").map(invoice => <option key={invoice.id} value={invoice.id}>{invoice.number} · {invoice.customer}</option>)}</select></label>
@@ -55,15 +55,15 @@ export function NotesView({ data, notes, shortPayments, userId }: { data: Snapsh
     </div>
 
     <Panel title="Posted and rejected" subtitle="The last 100 notes.">
-      {done.length ? <ul className="divide-y divide-line">{done.map(note => <NoteRow key={note.id} note={note} userId={userId} checker={false} canPost={false} Scope={Scope}/>)}</ul>
+      {done.length ? <ul className="divide-y divide-line">{done.map(note => <NoteRow key={note.id} note={note} userId={userId} checker={false} canPost={false} scope={scope}/>)}</ul>
         : <Empty title="No history yet">Posted and rejected notes are kept here.</Empty>}
     </Panel>
   </div>;
 }
 
-function NoteRow({ note, userId, checker, canPost, Scope }: { note: AdjustmentNote; userId: string; checker: boolean; canPost: boolean; Scope: (props: { id: string }) => React.ReactNode }) {
+function NoteRow({ note, userId, checker, canPost, scope }: { note: AdjustmentNote; userId: string; checker: boolean; canPost: boolean; scope: (id: string) => React.ReactNode }) {
   const placeholder = /^(CN|DN)-pending-/i.test(note.reference);
-  const decide = (decision: "approved" | "rejected") => <MutationForm key={decision} action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_decide"/><input type="hidden" name="version" value={note.version}/>
+  const decide = (decision: "approved" | "rejected") => <MutationForm key={decision} action="/api/notes">{scope(note.id)}<input type="hidden" name="intent" value="note_decide"/><input type="hidden" name="version" value={note.version}/>
     <input type="hidden" name="decision" value={decision}/>
     {decision === "approved" && <label>{note.kind === "credit" ? "Credit" : "Debit"} note number from your ERP<input name="reference" required maxLength={60} defaultValue={placeholder ? "" : note.reference} placeholder={placeholder ? "Replaces the agent's placeholder" : undefined}/></label>}
     <button className={decision === "approved" ? "button" : "button secondary"}>{decision === "approved" ? "Approve" : "Reject"}</button></MutationForm>;
@@ -78,10 +78,10 @@ function NoteRow({ note, userId, checker, canPost, Scope }: { note: AdjustmentNo
     {note.status === "pending" && (checker && note.maker !== userId ? <div className="flex gap-2">{decide("approved")}{decide("rejected")}</div>
       : <p className="text-xs text-muted">Waiting for an approver other than the maker.</p>)}
     {note.status === "pending" && placeholder && <p className="text-xs text-muted">The reference is a placeholder; the approver enters the document number issued in your ERP.</p>}
-    {note.status === "approved" && canPost && <MutationForm action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_post"/><input type="hidden" name="version" value={note.version}/>
+    {note.status === "approved" && canPost && <MutationForm action="/api/notes">{scope(note.id)}<input type="hidden" name="intent" value="note_post"/><input type="hidden" name="version" value={note.version}/>
       <button className="button">Post {note.kind === "credit" ? "credit" : "debit"} note</button></MutationForm>}
     {note.status === "approved" && checker && note.maker !== userId && <details><summary className="cursor-pointer text-link">Withdraw approval</summary>
-      <MutationForm action="/api/notes"><Scope id={note.id}/><input type="hidden" name="intent" value="note_withdraw"/><input type="hidden" name="version" value={note.version}/>
+      <MutationForm action="/api/notes">{scope(note.id)}<input type="hidden" name="intent" value="note_withdraw"/><input type="hidden" name="version" value={note.version}/>
         <label>Reason<input name="reason" required minLength={5} maxLength={500} placeholder="For example: invoice changed, reference already used"/></label>
         <p className="text-xs text-muted">Use this when the note can no longer post. It moves to rejected, frees its reference and is recorded in the audit trail.</p>
         <button className="button secondary">Withdraw note</button></MutationForm></details>}

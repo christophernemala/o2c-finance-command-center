@@ -1,7 +1,7 @@
 import { sessionCookieOptions } from "@/lib/auth/cookie-options";
 import { NextRequest,NextResponse } from "next/server";
 import { sameOrigin,boundedFormRequest } from "@/lib/request-security";
-import { authSiteOrigin } from "@/lib/auth-flow";
+import { authRequestOrigin } from "@/lib/auth-flow";
 import { createLoginLimiter,loginLimiterConfig,trustedLoginIp } from "@/lib/login-limiter";
 import { databasePool } from "@/lib/postgres/pool";
 import { postgresConfig } from "@/lib/postgres/config";
@@ -9,7 +9,7 @@ import { registrationSchema,requestRegistration,registrationReceipt } from "@/li
 export async function POST(request:NextRequest){
  if(!sameOrigin(request.headers))return new NextResponse("Forbidden",{status:403});
  const body=await boundedFormRequest(request,16_384);if(body instanceof Response)return body;
- const origin=authSiteOrigin();if(!origin || request.headers.get("origin")!==origin)return new NextResponse("Registration unavailable",{status:503});
+ const origin=authRequestOrigin(request.headers.get("origin"));if(!origin)return new NextResponse("Registration unavailable",{status:503});
  const destination=new URL("/signup",origin);const settings=loginLimiterConfig();let received=false;
  try{
   if(!settings || !postgresConfig())throw new Error("Unavailable");

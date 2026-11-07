@@ -1,14 +1,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { formatAed } from "@/lib/money";
-export function Panel({ title, subtitle, children, className, action }: { title: string; subtitle?: string; children: ReactNode; className?: string; action?: ReactNode }) {
-  return <section className={cn("workspace-panel", className)}>
-    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-6 py-5"><div className="min-w-0"><h2 className="text-base font-semibold">{title}</h2>{subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}</div>{action}</header>{children}
-  </section>;
-}
-export function Empty({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="px-6 py-12 text-center"><div className="mx-auto mb-4 h-1 w-10 rounded bg-primary"/><h3 className="font-semibold">{title}</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted">{children}</p></div>;
-}
+export { Card as Panel } from "./ds";
+export { EmptyState as Empty } from "./ds";
 export function Badge({ value, label }: { value: string; label?: string }) {
   const good = ["posted", "approved", "committed", "settled", "credit", "resolved"].includes(value);
   const danger = ["failed", "rejected", "debit", "outcome_unknown", "void"].includes(value);
@@ -22,3 +16,6 @@ export function KpiAmount({ value }: { value: string }) {
   const [code, ...rest] = formatAed(value).split(/\s+/);
   return <><span className="mr-1 font-sans text-sm font-medium tracking-normal text-muted">{code}</span><span className="whitespace-nowrap">{rest.join(" ")}</span></>;
 }
+export { Button, Input, Select, Card, MoneyText, DateTime, StatTile, EmptyState, ErrorState, Skeleton, DataTable, sortRows, type Column, type StatState, type ErrorKind } from "./ds";
+export { Sheet, Toast } from "./overlay";
+export { Switch, Spinner } from "./controls";

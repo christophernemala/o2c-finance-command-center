@@ -18,7 +18,7 @@ const reply = (content: Block[], stop: Anthropic.Beta.BetaStopReason = "tool_use
   id: "msg_test", type: "message", role: "assistant", model: "claude-opus-5-5", content, stop_reason: stop, stop_sequence: null,
   usage: { input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 500, cache_creation_input_tokens: 0 },
 }) as unknown as Anthropic.Beta.BetaMessage;
-const use = (id: string, name: string, input: unknown) => ({ type: "tool_use", id, name, input }) as unknown as Block;
+const toolUse = (id: string, name: string, input: unknown) => ({ type: "tool_use", id, name, input }) as unknown as Block;
 const say = (text: string) => ({ type: "text", text, citations: null }) as unknown as Block;
 const lastToolResult = (params: { messages: Anthropic.Beta.BetaMessageParam[] }) => {
   const last = params.messages.at(-1)!; const block = (last.content as Anthropic.Beta.BetaToolResultBlockParam[])[0];
@@ -65,7 +65,7 @@ test("loop validates tool input, reports refusals and caps turns", async () => {
   let turn = 0;
   const call: ModelCaller = async params => {
     turn++;
-    if (turn === 1) return reply([use("a", "list_invoices", { filter: "nope" }), use("b", "get_ar_overview", {})]);
+    if (turn === 1) return reply([toolUse("a", "list_invoices", { filter: "nope" }), toolUse("b", "get_ar_overview", {})]);
     const results = params.messages.at(-1)!.content as Anthropic.Beta.BetaToolResultBlockParam[];
     assert.equal(results.length, 2, "parallel results return in one user message");
     assert.equal(results[0].is_error, true); assert.match(String(results[0].content), /Invalid input/);
@@ -77,7 +77,7 @@ test("loop validates tool input, reports refusals and caps turns", async () => {
   assert.deepEqual(events, ["tool_call", "tool_result", "tool_call", "tool_result", "message"]);
   const refused = await runLoop({ call: async () => reply([], "refusal"), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
   assert.equal(refused.status, "failed");
-  const looping = await runLoop({ call: async () => reply([use("x", "get_ar_overview", {})]), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
+  const looping = await runLoop({ call: async () => reply([toolUse("x", "get_ar_overview", {})]), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
   assert.match(looping.error ?? "", /Stopped after 2/);
   let calls = 0;
   const expired = await runLoop({ call: async () => { calls++; return reply([say("late")], "end_turn"); }, model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, deadline: Date.now() - 1, onEvent: async () => {} });
@@ -123,13 +123,13 @@ test("end-to-end agent run: claim, tools through RLS, policy auto-post, recorded
     const call: ModelCaller = async params => {
       turn++;
       assert.equal(params.model, "claude-opus-5-5"); assert.deepEqual(params.thinking, { type: "adaptive", display: "summarized" }); assert.equal(params.fallbacks, "default");
-      if (turn === 1) return reply([{ type: "thinking", thinking: "Check candidates first.", signature: "sig" } as unknown as Block, use("t1", "get_cash_match_candidates", { limit: 50 })]);
+      if (turn === 1) return reply([{ type: "thinking", thinking: "Check candidates first.", signature: "sig" } as unknown as Block, toolUse("t1", "get_cash_match_candidates", { limit: 50 })]);
       if (turn === 2) {
         const credit = lastToolResult(params).bank_credits[0];
         assert.equal(credit.tier, "exact"); assert.equal(credit.amount, "750.25");
-        return reply([use("t2", "propose_receipt", { bank_line_id: credit.bank_line_id, customer_id: credit.customer_id, amount: credit.amount, evidence: "Bank reference INV-9 equals invoice number; amount equals open balance." })]);
+        return reply([toolUse("t2", "propose_receipt", { bank_line_id: credit.bank_line_id, customer_id: credit.customer_id, amount: credit.amount, evidence: "Bank reference INV-9 equals invoice number; amount equals open balance." })]);
       }
-      if (turn === 3) return reply([use("t3", "auto_post_if_policy_allows", { approval_id: lastToolResult(params).approval_id })]);
+      if (turn === 3) return reply([toolUse("t3", "auto_post_if_policy_allows", { approval_id: lastToolResult(params).approval_id })]);
       assert.equal(lastToolResult(params).status, "posted");
       return reply([say("Posted 1 exact match (AED 750.25) under policy.")], "end_turn");
     };

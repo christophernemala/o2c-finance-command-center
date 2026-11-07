@@ -2,7 +2,7 @@ import { after,NextRequest,NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { sameOrigin,boundedFormRequest } from '@/lib/request-security';
-import { authSiteOrigin,authenticationAssurance,verifiedWorkspace } from '@/lib/auth-flow';
+import { authRequestOrigin,authenticationAssurance,verifiedWorkspace } from '@/lib/auth-flow';
 import { createLoginLimiter,loginLimiterConfig,trustedLoginIp,sealValue,openValue } from '@/lib/login-limiter';
 import { postgresConfig } from '@/lib/postgres/config';
 import { databasePool } from '@/lib/postgres/pool';
@@ -14,7 +14,7 @@ import { sessionCookieOptions } from '@/lib/auth/cookie-options';
 export async function POST(request:NextRequest){
  if(!sameOrigin(request.headers))return new NextResponse('Forbidden',{status:403});
  const body=await boundedFormRequest(request,4096);if(body instanceof Response)return body;
- const origin=authSiteOrigin();if(!origin||request.headers.get('origin')!==origin)return new NextResponse('Sign-in unavailable',{status:503});
+ const origin=authRequestOrigin(request.headers.get('origin'));if(!origin)return new NextResponse('Sign-in unavailable',{status:503});
  const destination=new URL('/login/code',origin);const options=sessionCookieOptions();const name=emailCodeCookie(options.secure);const accountCookie=`${name}-account`;
  const settings=loginLimiterConfig();
  if(!settings||!postgresConfig()||!encryptionKey())return new NextResponse('Sign-in protection unavailable',{status:503,headers:{'Cache-Control':'no-store'}});

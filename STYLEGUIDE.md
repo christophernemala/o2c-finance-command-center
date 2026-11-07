@@ -17,7 +17,7 @@ This supersedes the navy/teal treatment. Keep the existing O2C identity and work
 | `--primary` / `--link` | `#075DCC` | Actions, selection, links and keyboard focus |
 | `--primary-hover` | `#064DA9` | Hovered primary action |
 | `--primary-soft` | `#E9F1FF` | Active controls and acknowledged statuses |
-| `--success` | `#16703A` (soft `#E8F5EC`) | Confirmed/posted status, always accompanied by text; green so it never reads as a link or button (6.15:1 on white, 5.48:1 on its soft fill) |
+| `--success` | `#16703A` (soft `#E8F5EC`); dark `#5FD18A` (soft `#12301E`) | Confirmed/posted status, always accompanied by text; green so it never reads as a link or button (light 6.15:1 on white, 5.48:1 on soft; dark ≥ 7.48:1) |
 | `--warning` / soft | `#885515` / `#FFF5E5` | Waiting, aging and review |
 | `--danger` / soft | `#B72D4D` / `#FFF0F3` | Failure, critical items and credit holds |
 | `--glass` | `#FFFFFFC9` | Translucent header and scope controls |

@@ -1,5 +1,5 @@
 import { NextRequest,NextResponse } from "next/server";
-import { authSiteOrigin } from "@/lib/auth-flow";
+import { authSiteOrigin,authRequestOrigin,offHostSession } from "@/lib/auth-flow";
 import { oidc,oidcSettings,oidcConfiguration,oidcCookieName } from "@/lib/auth/oidc";
 import { sameOrigin,boundedFormRequest } from "@/lib/request-security";
 import { createLoginLimiter,loginLimiterConfig,trustedLoginIp,oidcReservationCookie,sealReservation } from "@/lib/login-limiter";
@@ -14,7 +14,28 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
  const bounded=await boundedFormRequest(request,1024);if(bounded instanceof Response)return bounded;
  const {provider}=await params;if(provider!=="google" && provider!=="microsoft")return new NextResponse("Not found",{status:404});
  const origin=authSiteOrigin(),limit=loginLimiterConfig();
- if(!origin || !limit || !oidcSettings(provider) || request.headers.get("origin")!==origin)return new NextResponse("Identity provider unavailable",{status:503});
+ if(!origin || !limit || !oidcSettings(provider) || !authRequestOrigin(request.headers.get("origin")))return new NextResponse("Identity provider unavailable",{status:503});
+ // The redirect URI is registered for the stable origin only. The session cookie is host-only, so a signed-in user
+ // linking a provider from a deployment URL is told to use the stable URL; never turn a link into a fresh sign-in.
+ const requestOrigin=request.headers.get("origin")!;
+ if(requestOrigin!==origin){
+  // Check the session itself, not just the cookie: a stale cookie is an ordinary sign-in, not a link.
+  // The lookup sits behind the per-IP limiter; if the limiter is unavailable, fail closed to the stable sign-in page.
+  const signIn=NextResponse.redirect(new URL("/login",origin),{status:303,headers:{"Cache-Control":"no-store"}});
+  try{
+   const jar=await cookies(),secure=sessionCookieOptions().secure;
+   const limiter=createLoginLimiter(limit),ip=trustedLoginIp(request.headers);
+   const session=await offHostSession({
+    hasCookie:!!jar.get(secure?"__Host-o2c-session":"o2c-session")?.value,
+    reserve:async()=>{const slot=await limiter.reserveIp(ip);return {allowed:slot.allowed,retryAfter:slot.retryAfter,release:()=>limiter.succeed(slot.ticket)};},
+    lookup:async()=>(await (await createClient()).auth.getUser()).data.user?.purpose??null,
+   });
+   if(session.state==="limited")return new NextResponse("Too many sign-in attempts",{status:429,headers:{"Retry-After":String(session.retryAfter),"Cache-Control":"no-store"}});
+   // Account security rejects invitation sessions, so an activation returns to the activation page.
+   if(session.state==="signed-in")return NextResponse.redirect(new URL(session.purpose==="invitation"?"/signup?error=host":"/auth/security?error=host",requestOrigin),{status:303,headers:{"Cache-Control":"no-store"}});
+  }catch{/* Fail closed below. */}
+  return signIn;
+ }
  const failure=new URL("/login?error=oauth",origin);
  try{
   const ip=trustedLoginIp(request.headers);const attempt=await createLoginLimiter(limit).reserve(`oidc-${provider}-${ip}`,ip);
