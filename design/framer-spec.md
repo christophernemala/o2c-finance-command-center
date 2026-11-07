@@ -21,7 +21,7 @@ Frames: **iPhone 375 × 812** (safe areas: top 47, bottom 34) and **Desktop 1440
 | `on-primary` | `#FFFFFF` | `#FFFFFF` | Text on primary buttons |
 | `primary-soft` | `#E9F1FF` | `#16294A` | Selected chip, eyebrow |
 | `link` | `#075DCC` | `#7DB6FF` | Links |
-| `success` | `#075DCC` | `#7DB6FF` | Positive status. Currently blue; whether it should be green is still an open decision. |
+| `success` / soft | `#16703A` / `#E8F5EC` | `#5FD18A` / `#12301E` | Positive status (green, so it never reads as a link) |
 | `warning` / soft | `#885515` / `#FFF5E5` | `#F2B65A` / `#33260F` | Pending, review |
 | `danger` / soft | `#B72D4D` / `#FFF0F3` | `#FF8AA0` / `#3A1622` | Failed, rejected, overdue 90+ |
 

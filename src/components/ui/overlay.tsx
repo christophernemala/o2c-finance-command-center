@@ -20,6 +20,7 @@ export function Sheet({ trigger, title, children, triggerClassName = "button sec
  * Toast for the result of a server action (?message=…&nonce=…). It is announced once in a polite live region,
  * and the flags are removed from the address bar so a refresh doesn't repeat it.
  * `id` names this occurrence (the action's nonce), so the same text returning later shows again.
+ * Danger toasts stay until dismissed, so recovery instructions can be read in full; others hide after 6 s.
  */
 export function Toast({ message, id, tone = "info" }: { message?: string; id?: string; tone?: "info" | "success" | "danger" }) {
   const occurrence = message ? `${id ?? ""}\u0000${message}` : null;
@@ -29,9 +30,10 @@ export function Toast({ message, id, tone = "info" }: { message?: string; id?: s
     if (!occurrence) return;
     const url = new URL(window.location.href);
     if (url.searchParams.has("message")) { url.searchParams.delete("message"); url.searchParams.delete("nonce"); window.history.replaceState(null, "", url); }
+    if (tone === "danger") return;
     const timer = window.setTimeout(() => setHidden(occurrence), 6000);
     return () => window.clearTimeout(timer);
-  }, [occurrence]);
+  }, [occurrence, tone]);
   return <div className="ds-toast-region" role="status" aria-live="polite">
     {occurrence && hidden !== occurrence && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(occurrence)}>×</button></div>}
   </div>;
