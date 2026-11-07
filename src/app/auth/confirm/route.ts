@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (result.error) return destination("unavailable");
     if (!result.valid) return destination("invite");
     // validToken restricts the interpolated value to 43 base64url characters.
-    return new NextResponse(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Activate your O2C account</title></head><body><main><h1>Activate your O2C account</h1><p>Continue to set your password. This invitation can be used once.</p><form method="post" action="/auth/confirm"><input type="hidden" name="type" value="invite"><input type="hidden" name="token" value="${token}"><button type="submit">Continue activation</button></form></main></body></html>`, { headers: { ...privateHeaders, "Content-Type": "text/html; charset=utf-8" } });
+    return new NextResponse(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Activate your Closewise account</title></head><body><main><h1>Activate your Closewise account</h1><p>Continue to set your password. This invitation can be used once.</p><form method="post" action="/auth/confirm"><input type="hidden" name="type" value="invite"><input type="hidden" name="token" value="${token}"><button type="submit">Continue activation</button></form></main></body></html>`, { headers: { ...privateHeaders, "Content-Type": "text/html; charset=utf-8" } });
   } catch { return destination("unavailable"); }
 }
 

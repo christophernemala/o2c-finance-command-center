@@ -27,7 +27,7 @@ export default async function Signup({ searchParams }: { searchParams: Promise<{
   };
   return <AuthShell wide>
     <p className="eyebrow">Start with your finance team</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{invited ? "Activate your work account" : "A clearer view of your cash."}</h1>
-    <p className="mt-3 leading-6 text-muted">{invited ? "Complete your account details and create a password, or activate with your work identity provider." : "Tell us about your team. We’ll use these details to review access to your O2C finance workspace."}</p>
+    <p className="mt-3 leading-6 text-muted">{invited ? "Complete your account details and create a password, or activate with your work identity provider." : "Tell us about your team. We’ll use these details to review access to your Closewise workspace."}</p>
     {!available && <p role="status" className="mt-5 rounded-lg border border-line bg-surface p-4 text-sm leading-6">Account activation is unavailable until your administrator restores the sign-in connection and protection.</p>}
     {params.error && <p role="alert" className="mt-5 rounded-lg bg-danger-soft p-4 text-danger">{errors[params.error] ?? "Account activation is unavailable. Please try again when the connection is restored."}</p>}
     {received ? <div role="status" className="mt-6 rounded-2xl border border-line bg-primary-soft p-6"><h3 className="font-semibold">Your request has been received</h3><p className="mt-3 text-sm leading-6 text-muted">An administrator will review your company and work contact details. Workspace access starts after an invitation is issued and activated.</p></div> : <>

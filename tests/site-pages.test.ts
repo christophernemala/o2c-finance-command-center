@@ -18,3 +18,13 @@ test("privacy page is marked as a draft and names every data processor", () => {
   assert.match(html, /Draft pending legal review/);
   for (const name of ["PostgreSQL", "Vercel", "Upstash", "Anthropic"]) assert.ok(html.includes(name), name);
 });
+
+test("the product is branded Closewise with role display names over unchanged stored roles", async () => {
+  const { default: manifest } = await import("../src/app/manifest");
+  const app = manifest();
+  assert.equal(app.name, "Closewise");
+  assert.equal(app.theme_color, "#ffffff");
+  const { roleLabel } = await import("../src/lib/roles");
+  assert.deepEqual(["admin", "approver", "maker", "viewer"].map(roleLabel), ["Admin", "AR Manager", "AR Clerk", "Viewer"]);
+  assert.equal(roleLabel("unknown"), "unknown", "an unexpected stored value is shown as is, never mapped to a permission");
+});

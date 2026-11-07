@@ -24,7 +24,7 @@ const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
 /** Open-items statement built only from ledger figures. Amounts are formatted from decimal strings, never floats. */
 export async function statementPdf(input: StatementData): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Statement of account ${input.account}`); pdf.setProducer("O2C Finance Command Center"); pdf.setCreationDate(new Date(`${input.as_of}T00:00:00Z`));
+  pdf.setTitle(`Statement of account ${input.account}`); pdf.setProducer("Closewise"); pdf.setCreationDate(new Date(`${input.as_of}T00:00:00Z`));
   const regular = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const ink = rgb(0.043, 0.071, 0.125), muted = rgb(0.337, 0.376, 0.447), line = rgb(0.89, 0.906, 0.929);
   const columns = [{ x: 48, w: 100, label: "Document" }, { x: 148, w: 60, label: "Issued" }, { x: 208, w: 60, label: "Due" },
@@ -54,6 +54,6 @@ export async function statementPdf(input: StatementData): Promise<Uint8Array> {
   text(page, "Total open", 298, y - 4, bold, 10); text(page, money(input.total_open), 458, y - 4, bold, 10, ink, true, 90);
   text(page, "Of which overdue", 298, y - 20, regular, 9, muted); text(page, money(input.total_overdue), 458, y - 20, regular, 9, muted, true, 90);
   text(page, "Paid is cash received and applied. Credited is credit notes issued against the document.", 48, 36, regular, 7, muted);
-  text(page, "Generated from the ledger by O2C Finance Command Center. Please contact Accounts Receivable about any item you dispute.", 48, 48, regular, 7, muted);
+  text(page, "Generated from the ledger by Closewise. Please contact Accounts Receivable about any item you dispute.", 48, 48, regular, 7, muted);
   return pdf.save();
 }

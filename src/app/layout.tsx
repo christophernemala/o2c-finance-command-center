@@ -9,13 +9,13 @@ const description = "Controlled receivables, cash application, and financial rev
 function siteOrigin() { try { return new URL(process.env.AUTH_SITE_URL ?? "http://127.0.0.1:5174"); } catch { return new URL("http://127.0.0.1:5174"); } }
 export const metadata: Metadata = {
   metadataBase: siteOrigin(),
-  title: { default: "O2C · Finance Command Center", template: "%s · O2C" },
+  title: { default: "Closewise · Order-to-cash", template: "%s · Closewise" },
   description, robots: { index: false, follow: false },
-  openGraph: { type: "website", siteName: "O2C Finance Command Center", title: "O2C · Finance Command Center", description },
+  openGraph: { type: "website", siteName: "Closewise", title: "Closewise · Order-to-cash", description },
   // Home-screen app on iPhone: full-screen, with the status bar over the app's own top inset.
-  appleWebApp: { capable: true, title: "O2C", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Closewise", statusBarStyle: "default" },
   icons: { apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }] },
 };
 // viewport-fit=cover lets the layout use env(safe-area-inset-*) around the notch and home indicator.
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#0b1224" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 export default function Layout({ children }: { children: React.ReactNode }) { return <html lang="en" className={`${bodyFont.variable} ${headingFont.variable} ${moneyFont.variable}`}><body><a className="skip button" href="#main">Skip to content</a>{children}</body></html>; }
