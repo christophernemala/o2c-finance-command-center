@@ -1,49 +1,47 @@
 # Production provisioning
 
-Use this only after selecting an active Supabase project, reviewing schema conflicts,
-backing up the database, and applying all migrations in filename order in staging first.
-The application must never receive a service-role key.
+Use a dedicated standalone PostgreSQL database with the migrations applied.
+Follow [POSTGRESQL_MIGRATION.md](POSTGRESQL_MIGRATION.md) for database roles,
+TLS, deployment variables, backups, migration and rollback.
 
-Create the real user in Supabase Auth with the intended email verification or invite
-flow. Do not store their password in SQL, source control, chat, or Vercel.
-
-In the Supabase SQL editor, replace every placeholder before execution:
+A trusted administrator provisions the actual tenant and legal entity using the
+schema-owner connection. Replace these placeholders with real, authorized names:
 
 ```sql
 begin;
-
-insert into public.tenants(name)
-values ('<REAL LEGAL TENANT NAME>')
-returning id;
-
--- Use the returned tenant UUID and the real Auth user UUID.
-insert into public.entities(tenant_id, name, currency)
-values ('<TENANT UUID>', '<REAL LEGAL ENTITY NAME>', 'AED')
-returning id;
-
-insert into public.memberships(tenant_id, user_id, role)
-select '<TENANT UUID>', id, 'admin'
-from auth.users
-where lower(email) = lower('<REAL WORK EMAIL>')
-on conflict (tenant_id, user_id) do update set role = excluded.role;
-
--- Must return exactly one row before attempting application login.
-select t.id as tenant_id, t.name, u.id as user_id, u.email, m.role
-from public.memberships m
-join public.tenants t on t.id = m.tenant_id
-join auth.users u on u.id = m.user_id
-where lower(u.email) = lower('<REAL WORK EMAIL>');
-
+insert into public.tenants(name) values ('<REAL TENANT NAME>') returning id;
+-- Use the returned UUID:
+insert into public.entities(tenant_id,name,currency)
+values ('<TENANT UUID>','<REAL LEGAL ENTITY NAME>','AED') returning id;
 commit;
 ```
 
-If the verification query does not return exactly one intended membership, roll back
-or correct the provisioning before login. Do not insert customers, invoices, balances,
-bank lines, receipts, forecasts, ECL runs, or agent runs as part of account setup.
+Then issue each real user an invitation with an explicit membership:
 
-After provisioning, verify `workspace_access()` as the real user and verify that a
-different tenant cannot be read. Supabase Auth password policy, rate limiting, MFA,
-email delivery, recovery, and abuse protections are live project settings and require
-provider evidence. Configure the durable Redis limiter from `docs/SECURITY.md` before
-sign-in. Password hashing remains provider-managed; no application bcrypt or browser
-authentication state is introduced.
+```sh
+npm run auth:invite -- '<REAL WORK EMAIL>' '<TENANT UUID>' maker
+npm run auth:invite -- '<INDEPENDENT CHECKER EMAIL>' '<TENANT UUID>' approver
+```
+
+This operator command requires local `DATABASE_MIGRATION_URL` and `AUTH_SITE_URL`.
+It creates or re-invites the specified identity, assigns only the requested role,
+and prints a private single-use activation URL expiring in 24 hours. It does not
+send email, create default accounts or seed business records. Deliver that URL
+through your approved private channel. Do not log, commit or publicly share it.
+A re-invitation replaces pending invitation links. Password activation invalidates
+all sessions and invitations for that identity, including other activation sessions.
+
+The invitee opens the link, selects **Continue activation**, sets a password of at least 12 characters, and signs
+in. An activation session expires after 10 minutes and cannot read financial data.
+After sign-in, Account security allows the user to enroll a TOTP authenticator.
+Enrolled accounts must verify their second factor for all financial access.
+
+Verify the real named maker and checker, tenant/entity scope, cross-user denial,
+MFA, logout/revocation and an authorized source import/posting workflow on the
+actual deployment. No customers, invoices, bank records, forecasts or financial
+balances are created by account provisioning.
+
+Public signup is not supported. Administrator-assisted recovery uses a reviewed
+identity verification process before a new invitation or MFA recovery. There is
+no automatic recovery email service, MFA recovery-code UI or social-provider login.
+Never remove a verified MFA factor solely to bypass a login failure.

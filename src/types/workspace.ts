@@ -1,6 +1,6 @@
-export const workspaces = ["overview", "customers", "receivables", "cashflow", "reconciliation", "ecl", "approvals", "agents", "imports", "audit"] as const;
+export const workspaces = ["overview", "operations", "incidents", "guardrails", "copilot", "agents", "collections", "customers", "notes", "receivables", "reconciliation", "approvals", "reports", "cashflow", "ecl", "imports", "audit"] as const;
 export type Workspace = typeof workspaces[number];
-export type Role = "viewer" | "maker" | "approver" | "admin";
+export type Role = "viewer" | "maker" | "approver" | "admin" | "agent";
 export interface Membership { tenant_id: string; tenant_name: string; role: Role }
 export interface Entity { id: string; name: string; currency: "AED" }
 export interface Invoice {
@@ -14,7 +14,7 @@ export interface Approval {
   id: string; kind: "receipt" | "allocation"; amount: string; maker: string;
   approver: string | null; status: "pending" | "approved" | "rejected" | "posted";
   invoice_id: string | null; receipt_id: string | null; bank_line_id: string | null;
-  customer_id: string | null; evidence: string; created_at: string; version: number;
+  customer_id: string | null; evidence: string; created_at: string; version: number; agent_run_id?: string | null;
   captured_versions: { invoice: number | null; receipt: number | null; bank_line: number | null };
   source_records: {
     customer: { id: string; name: string; account: string } | null;

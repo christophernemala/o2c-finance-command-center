@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   outputFileTracingRoot: process.cwd(),
   turbopack: { root: process.cwd() },
   async headers() {
@@ -10,6 +11,8 @@ const config: NextConfig = {
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+    ] }, { source: "/auth/confirm", headers: [
+      { key: "Referrer-Policy", value: "strict-origin" },
     ] }];
   },
 };

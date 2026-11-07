@@ -4,9 +4,23 @@ import { isIP } from "node:net";
 interface LimiterConfig { url: string; token: string; secret: string }
 export interface Ticket { key: string; ipKey: string; id: string }
 export const reservationCookie = "o2c-auth-reservation";
+/** Carries the provider sign-in slot from the redirect to its callback. */
+export const oidcReservationCookie = "o2c-oidc-reservation";
 export function sealReservation(ticket: Ticket, secret: string): string {
   const payload = Buffer.from(JSON.stringify(ticket)).toString("base64url");
   return `${payload}.${createHmac("sha256", secret).update(payload).digest("base64url")}`;
+}
+/** Sign a short value (for example the email a code was sent to) so a cookie cannot be swapped. */
+export function sealValue(value: string, secret: string): string {
+  const payload = Buffer.from(value).toString("base64url");
+  return `${payload}.${createHmac("sha256", secret).update(`value:${payload}`).digest("base64url")}`;
+}
+export function openValue(sealed: string | undefined, secret: string): string | null {
+  if (!sealed || sealed.length > 1024) return null;
+  const [payload, tag, extra] = sealed.split("."); if (!payload || !tag || extra) return null;
+  const actual = Buffer.from(tag, "base64url"); const expected = createHmac("sha256", secret).update(`value:${payload}`).digest();
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  return Buffer.from(payload, "base64url").toString();
 }
 export function openReservation(value: string | undefined, secret: string): Ticket | null {
   try {
@@ -84,6 +98,25 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
     return data.result;
   }
   return {
+    async reserveApi(userId: string, scope: "commands" | "agents" | "copilot" | "export"): Promise<{ allowed: boolean; retryAfter: number }> {
+      const key = `o2c:{api}:${scope}:${digest(userId)}`;
+      const script = `
+local time = redis.call('TIME')
+local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now - 60000)
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+  local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
+  return {0, math.max(1, math.ceil((tonumber(oldest[2]) + 60000 - now) / 1000))}
+end
+redis.call('ZADD', KEYS[1], now, ARGV[1])
+redis.call('PEXPIRE', KEYS[1], 60000)
+return {1, 0}
+`;
+      const result = await command(["EVAL", script, 1, key, randomUUID(), scope === "commands" ? 120 : 30]);
+      if (!Array.isArray(result) || result.length !== 2 || ![0, 1].includes(result[0]) || !Number.isInteger(result[1])
+        || result[1] < 0 || result[1] > 60 || (result[0] === 1 && result[1] !== 0) || (result[0] === 0 && result[1] === 0)) throw new Error("Invalid API protection result");
+      return { allowed: result[0] === 1, retryAfter: result[1] };
+    },
     async reserveIp(ip: string): Promise<{ allowed: boolean; retryAfter: number; ticket: Ticket }> {
       const ipKey = `o2c:{login}:ip:${digest(ip)}`; const ticket = { key: ipKey, ipKey, id: randomUUID() };
       const result = await command(["EVAL", reserveScript, 1, ipKey, ticket.id]);
@@ -103,4 +136,17 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
       if (result !== 0 && result !== 1 && result !== 2) throw new Error("Invalid login protection result");
     },
   };
+}
+
+/**
+ * After a successful provider callback: with MFA still pending the slot moves to the MFA reservation
+ * cookie (released once the code verifies); otherwise it is released now. Returns the sealed value to
+ * store as the MFA reservation, or null.
+ */
+export async function settleOidcReservation(sealed: string | undefined, mfaPending: boolean, config: LimiterConfig | null, transport: typeof fetch = fetch): Promise<string | null> {
+  if (!config) return null;
+  const ticket = openReservation(sealed, config.secret); if (!ticket) return null;
+  if (mfaPending) return sealReservation(ticket, config.secret);
+  try { await createLoginLimiter(config, transport).succeed(ticket); } catch { /* Conservative reservation expiry. */ }
+  return null;
 }

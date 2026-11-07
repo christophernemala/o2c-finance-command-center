@@ -1,19 +1,20 @@
+import { apiLimit } from "@/lib/api-limiter";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/postgres/server";
 import { positiveAmount } from "@/lib/money";
 import { previewImport, type ImportKind } from "@/lib/imports";
 import { workspaces } from "@/types/workspace";
-import { sameOrigin } from "@/lib/request-security";
+import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { commandSchema } from "@/lib/validation";
 import { authenticationAssurance } from "@/lib/auth-flow";
 import { createHash } from "node:crypto";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
-  const length = Number(request.headers.get("content-length"));
-  if (!Number.isInteger(length) || length < 1 || length > 1100000) return new NextResponse("File limit is 1 MB", { status: 413 });
+  const body = await boundedFormRequest(request, 1100000);
+  if (body instanceof Response) return body;
   let form: FormData;
-  try { form = await request.formData(); }
+  try { form = await body.formData(); }
   catch { return new NextResponse("Invalid request", { status: 400, headers: { "Cache-Control": "no-store" } }); }
   const tenant = String(form.get("tenant") ?? ""); const entity = String(form.get("entity") ?? "");
   const view = String(form.get("view") ?? "overview");
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     const assurance = await authenticationAssurance(client);
     if (assurance === "mfa") return NextResponse.redirect(new URL("/auth/verify", request.headers.get("origin")!), 303);
     if (assurance !== "ready") throw new Error("Authentication assurance unavailable");
+    const limited = await apiLimit(user.id, "commands"); if (limited) return limited;
     const optionalId = (name: string) => { const value = String(form.get(name) ?? ""); if (!value) return null; if (!uuid.test(value)) throw new Error("Invalid record"); return value; };
     const version = Number(form.get("version")); const id = optionalId("id");
     const base = { p_tenant: tenant, p_entity: entity };
@@ -55,9 +57,13 @@ export async function POST(request: NextRequest) {
         const preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
         if (preview.errors.length) { message = "invalid_import"; throw new Error("Import validation failed"); }
         const digest = createHash("sha256").update(bytes).digest("hex");
-        const source = await client.storage.from("o2c-source-files").upload(`${tenant}/${entity}/${user.id}/${digest}.csv`,bytes,{contentType:"text/csv",upsert:false,metadata:{original_name:file.name}});
-        if (source.error && !("statusCode" in source.error && String(source.error.statusCode)==="409")) throw new Error("Private source archive unavailable");
-        result = await client.rpc("stage_import", { ...base, p_kind: kind, p_name: file.name.slice(0,200), p_payload: preview.rows }); break;
+        try {
+          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, bytes, kind, rows: preview.rows });
+          result = { data: staged, error: null };
+        } catch (error) {
+          result = { data: null, error: { message: error instanceof Error ? error.message : "failed" } };
+        }
+        break;
       }
       case "commit": {
         if (form.get("acknowledge") !== "yes") throw new Error("Review acknowledgement required");

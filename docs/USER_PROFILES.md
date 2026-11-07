@@ -1,33 +1,22 @@
 # Auth profiles
 
-Apply `20261006115901_user_profiles.sql` after the existing finance migrations,
-first in staging. Review existing `public.profiles` and Auth triggers before deployment.
-The migration intentionally rejects an existing profiles table rather than silently
-accepting incompatible columns or permissions. It does not replace other Auth triggers.
+Standalone `auth.users` identities retain canonical UUIDs and display metadata.
+The ordered PostgreSQL migrations create profile synchronization triggers and
+RLS. A user may read only their profile and update only `full_name` and `avatar_url`.
+Email, provider, identity and timestamps cannot be changed through profile access.
+Names are bounded to 200 characters, avatars to 2048; treat both as untrusted data.
 
-Profiles contain display attributes only. Financial access continues to require a
-confirmed Auth identity and a real `public.memberships` entry resolved through
-`workspace_access()`. There is no profile role, automatic admin, or tenant provisioning.
+Profiles grant no financial access. Memberships, tenant/entity foreign keys and
+live session assurance authorize finance reads and writes. There is no profile
+role or automatic administrator. Invitations assign a role only through an
+explicit trusted operator command.
 
-An Auth insert creates a profile. Existing real Auth users are backfilled. Auth email
-and provider changes synchronize those fields, preserving edited display attributes.
-Email is nullable and is not a second unique identity key; `auth.users.id` is canonical.
-Users can select only their own row and update only `full_name` and `avatar_url`.
-Names are limited to 200 characters, avatars to 2048. Treat both as untrusted display
-data; render names as text and validate avatar origins before adding an image UI.
-Database triggers maintain `updated_at`; clients cannot alter identity or timestamps.
-Profile deletion follows Auth deletion, subject to other existing Auth foreign keys.
+The `o2c_private` synchronization functions use an empty search path and qualified
+objects. Anonymous and authenticated roles cannot execute them. Runtime identity
+operations use a separate restricted backend role; finance transactions switch
+to the authenticated role and remain subject to RLS.
 
-Privileged synchronization runs in `o2c_private` with a fixed empty search path and
-qualified object names. Anonymous and authenticated roles cannot call those functions
-through the API. Keep `o2c_private` outside the Data API exposed-schema list.
-
-The embedded PostgreSQL test exercises existing-user backfill, new users without email,
-own-row reads and edits, other-user isolation, protected-column write denials, anonymous
-denials, no membership creation, Auth identity synchronization and deletion cascade.
-It does not prove hosted Auth signup/OAuth behavior. Before production, test the exact
-migration on staging with real password signup/invites, enabled OAuth providers, existing
-Auth triggers, JWT-backed own-row requests and cross-user denial. Trigger failures can
-block Auth writes; do not swallow them or deploy an untested trigger to production.
-
-No generated users, tenants, invoices, balances, or other financial records are added.
+Tests exercise profile backfill, identity synchronization, own-row edits,
+cross-user isolation, protected columns, anonymous denial and no membership creation.
+Actual hosted onboarding and recovery still require deployment checks. No synthetic
+users or financial records are provisioned by application migrations.

@@ -10,8 +10,8 @@ test("a failed manually applied insights migration rolls back and can be retried
   try {
     await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key);
       create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;`);
-    await db.exec(await readFile(new URL("../supabase/migrations/202610040001_workspaces.sql", import.meta.url), "utf8"));
-    const migration = await readFile(new URL("../supabase/migrations/202610050001_insights.sql", import.meta.url), "utf8");
+    await db.exec(await readFile(new URL("../postgres/migrations/202610040001_workspaces.sql", import.meta.url), "utf8"));
+    const migration = await readFile(new URL("../postgres/migrations/202610050001_insights.sql", import.meta.url), "utf8");
     const beforeInsights = migration.split("create function public.workspace_insights")[0];
     await db.exec(beforeInsights); // SQL editor has executed schema changes but not the final snapshot replacement.
     await assert.rejects(db.exec("select 1 / 0"), /division by zero/);
@@ -28,7 +28,7 @@ test("insights are full-entity, scoped, exact and based only on independently re
     await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
-    for (const file of ["202610040001_workspaces.sql", "202610050001_insights.sql"]) await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
+    for (const file of ["202610040001_workspaces.sql", "202610050001_insights.sql"]) await db.exec(await readFile(new URL(`../postgres/migrations/${file}`, import.meta.url), "utf8"));
     await db.query("insert into auth.users values($1),($2),($3)", [id(1), id(2), id(3)]);
     await db.query("insert into public.tenants(id,name) values($1,'A'),($2,'B')", [id(10), id(11)]);
     await db.query("insert into public.memberships values($1,$2,'maker'),($1,$3,'approver'),($4,$5,'admin')", [id(10), id(1), id(2), id(11), id(3)]);
