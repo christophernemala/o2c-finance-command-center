@@ -32,12 +32,14 @@ CI (`.github/workflows`) runs, in order: `npm audit --audit-level=high`, typeche
 
 PostgreSQL is the enforcement point; the app and the UI are not. Read `docs/ARCHITECTURE.md` before changing a write path.
 
-- **Finance calls go through one allow-list.** `src/lib/postgres/client.ts` maps routine names to their parameter
-  names; anything else throws. Direct SQL outside it is deliberate and limited: the auth service and auth routes
-  (`src/lib/auth`, `src/app/api/auth`), agent run control (`src/lib/ai/server.ts`) and the approved-message
-  sender run as the trusted server role; source-file archiving (inside `client.ts`) inserts within the user's
-  RLS transaction. Keep new finance writes on the allow-list. `transaction.ts` sets `o2c.session_hash` and
-  `SET LOCAL ROLE authenticated` per pooled transaction, and `auth.uid()` resolves the user from the live session
+- **Finance RPCs go through one allow-list.** `financeClient.rpc` in `src/lib/postgres/client.ts` maps routine
+  names to their parameter names; anything else throws. Direct SQL outside it is deliberate and limited:
+  `financeClient.importBatch` and `stageSource` (source-file archiving) query inside the user's RLS transaction;
+  `agentControl` (same file; called by the agent runner, the cron route and the approved-message sender in
+  `src/lib/collections/send.ts`) calls `o2c_private` routines with no user session, as the trusted server role. The auth service and
+  auth routes (`src/lib/auth`, `src/app/api/auth`) also run direct SQL as that role. Keep new finance writes on the
+  allow-list. When given a session, `transaction.ts` sets `o2c.session_hash` and `SET LOCAL ROLE authenticated`
+  for that pooled transaction, and `auth.uid()` resolves the user from the live session
   table. It refuses superuser, BYPASSRLS and owner roles. Writes are `SECURITY DEFINER` routines that re-check
   tenant/entity scope, role, record versions, limits and idempotency, and append to `audit_events`.
 - **Maker/checker lives in SQL.** Proposals, approvals and posting are separate routines; the approver must be a
@@ -60,7 +62,8 @@ PostgreSQL is the enforcement point; the app and the UI are not. Read `docs/ARCH
 ## Layout
 
 - `src/app`: App Router pages and `api/` route handlers. Every POST checks Origin and bounds the body.
-- `src/lib/postgres`: the only database access path (`financeClient`, allow-listed routines).
+- `src/lib/postgres`: the finance database access path (`financeClient`, allow-listed routines, `agentControl`).
+  The auth service in `src/lib/auth` also queries directly, as the trusted server role.
 - `src/lib/ai`: Claude agents, tools, loop, runner and copilot (see `docs/ARCHITECTURE.md`).
 - `src/lib/auth`, `src/lib/auth-flow.ts`: app-managed sessions, TOTP, email codes, OIDC.
   `authSiteOrigin()` is the stable origin, used for OAuth redirects. `authRequestOrigin()` also
