@@ -182,8 +182,8 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-are
 .ds-stat { min-width: 0; padding: var(--space-4) var(--space-6); }
 .ds-stat-label { font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
 .ds-stat-value { margin-top: var(--space-2); font-size: var(--text-kpi); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.ds-skeleton { height: 14px; border-radius: 7px; background: linear-gradient(90deg, var(--surface-muted), var(--border), var(--surface-muted)); background-size: 200% 100%; animation: ds-shimmer 1.4s linear infinite; }
-@keyframes ds-shimmer { to { background-position: -200% 0; } }
+.ds-skeleton { height: 14px; border-radius: 7px; background: var(--surface-muted); animation: ds-pulse 1.4s ease-in-out infinite; }
+@keyframes ds-pulse { 50% { opacity: .5; } }
 /* DataTable: a table from 640px, stacked cards below, so nothing scrolls sideways on a phone. */
 .ds-table-filter { padding: var(--space-4) var(--space-6) 0; max-width: 360px; }
 .ds-table-sort { display: none; align-items: end; gap: var(--space-2); padding: var(--space-2) var(--space-4) 0; }

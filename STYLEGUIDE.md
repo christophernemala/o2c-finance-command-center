@@ -31,8 +31,8 @@ plus a maskable 512 px icon with the logo inside the safe zone.
 
 Violet is the only accent. Green is used only for the `--success` status, never for actions or
 links. Charts use a five-tone violet family with textual legends and exact figures, so colour
-never carries a value alone. Every button shares one shape (12px radius, 48px tall, solid violet
-or white secondary); switches and checkboxes use the same violet. There is no dark mode: the app
+never carries a value alone. Buttons share one shape: 12px radius, solid violet or white secondary, 48px tall for actions
+(compact table and chart controls use their documented smaller sizes); switches and checkboxes use the same violet. There is no dark mode: the app
 declares `color-scheme: light` and the browser theme colour is white.
 
 ## Typography, spacing and shape
@@ -48,7 +48,7 @@ action names such as “Download daily AR workbook” and “Review allocation p
 - Never truncate monetary values. Use horizontal scrolling for long amount columns.
 - Status text accompanies colour; never rely on colour alone, and no colour-only approvals.
 
-Panels: 20px radius; controls: 12–13px; risk cards: 16px. Use a 4/8px spacing rhythm,
+Panels: 16px radius; controls: 12–13px; risk cards: 16px. Use a 4/8px spacing rhythm,
 20–24px panel gaps and 16px mobile gutters. Keep tables horizontally scrollable
 inside their panel. Main action targets are at least 44px; chart-mode controls
 are 36px on desktop and 44px on phones. Focus outlines remain clearly visible.

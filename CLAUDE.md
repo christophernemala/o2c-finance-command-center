@@ -32,14 +32,17 @@ CI (`.github/workflows`) runs, in order: `npm audit --audit-level=high`, typeche
 
 PostgreSQL is the enforcement point; the app and the UI are not. Read `docs/ARCHITECTURE.md` before changing a write path.
 
-- **Every query goes through one allow-list.** `src/lib/postgres/client.ts` maps routine names to their parameter
-  names; anything else throws. `transaction.ts` sets `o2c.session_hash` and `SET LOCAL ROLE authenticated` per
-  pooled transaction, and `auth.uid()` resolves the user from the live session table. It refuses superuser,
-  BYPASSRLS and owner roles. Writes are `SECURITY DEFINER` routines that re-check tenant/entity scope, role,
-  record versions, limits and idempotency, and append to `audit_events`.
+- **Finance calls go through one allow-list.** `src/lib/postgres/client.ts` maps routine names to their parameter
+  names; anything else throws. Direct SQL outside it is deliberate and limited: the auth service and auth routes
+  (`src/lib/auth`, `src/app/api/auth`), agent run control (`src/lib/ai/server.ts`) and the approved-message
+  sender run as the trusted server role; source-file archiving (inside `client.ts`) inserts within the user's
+  RLS transaction. Keep new finance writes on the allow-list. `transaction.ts` sets `o2c.session_hash` and
+  `SET LOCAL ROLE authenticated` per pooled transaction, and `auth.uid()` resolves the user from the live session
+  table. It refuses superuser, BYPASSRLS and owner roles. Writes are `SECURITY DEFINER` routines that re-check
+  tenant/entity scope, role, record versions, limits and idempotency, and append to `audit_events`.
 - **Maker/checker lives in SQL.** Proposals, approvals and posting are separate routines; the approver must be a
-  different person. Roles are stored as `viewer`/`maker`/`approver`/`admin` (shown as Viewer, AR Clerk,
-  AR Manager, Admin by `src/lib/roles.ts`). UI role checks only hide controls.
+  different person. Human roles are stored as `viewer`/`maker`/`approver`/`admin` (shown as Viewer, AR Clerk,
+  AR Manager, Admin by `src/lib/roles.ts`); `agent` is the system-only role of the non-human agent identity. UI role checks only hide controls.
 - **One workspace page.** `src/app/page.tsx` renders every view from `?view=` (the list is `workspaces` in
   `src/types/workspace.ts`), loading a scoped snapshot over RPC and passing it to `FinanceWorkspace`
   (`src/components/workspace.tsx`) or a view component. Mutations are form POSTs to `src/app/api/*/route.ts`,

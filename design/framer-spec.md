@@ -56,17 +56,17 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 
   | Element | Radius |
   |---|---|
-  | Panel | 20 |
+  | Panel | 16 |
   | Control | 12 |
   | Pill | 999 |
-  | Bottom sheet | 20 at the top corners only |
+  | Bottom sheet | 16 at the top corners only |
 
 - **Shadow:**
 
   | Element | Shadow |
   |---|---|
-  | Panel | `0 4 22 #224F8C07`, `0 1 3 #224F8C04` |
-  | Sheet | `0 24 64 #0B1A3333` |
+  | Panel | `0 1 3 #16151C0F`, `0 1 2 #16151C0A` |
+  | Sheet | `0 24 64 #16151C33` |
 
 - **Tap targets** are at least 44 × 44 on touch. Inputs and buttons are 48 high.
 
@@ -85,11 +85,11 @@ The typefaces are Inter (body), Calistoga (display headings only) and JetBrains 
 | **Badge** | Pill, 12/500, 4/12 padding, soft fill with matching text colour. Positive, pending, failed, info, neutral. |
 | **DataTable** (≥ 640 px) | Filter field above, max 360 w. Header row `surface-muted`, 11/600 `muted`. Cells 14/16 padding, hairline between rows. Amount columns right-aligned with tabular numerals. A sortable header shows ↑ or ↓ when active. |
 | **DataTable** (< 640 px) | Stacked cards: the primary column first in 16/600, then label/value rows (label `muted` left, value right). Hairline between cards. Never scrolls sideways. |
-| **Sheet** | Phone: bottom sheet, full width, top corners 20, max 90 % height, safe-area padding at the bottom. Desktop: centred, 560 w. Header has the title and a 44 × 44 close button. Backdrop `#0B1A3366`. |
+| **Sheet** | Phone: bottom sheet, full width, top corners 16, max 90 % height, safe-area padding at the bottom and sides. Desktop: centred, 560 w. Header has the title and a 44 × 44 close button. Backdrop `#16151C66`. |
 | **Toast** | `ink` fill with `surface` text, radius 12. Bottom-centre, 64 px above the tab bar on phones, 24 px from the bottom on desktop. Info and success toasts auto-dismiss after 6 s; danger toasts stay until dismissed. The dismiss button is 44 × 44. |
 | **EmptyState** | Centred: 40 × 4 `primary` rule, title 16/600, body 14 `muted` max 512 w, optional action. |
 | **ErrorState** | Like the empty state; a "Try again" secondary button appears when a retry link is supplied. Copy depends on the kind: forbidden, unavailable or invalid. |
-| **Skeleton** | 14 h bars, radius 7, `surface-muted → border` shimmer over 1.4 s. Widths 92 / 78 / 64 %. Static with reduced motion. |
+| **Skeleton** | 14 h bars, radius 7, flat `surface-muted` that pulses to 50 % opacity over 1.4 s. Widths 92 / 78 / 64 %. Static with reduced motion. |
 | **MoneyText** | `MoneyText value currency`: always shows the ISO code and the currency's own decimals: KWD 1.234, JPY 1,234, AED 1,234.50. Tabular numerals, never wraps. |
 | **DateTime** | Timestamps in the supplied entity zone (UTC when none is supplied), with the zone named ("Apr 1, 2026, 1:15 AM GMT+5:30"). Calendar dates are never shifted. |
 

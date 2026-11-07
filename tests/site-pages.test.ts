@@ -27,4 +27,5 @@ test("the product is branded Closewise with role display names over unchanged st
   const { roleLabel } = await import("../src/lib/roles");
   assert.deepEqual(["admin", "approver", "maker", "viewer"].map(roleLabel), ["Admin", "AR Manager", "AR Clerk", "Viewer"]);
   assert.equal(roleLabel("unknown"), "unknown", "an unexpected stored value is shown as is, never mapped to a permission");
+  for (const inherited of ["toString", "constructor", "__proto__"]) assert.equal(roleLabel(inherited), inherited, "inherited object keys are not labels");
 });
