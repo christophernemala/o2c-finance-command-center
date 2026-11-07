@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FinanceWorkspace } from "../src/components/workspace";
+import { FinanceWorkspace, actionResult } from "../src/components/workspace";
 import { workspaces, type Approval, type Snapshot } from "../src/types/workspace";
 // Disposable UI fixtures only: never exposed through production routes.
 const tenant="00000000-0000-4000-8000-000000000010"; const entity="00000000-0000-4000-8000-000000000020";
@@ -82,10 +82,10 @@ test("pagination follows the active collection and omits nonpaginated workspaces
   for (const view of ["customers", "cashflow"] as const) assert.doesNotMatch(render(view, { ...data, page: 1 }),/>Previous<\/a>/);
 });
 test("a mutation result reaches the user as one announced toast, keyed by the action's nonce",()=>{
-  const confirmed=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview",message:"confirmed",nonce:"n1"}));
-  assert.match(confirmed,/<div class="ds-toast-region" role="status" aria-live="polite"><div class="ds-toast ds-toast-success"><span>The server confirmed this action\./);
+  // The server sends an empty live region; the toast fills it after hydration so screen readers announce it (tests/toast.test.ts).
   const conflict=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview",message:"conflict",nonce:"n2"}));
-  assert.match(conflict,/ds-toast ds-toast-danger"><span>The records changed/);
-  assert.equal((conflict.match(/The records changed/g)??[]).length,1,"the result is shown once, in the toast, not also inline");
-  assert.doesNotMatch(renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview"})),/ds-toast"/);
+  assert.match(conflict,/<div class="ds-toast-region" role="status" aria-live="polite"><\/div>/);
+  assert.doesNotMatch(conflict,/The records changed/,"the result is not also shown inline");
+  assert.match(actionResult("confirmed"),/^The server confirmed this action\./);
+  assert.match(actionResult("conflict"),/^The records changed/);
 });

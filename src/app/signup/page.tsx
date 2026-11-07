@@ -24,6 +24,7 @@ export default async function Signup({ searchParams }: { searchParams: Promise<{
     invite: "Open a valid invitation from your workspace administrator to activate your account.",
     invalid: "Use at least 12 characters and make sure both passwords match.",
     limited: "Too many attempts. Please wait before trying again.",
+    host: `Identity providers can only be used from this preview’s stable address${authSiteOrigin() ? ` (${new URL(authSiteOrigin()!).host})` : ""}. Open your invitation there to activate with a provider, or create a password below.`,
   };
   return <AuthShell wide>
     <p className="eyebrow">Start with your finance team</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{invited ? "Activate your work account" : "A clearer view of your cash."}</h1>

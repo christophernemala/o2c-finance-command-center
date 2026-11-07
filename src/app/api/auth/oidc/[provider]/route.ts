@@ -28,10 +28,11 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{provide
    const session=await offHostSession({
     hasCookie:!!jar.get(secure?"__Host-o2c-session":"o2c-session")?.value,
     reserve:async()=>{const slot=await limiter.reserveIp(ip);return {allowed:slot.allowed,retryAfter:slot.retryAfter,release:()=>limiter.succeed(slot.ticket)};},
-    lookup:async()=>!!(await (await createClient()).auth.getUser()).data.user,
+    lookup:async()=>(await (await createClient()).auth.getUser()).data.user?.purpose??null,
    });
    if(session.state==="limited")return new NextResponse("Too many sign-in attempts",{status:429,headers:{"Retry-After":String(session.retryAfter),"Cache-Control":"no-store"}});
-   if(session.state==="signed-in")return NextResponse.redirect(new URL("/auth/security?error=host",requestOrigin),{status:303,headers:{"Cache-Control":"no-store"}});
+   // Account security rejects invitation sessions, so an activation returns to the activation page.
+   if(session.state==="signed-in")return NextResponse.redirect(new URL(session.purpose==="invitation"?"/signup?error=host":"/auth/security?error=host",requestOrigin),{status:303,headers:{"Cache-Control":"no-store"}});
   }catch{/* Fail closed below. */}
   return signIn;
  }

@@ -8,16 +8,17 @@ import { formatCalendarDate, formatEntityTime } from "@/lib/time";
 /* Design-system primitives. Server components unless noted; tokens live in globals.css. */
 
 type Tone = "primary" | "secondary" | "danger";
-export function Button({ tone = "primary", className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone }) {
-  return <button {...props} className={cn("button", tone === "secondary" && "secondary", tone === "danger" && "danger", className)}/>;
+/** Defaults to type="button"; pass type="submit" for a form's submit action. */
+export function Button({ tone = "primary", className, type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: Tone }) {
+  return <button {...props} type={type} className={cn("button", tone === "secondary" && "secondary", tone === "danger" && "danger", className)}/>;
 }
 
 /** Labelled input. The error is announced and tied to the field with aria-describedby. */
-export function Input({ label, hint, error, id, className, "aria-describedby": callerDescribedBy, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; id: string }) {
+export function Input({ label, hint, error, id, className, "aria-describedby": callerDescribedBy, "aria-invalid": callerInvalid, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; id: string }) {
   // Keep any description the caller already points at, then add the hint and error.
   const describedBy = [callerDescribedBy, hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
   return <div className={cn("ds-field", className)}><label htmlFor={id}>{label}</label>
-    <input id={id} {...props} aria-invalid={error ? true : undefined} aria-describedby={describedBy}/>
+    <input id={id} {...props} aria-invalid={error ? true : callerInvalid} aria-describedby={describedBy}/>
     {hint && <p id={`${id}-hint`} className="ds-hint">{hint}</p>}{error && <p id={`${id}-error`} className="ds-error" role="alert">{error}</p>}</div>;
 }
 export function Select({ label, id, options, className, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { label: string; id: string; options: { value: string; label: string }[] }) {
@@ -67,7 +68,7 @@ export function ErrorState({ kind, retryHref }: { kind: ErrorKind; retryHref?: s
     {retryHref && <a className="button secondary mt-6" href={retryHref}>Try again</a>}</div>;
 }
 export function Skeleton({ lines = 3, className }: { lines?: number; className?: string }) {
-  return <div aria-hidden="true" className={cn("space-y-3", className)}>{Array.from({ length: lines }, (_, i) => <div key={i} className="ds-skeleton" style={{ width: `${92 - i * 14}%` }}/>)}</div>;
+  return <div aria-hidden="true" className={cn("space-y-3", className)}>{Array.from({ length: lines }, (_, i) => <div key={i} className="ds-skeleton" style={{ width: `${Math.max(24, 92 - i * 14)}%` }}/>)}</div>;
 }
 
 /* DataTable: sorted and filtered on the server through the URL, so it needs no client state and links keep their view. */
@@ -119,7 +120,7 @@ export function DataTable<Row>({ caption, rows, columns, rowKey, sort, query, hr
     </form>}
     {shown.length === 0 ? (empty ?? <EmptyState title="Nothing to show">{query?.trim() ? "No rows match this filter." : "There are no rows yet."}</EmptyState>) : <>
       <table className="ds-table-wide"><caption className="sr-only">{caption}</caption><thead><tr>{columns.map(column => {
-        const active = sortKey === column.key; const next = active && direction !== "desc" ? "desc" : "asc";
+        const active = !!column.sortValue && sortKey === column.key; const next = active && direction !== "desc" ? "desc" : "asc";
         return <th key={column.key} scope="col" className={cn(column.align === "end" && "text-right")} aria-sort={active ? (direction === "desc" ? "descending" : "ascending") : undefined}>
           {column.sortValue ? <a href={hrefFor({ sort: `${column.key}:${next}` })}>{column.header}{active ? (direction === "desc" ? " ↓" : " ↑") : ""}</a> : column.header}</th>;
       })}</tr></thead>

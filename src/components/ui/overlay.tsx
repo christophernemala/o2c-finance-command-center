@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 /**
  * Sheet: a native <dialog>, so focus trapping, Escape and the backdrop come from the browser.
@@ -21,11 +21,14 @@ export function Sheet({ trigger, title, children, triggerClassName = "button sec
  * and the flags are removed from the address bar so a refresh doesn't repeat it.
  * `id` names this occurrence (the action's nonce), so the same text returning later shows again.
  * Danger toasts stay until dismissed, so recovery instructions can be read in full; others hide after 6 s.
+ * The live region is rendered empty first and filled after hydration, so screen readers announce the change.
  */
+const subscribeNever = () => () => {};
 export function Toast({ message, id, tone = "info" }: { message?: string; id?: string; tone?: "info" | "success" | "danger" }) {
   const occurrence = message ? `${id ?? ""}\u0000${message}` : null;
   // Remember which occurrence was dismissed (or timed out); a new one shows without resetting state in an effect.
   const [hidden, setHidden] = useState<string | null>(null);
+  const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
   useEffect(() => {
     if (!occurrence) return;
     const url = new URL(window.location.href);
@@ -35,6 +38,6 @@ export function Toast({ message, id, tone = "info" }: { message?: string; id?: s
     return () => window.clearTimeout(timer);
   }, [occurrence, tone]);
   return <div className="ds-toast-region" role="status" aria-live="polite">
-    {occurrence && hidden !== occurrence && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(occurrence)}>×</button></div>}
+    {hydrated && occurrence && hidden !== occurrence && <div className={`ds-toast ds-toast-${tone}`}><span>{message}</span><button type="button" aria-label="Dismiss" onClick={() => setHidden(occurrence)}>×</button></div>}
   </div>;
 }

@@ -35,3 +35,11 @@ test("display names the zone and calendar dates never shift", () => {
   assert.throws(() => formatCalendarDate("31/03/2026"));
   assert.throws(() => formatCalendarDate("2026-02-31"), /Invalid date/, "impossible dates never roll over to another day");
 });
+
+test("legacy tz identifiers are accepted and impossible timestamp dates are rejected, not rolled over", () => {
+  for (const zone of ["PST8PDT", "EST5EDT", "Etc/GMT+4"]) assert.ok(isTimeZone(zone), zone);
+  assert.ok(!isTimeZone("Not/A_Zone"));
+  assert.throws(() => formatEntityTime("2026-02-31T10:00:00Z", "UTC"), /Invalid timestamp/);
+  assert.throws(() => formatEntityTime("2026-04-31", "UTC"), /Invalid timestamp/);
+  assert.match(formatEntityTime("2026-02-28T10:00:00Z", "UTC"), /Feb 28, 2026/);
+});
