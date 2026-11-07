@@ -1,22 +1,37 @@
 import Link from "next/link";
 import { getImageProps } from "next/image";
 import type { ReactNode } from "react";
-import { Layers3, ShieldCheck } from "lucide-react";
+import { Layers3, Lock } from "lucide-react";
 
-import { AuthSceneDisclosure } from "./auth-scene-disclosure";
+import { authScenes, type AuthScene } from "./auth-scenes";
 
-export function AuthShell({ children, wide=false }: { children: ReactNode; wide?: boolean }) {
-  const { props: robotImageProps } = getImageProps({ src: "/images/finance-robot.png", alt: "", width: 2048, height: 1593, sizes: "(min-width: 1024px) 44vw, 100vw" });
-  return <main id="main" className={`auth-layout ${wide?"auth-layout-wide":""}`}>
-    <section className="login-art relative flex flex-col justify-between overflow-hidden px-6 py-6 sm:px-12 lg:px-16 lg:py-10">
-      <header className="auth-brand relative z-10 w-fit max-w-full text-ink" aria-label="O2C finance command center">
-        <div className="flex items-center gap-4"><span className="auth-mark relative inline-flex shrink-0 rounded-2xl bg-surface p-3 text-link"><Layers3 size={28} aria-hidden="true"/></span><div className="min-w-0"><p className="auth-wordmark text-4xl leading-none font-black tracking-tighter">O2C</p><p className="mt-2 text-[10px] leading-5 font-medium uppercase tracking-[.2em] text-muted">Finance command center</p></div></div>
-      </header>
-      <div className="auth-story relative"><p className="eyebrow">Receivables. Cash. Human judgment.</p><h2 className="auth-display mt-4">Your finance team,<br/><span className="text-link">working in sync.</span></h2><p className="mt-4 max-w-md text-base leading-7 text-muted">O2C brings receivables, cash matching, collection follow-ups and finance agents into one accountable workspace.</p><figure className="auth-hero-media"><img {...robotImageProps} alt="" className="auth-robot-image"/><figcaption>AI assistance. Human review.</figcaption></figure><AuthSceneDisclosure/>
-        <div className="auth-capabilities">{["Investigate balances and overdue accounts", "Prepare collection drafts and cash proposals", "Review independently before sending or posting"].map(text=><p key={text}><ShieldCheck size={17} className="text-link" aria-hidden="true"/>{text}</p>)}</div>
+const BLANK = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+function Brand({ inverse = false }: { inverse?: boolean }) {
+  return <div className={`auth-brand flex items-center gap-3 ${inverse ? "text-white" : "text-ink"}`} aria-label="O2C finance command center">
+    <span className={`inline-flex shrink-0 rounded-[10px] p-2 ${inverse ? "bg-white/12 text-white ring-1 ring-white/25" : "bg-primary-soft text-primary"}`}><Layers3 size={20} aria-hidden="true"/></span>
+    <span className="leading-tight"><span className="auth-wordmark block text-lg">O2C</span><span className={`block text-[10px] font-medium uppercase tracking-[.18em] ${inverse ? "text-white/70" : "text-muted"}`}>Finance command center</span></span>
+  </div>;
+}
+
+/** Shared layout for every sign-in screen: a decorative photo panel (desktop only) and the form card. */
+export function AuthShell({ children, wide = false, scene = "signin" }: { children: ReactNode; wide?: boolean; scene?: AuthScene }) {
+  const art = authScenes[scene];
+  const { props: photo } = getImageProps({ src: art.image, alt: "", fill: true, loading: "eager", sizes: "58vw" }); // no priority: its preload link would ignore the desktop-only media query
+  return <main id="main" className="auth-layout">
+    <section className="auth-photo" aria-hidden="true">
+      {/* Only the desktop <source> has real URLs; below 1024 px the 1×1 placeholder is used, so phones never download the photo. */}
+      <picture><source media="(min-width: 1024px)" srcSet={photo.srcSet} sizes={photo.sizes}/><img {...photo} src={BLANK} srcSet={undefined} sizes={undefined} alt="" className="auth-photo-image" style={{ ...photo.style, objectPosition: art.position }}/></picture>
+      <div className="auth-photo-shade"/>
+      <div className="auth-photo-content">
+        <Brand inverse/>
+        <div className="auth-photo-copy"><p className="auth-photo-eyebrow">{art.eyebrow}</p><p className="auth-photo-headline">{art.headline}</p><p className="auth-photo-body">{art.body}</p></div>
       </div>
-      <p className="relative hidden text-xs text-muted lg:block">Finance operations with a clear audit trail — Built for finance teams</p>
     </section>
-    <section className="auth-form-side flex flex-col px-4 py-6 sm:px-8 lg:py-10"><div className={`auth-card mx-auto my-auto w-full ${wide?"max-w-2xl":"max-w-lg"} px-6 py-8 sm:p-9`}>{children}</div><p className="mt-6 text-center text-xs text-muted">Finance operations with a clear audit trail. · <Link href="/privacy" className="underline underline-offset-2">Privacy</Link></p></section>
+    <section className="auth-form-side">
+      <div className="auth-mobile-brand"><Brand/></div>
+      <div className={`auth-card ${wide ? "auth-card-wide" : ""}`}>{children}</div>
+      <p className="auth-trust"><Lock size={12} aria-hidden="true"/> Authenticator MFA · Single-use email codes · <Link href="/privacy" className="underline underline-offset-2">Privacy</Link></p>
+    </section>
   </main>;
 }

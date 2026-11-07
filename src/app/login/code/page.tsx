@@ -14,7 +14,7 @@ export const metadata={title:'Email sign-in code'};
 export default async function EmailCode({searchParams}:{searchParams:Promise<{step?:string;error?:string}>}){
  const params=await searchParams;const available=!!authSiteOrigin()&&!!postgresConfig()&&!!encryptionKey()&&!!loginLimiterConfig()&&!!emailDeliverySettings();
  const verifying=params.step==='verify'&&validToken((await cookies()).get(emailCodeCookie(sessionCookieOptions().secure))?.value);
- return <AuthShell><h1 className="text-3xl tracking-tight">{verifying?'Check your email':'Sign in with an email code'}</h1>
+ return <AuthShell scene="otp"><h1 className="text-3xl tracking-tight">{verifying?'Check your email':'Sign in with an email code'}</h1>
  <p className="mt-3 leading-6 text-muted">{verifying?'If this email belongs to an active account, a six-digit code has been sent. Check your inbox and spam folder. Use it here within 10 minutes.':'Use the email address of your existing workspace account. No password is needed for this sign-in method.'}</p>
  {!available&&<p role="status" className="mt-5 rounded-xl border border-line p-4">Email sign-in is unavailable until your administrator finishes the sign-in setup (site address, email sender and sign-in protection). You can use password sign-in.</p>}
  {params.error&&<p role="alert" className="mt-5 rounded-xl border border-line p-4">{params.error==='invalid'?'The email or code is invalid, expired, or has reached its attempt limit. Request a new code if needed.':'Email sign-in could not be completed. Try again later or use password sign-in.'}</p>}

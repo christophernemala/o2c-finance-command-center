@@ -6,9 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AuthShell } from "../src/components/auth-shell";
 import { RegistrationForm } from "../src/components/registration-form";
 import { SocialSignin } from "../src/components/social-signin";
-test("account entry has a bank visual, honest SaaS copy and accessible detailed registration",()=>{
- const html=renderToStaticMarkup(<AuthShell wide><RegistrationForm available/></AuthShell>);
- assert.match(html,/finance-robot/);assert.match(html,/Explore the interactive banking scene/);assert.doesNotMatch(html,/auth-bank-canvas/);assert.match(html,/receivables, cash matching/);
+test("account entry has a photo panel, honest SaaS copy and accessible detailed registration",()=>{
+ const html=renderToStaticMarkup(<AuthShell wide scene="signup"><RegistrationForm available/></AuthShell>);
+ assert.match(html,/auth%2Fsignup\.jpg/);assert.match(html,/Built for finance teams that close fast/);assert.match(html,/<source media="\(min-width: 1024px\)" srcSet="[^"]*auth%2Fsignup\.jpg/);assert.match(html,/<img[^>]*src="data:image\/gif/);
  for(const field of ["full_name","email","company","job_title","phone","country","company_size","interest","description","consent"])assert.ok(html.includes(`name="${field}"`),field);
  assert.match(html,/action="\/api\/auth\/register"/);assert.match(html,/Request my finance workspace/);
  assert.doesNotMatch(html,/name="password"|99.9%|ISO 27001|SOC 2|bank-grade/i);
@@ -40,4 +40,23 @@ test("with providers configured, only linking off the stable host is disabled, a
 test("invited activation collects details and posts to the real password activation route",()=>{
  const html=renderToStaticMarkup(createElement(RegistrationForm,{available:true,invitedEmail:"invite@example.com"}));
  assert.match(html,/action="\/api\/auth\/signup"/);assert.match(html,/name="password"/);assert.match(html,/name="confirm"/);assert.match(html,/readOnly/);
+});
+
+test("every sign-in screen has its own decorative photo and copy, and the photo is hidden from assistive tech",async()=>{
+ const { authScenes } = await import("../src/components/auth-scenes");
+ const images=new Set<string>();
+ for(const scene of Object.keys(authScenes) as (keyof typeof authScenes)[]){
+  const html=renderToStaticMarkup(<AuthShell scene={scene}><p>card</p></AuthShell>);
+  assert.ok(html.includes(encodeURIComponent(authScenes[scene].image)),scene);assert.ok(html.includes(authScenes[scene].headline.replace("’","&#x27;").replace("'","&#x27;"))||html.includes(authScenes[scene].headline),scene);
+  assert.match(html,/<section class="auth-photo" aria-hidden="true">/);assert.match(html,/alt=""/);
+  images.add(authScenes[scene].image);
+ }
+ assert.equal(images.size,5);
+});
+test("recovery pages never post or accept a password",async()=>{
+ const { ForgotPasswordView, ResetPasswordView } = await import("../src/components/recovery-pages");
+ for(const view of [ForgotPasswordView,ResetPasswordView]){
+  const html=renderToStaticMarkup(createElement(view));
+  assert.doesNotMatch(html,/<form|name="password"/);assert.match(html,/href="\/login\/code"/);assert.match(html,/href="\/login"/);
+ }
 });
