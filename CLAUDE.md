@@ -10,8 +10,14 @@ Rules live in `AGENTS.md`; follow it first. This file adds only what a coding se
 | Full local check | `npm run verify` (typecheck, lint, test, build) |
 | One test file | `npx tsx --test tests/<name>.test.ts` |
 | Migrations | `DATABASE_MIGRATION_URL=<owner url> npm run db:migrate` |
-| Real-PostgreSQL suites | `npm run test:postgres`, `npm run test:postgres:http` (need `POSTGRES_TEST_ADMIN_URL`) |
+| Real-PostgreSQL suites | `npm run test:postgres`, then `npm run test:postgres:http` (see below) |
 | Schema doc | `npm run docs:schema` regenerates `docs/SCHEMA.md`; `tests/schema-doc.test.ts` fails if it drifts |
+
+Real-PostgreSQL prerequisites: a disposable PostgreSQL 17 cluster used for nothing else, since the suites
+create the `o2c_test_runtime` role (resetting its password if it exists) and leave test records behind. Point
+`DATABASE_MIGRATION_URL` and `POSTGRES_TEST_ADMIN_URL` at it as a superuser, run `npm run db:migrate`, then
+`npm run test:postgres` (creates the runtime role). The HTTP suite starts `next start`, so run `npm run build` first.
+CI does exactly this against a throwaway service container.
 
 Check each command's exit code: run `cmd; echo $?` to read it by hand. In a script, keep the status (`cmd; status=$?; echo "$status"; exit "$status"`) or chain with `&&`, because a trailing `echo` exits 0. Do not infer success from grepping output.
 Lint has 5 pre-existing warnings and must have 0 errors.
