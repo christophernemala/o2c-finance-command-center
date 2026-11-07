@@ -26,7 +26,7 @@ export default async function Signup({ searchParams }: { searchParams: Promise<{
     limited: "Too many attempts. Please wait before trying again.",
     host: `Identity providers can only be used from this preview’s stable address${authSiteOrigin() ? ` (${new URL(authSiteOrigin()!).host})` : ""}. Open your invitation there to activate with a provider, or create a password below.`,
   };
-  return <AuthShell wide>
+  return <AuthShell wide scene="signup">
     <p className="eyebrow">Start with your finance team</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">{invited ? "Activate your work account" : "A clearer view of your cash."}</h1>
     <p className="mt-3 leading-6 text-muted">{invited ? "Complete your account details and create a password, or activate with your work identity provider." : "Tell us about your team. We’ll use these details to review access to your O2C finance workspace."}</p>
     {!available && <p role="status" className="mt-5 rounded-lg border border-line bg-surface p-4 text-sm leading-6">Account activation is unavailable until your administrator restores the sign-in connection and protection.</p>}

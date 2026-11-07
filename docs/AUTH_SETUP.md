@@ -49,9 +49,12 @@ flows protect callbacks. Existing MFA remains required after provider login.
 
 ## Visual and release checks
 
-The entry screens use a white/blue banking scene rendered with Three.js, a static SVG
-fallback, pause control and reduced-motion support. The scene represents the product,
-not a live bank connection or an agent execution result.
+The entry screens share one layout (`src/components/auth-shell.tsx`): a decorative photo panel on
+desktop (hidden, and never downloaded, below 1024 px) and the form card. Each screen picks its photo
+and copy from `src/components/auth-scenes.ts`. Photos are from Unsplash and are served from
+`public/auth/`, because the CSP allows same-origin images only. `/forgot-password` and
+`/reset-password` are guidance pages: self-service reset links are not implemented, so neither page
+sends email or accepts a password.
 
 Current local checks passed 169 tests, TypeScript and the production build. Tests cover private
 registration, invitation activation, identity linking, replay, session rotation and

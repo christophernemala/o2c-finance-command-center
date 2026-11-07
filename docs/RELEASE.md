@@ -1,3 +1,17 @@
+## Auth screens with photography — 2026-11-07
+
+- One shared layout for sign-in, sign-up, the email and authenticator code screens, account security,
+  and the new `/forgot-password` and `/reset-password` pages. Desktop shows a full-height photo with a
+  neutral shade so white text passes WCAG AA; phones show only the card, and the photo is never
+  requested there (a `<picture>` source limited to `min-width: 1024px`; the fallback `<img>` is a 1×1 placeholder).
+- Five Unsplash photos (bank facade, skyline, banknotes, padlock, vault door), self-hosted in
+  `public/auth/` because the CSP allows same-origin images only.
+- No sign-in, registration or session logic changed. The recovery pages have no form: self-service
+  reset links are not implemented.
+- Removed the Three.js scene, the robot artwork and the `three` dependency.
+- Verified locally: typecheck, lint (0 errors), 204 tests, production build, and screenshots at
+  1440 × 900 and 390 × 844. Not verified on the Vercel preview.
+
 ## Review hardening — 2026-11-04
 
 Migration `202610160012_review_hardening.sql` (apply after `202610160011`, before deploying this source):

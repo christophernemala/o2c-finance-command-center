@@ -39,7 +39,7 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [x] CI font-build repair: bundle the existing typefaces with `next/font/local`, source digests and licenses. Local verification passed all 142 tests and a build with Google font loading blocked.
 
-- [x] Banking login and detailed registration, Three.js scene with fallback/reduced motion, private access requests and invitation activation; Google/single-tenant Microsoft OIDC with explicit linking and preserved MFA. Local TypeScript, 151 tests and production build passed. See `docs/AUTH_SETUP.md`; live provider and browser checks remain pending.
+- [x] Banking login and detailed registration with a shared photo layout across sign-in, sign-up, email code, forgot and reset screens, private access requests and invitation activation; Google/single-tenant Microsoft OIDC with explicit linking and preserved MFA. Local TypeScript, 151 tests and production build passed. See `docs/AUTH_SETUP.md`; live provider and browser checks remain pending.
 
 - [x] Minimalist modern typography and shared controls: locally bundled Calistoga/Inter, preserved JetBrains Mono figures and Apple-blue palette, shared gradient/radius/shadow tokens, locally optimized robot artwork with real HTML copy, and an on-demand bank scene. TypeScript, 151 tests, production build and login/signup/image HTTP checks passed; browser visual review pending.
 
@@ -70,11 +70,13 @@ Updated at every delivery. "Done" means the work is merged into the working bran
 
 - [ ] **Privacy policy legal wording.** The page is a marked draft.
 - [ ] **Live verification.** Set `ANTHROPIC_API_KEY`, `CRON_SECRET`, `RESEND_API_KEY` and `COLLECTIONS_FROM` (verified domain), set Twilio channel credentials for phone outreach, run `npm run db:migrate`, then do one agent run, one copilot question and one approved test email.
-- [ ] **Repository settings.** Make `codex/light-finance-workspace` the default branch.
+- [x] **Repository settings.** `codex/light-finance-workspace` is the default branch. Rename `main` (the retired Vite app) to `legacy-vite`.
 - [ ] **Delete the retired repositories** (`o2c-orchestration-saas`, `o2c-orchestration-platform`).
 - [ ] **Figma.** Needs an Editor seat to build the design system in Figma.
 
 ## Next
+
+- [ ] Self-service password reset (reset tokens, email delivery, `/reset-password` form). Today `/forgot-password` points to email-code sign-in or the administrator.
 
 - [ ] Live verification on Vercel and the hosted database (owner keys first, see above)
 - [ ] Slice 3 candidates (see `docs/ROADMAP.md`): ERP or bank-statement connectors, invoice PDF extraction, UAE e-invoicing readiness

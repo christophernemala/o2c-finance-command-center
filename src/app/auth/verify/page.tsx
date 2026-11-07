@@ -13,7 +13,7 @@ export default async function Verify({ searchParams }: { searchParams: Promise<{
   const factors = await client.auth.mfa.listFactors();
   const factor = factors.data?.totp.find(row => row.status === "verified");
   const params = await searchParams;
-  return <AuthShell><h1 className="text-3xl font-semibold">Verify your sign-in</h1>
+  return <AuthShell scene="otp"><h1 className="text-3xl font-semibold">Verify your sign-in</h1>
     <p className="mt-3 leading-6 text-muted">Enter the current six-digit code from your enrolled authenticator app. Codes are verified securely on the server.</p>
     {params.error && <p role="alert" className="mt-5 rounded-lg bg-danger-soft p-4 text-danger">The code could not be verified. Use the current code and try again.</p>}
     {factor ? <MutationForm action="/api/auth/mfa"><div className="mt-6 space-y-5"><input type="hidden" name="factor" value={factor.id}/>
