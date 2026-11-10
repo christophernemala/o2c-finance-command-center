@@ -1,4 +1,6 @@
-# O2C Finance Command Center
+# Closewise
+
+Formerly O2C Finance Command Center.
 
 An agentic accounts-receivable (order-to-cash) platform for UAE finance teams. AI
 agents read the ledger, propose cash application, propose collections emails, propose

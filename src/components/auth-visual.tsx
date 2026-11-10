@@ -14,8 +14,8 @@ export function AuthVisual(){
    try{
     const renderer=new T.WebGLRenderer({canvas:canvas.current,alpha:true,antialias:true,powerPreference:"low-power"});renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
     const scene=new T.Scene();const camera=new T.PerspectiveCamera(36,1,.1,100);camera.position.set(0,3.4,8);camera.lookAt(0,.3,0);
-    scene.add(new T.HemisphereLight(0xd7e9ff,0x3c5880,3));const light=new T.DirectionalLight(0xffffff,4);light.position.set(4,7,5);scene.add(light);
-    const white=new T.MeshPhysicalMaterial({color:0xf3f8ff,metalness:.12,roughness:.2,clearcoat:1});const blue=new T.MeshPhysicalMaterial({color:0x287be4,metalness:.45,roughness:.2});
+    scene.add(new T.HemisphereLight(0xede9fe,0x4c1d95,3));const light=new T.DirectionalLight(0xffffff,4);light.position.set(4,7,5);scene.add(light);
+    const white=new T.MeshPhysicalMaterial({color:0xfaf8ff,metalness:.12,roughness:.2,clearcoat:1});const blue=new T.MeshPhysicalMaterial({color:0x7c3aed,metalness:.45,roughness:.2});
     const bank=new T.Group();scene.add(bank);
     const box=(w:number,h:number,d:number,x:number,y:number,z:number,material:Material)=>{const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);bank.add(mesh);return mesh;};
     box(3.6,.18,1.9,0,-.75,0,white);box(3.25,.12,1.6,0,-.59,0,white);box(3.5,.18,1.8,0,1.1,0,white);
@@ -37,7 +37,7 @@ export function AuthVisual(){
   return()=>{disposed=true;cleanup();};
  },[paused,reduced]);
  return <div className="auth-scene"><div className="auth-scene-glow"/>
-   <svg style={{visibility:ready?"hidden":"visible"}} className="auth-bank-fallback" viewBox="0 0 400 300" aria-hidden="true"><defs><linearGradient id="bank-face" x2="1" y2="1"><stop stopColor="#fff"/><stop offset="1" stopColor="#dbeaff"/></linearGradient></defs><ellipse cx="200" cy="250" rx="145" ry="26" fill="#075dcc0b"/><path d="M70 115 200 48l130 67v18H70Z" fill="url(#bank-face)" stroke="#accaf2"/>{[100,150,200,250,300].map(x=><rect key={x} x={x-9} y="135" width="18" height="95" rx="5" fill="url(#bank-face)" stroke="#accaf2"/>)}<path d="M67 230h266v18H67Z" fill="url(#bank-face)" stroke="#accaf2"/><circle cx="200" cy="175" r="33" fill="#f4f8ff" stroke="#075dcc" strokeWidth="5"/><path d="M200 153v44m-22-22h44" stroke="#075dcc" strokeWidth="4"/></svg>
+   <svg style={{visibility:ready?"hidden":"visible"}} className="auth-bank-fallback" viewBox="0 0 400 300" aria-hidden="true"><ellipse cx="200" cy="250" rx="145" ry="26" fill="#6d28d90b"/><path d="M70 115 200 48l130 67v18H70Z" fill="#faf8ff" stroke="#c4b5fd"/>{[100,150,200,250,300].map(x=><rect key={x} x={x-9} y="135" width="18" height="95" rx="5" fill="#faf8ff" stroke="#c4b5fd"/>)}<path d="M67 230h266v18H67Z" fill="#faf8ff" stroke="#c4b5fd"/><circle cx="200" cy="175" r="33" fill="#faf8ff" stroke="#6d28d9" strokeWidth="5"/><path d="M200 153v44m-22-22h44" stroke="#6d28d9" strokeWidth="4"/></svg>
    <canvas ref={canvas} className="auth-bank-canvas" aria-hidden="true"/>
    <span className="auth-scene-label scene-invoice">Receivables</span><span className="auth-scene-label scene-agent">Finance agents</span><span className="auth-scene-label scene-review">Human review</span>
    {!reduced&&<button type="button" className="scene-motion" onClick={()=>setPaused(!paused)} aria-label={paused?"Play banking animation":"Pause banking animation"}>{paused?<Play size={14}/>:<Pause size={14}/>}</button>}

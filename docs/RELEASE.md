@@ -1,3 +1,18 @@
+## Closewise rebrand — 2026-11-06
+
+No migration. App changes only:
+- Product name Closewise in the UI, page titles, PWA manifest, statement PDFs, export file names,
+  sign-in emails and agent prompts. The authenticator-app issuer stays "O2C Finance", so existing
+  and new MFA entries carry the same label.
+- Owner-supplied logo as the app icon, favicon and Apple touch icon.
+- Violet-on-white light theme; dark mode removed; no gradients.
+- Roles show as Admin, AR Manager (approver), AR Clerk (maker) and Viewer. Stored roles and every
+  database permission check are unchanged.
+
+Verified locally: typecheck, lint (0 errors), 197 tests, production build, and the sign-in page
+rendered at 1440px and 390px. Not verified: the signed-in workspace against a live database, and
+the installed PWA icon on a device. The name's domain and trademark have not been checked.
+
 ## Review hardening — 2026-11-04
 
 Migration `202610160012_review_hardening.sql` (apply after `202610160011`, before deploying this source):
