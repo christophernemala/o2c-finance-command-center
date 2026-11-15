@@ -62,11 +62,14 @@ export function AgentConsole({ data, consoleData, aiReady, aiBudget, selectedRun
 
     <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
       <Panel title="Run history" subtitle="Latest 30 runs in this legal entity. Select a run to replay its steps.">
-        {consoleData.runs.length ? <div className="overflow-auto"><table><caption className="sr-only">Agent runs</caption><thead><tr><th scope="col">Agent / started</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Model cost</th></tr></thead><tbody>
-          {consoleData.runs.map(run => <tr key={run.id}><td><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p className="mt-1 text-xs text-muted">{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></td>
-            <td><Badge value={run.status}/></td><td className="text-sm">{run.proposals} proposals · {run.auto_posted} auto-posted<p className="mt-1 text-xs text-muted">{run.step_count} steps</p></td>
-            <td className="money text-sm">{run.cost_usd ? `USD ${run.cost_usd}` : "—"}<p className="mt-1 text-xs text-muted">{run.input_tokens + run.output_tokens} tokens</p></td></tr>)}
-        </tbody></table></div> : <Empty title="No agent runs yet">Run an agent above. It reads your imported records, records each step, and leaves every proposal for an independent approver unless the auto-execution policy below allows posting.</Empty>}
+        {consoleData.runs.length ? <div>
+          <ul className="record-cards" aria-label="Agent runs">{consoleData.runs.map(run => <li className="record-card" key={run.id}><div className="record-card-header"><div><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p>{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></div><Badge value={run.status}/></div><dl><div><dt>Outcome</dt><dd>{run.proposals} proposals · {run.auto_posted} auto-posted · {run.step_count} steps</dd></div><div><dt>Model cost / tokens</dt><dd>{run.cost_usd ? `USD ${run.cost_usd}` : "—"} · {run.input_tokens + run.output_tokens} tokens</dd></div></dl></li>)}</ul>
+          <div className="desktop-record-table overflow-auto"><table><caption className="sr-only">Agent runs</caption><thead><tr><th scope="col">Agent / started</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Model cost</th></tr></thead><tbody>
+            {consoleData.runs.map(run => <tr key={run.id}><td><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p className="mt-1 text-xs text-muted">{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></td>
+              <td><Badge value={run.status}/></td><td className="text-sm">{run.proposals} proposals · {run.auto_posted} auto-posted<p className="mt-1 text-xs text-muted">{run.step_count} steps</p></td>
+              <td className="money text-sm">{run.cost_usd ? `USD ${run.cost_usd}` : "—"}<p className="mt-1 text-xs text-muted">{run.input_tokens + run.output_tokens} tokens</p></td></tr>)}
+          </tbody></table></div>
+        </div> : <Empty title="No agent runs yet">Run an agent above. It reads your imported records, records each step, and leaves every proposal for an independent approver unless the auto-execution policy below allows posting.</Empty>}
       </Panel>
 
       <Panel title="Auto-execution policy" subtitle="Lets the cash application agent post exact matches without a human checker, within AED limits. Off by default; an admin proposes and a different approver activates.">

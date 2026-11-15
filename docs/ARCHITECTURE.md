@@ -319,3 +319,21 @@ WhatsApp free-text replies require an active 24-hour customer-service window, wh
 Twilio enforces. Approved WhatsApp templates, inbound messages, opt-out webhooks and
 delivery-status webhooks are not implemented. Operators must record withdrawal by
 removing the contact; removal cannot recall a message already claimed or accepted.
+
+## Synthetic test and local preview
+
+`src/lib/demo/synthetic.ts` is the single deterministic source for the fictional
+company snapshot and the two example CSVs in `test-data/synthetic-o2c/`. The
+`/preview` route is development-only, read-only, and explicitly renders its scope as
+synthetic. It is hidden with a not-found response in production. Its agent screen has
+no configured AI budget or provider, makes no model calls, and does not simulate an
+AI result.
+
+`tests/synthetic-data.test.ts` applies the SQL migrations to a disposable in-memory
+PGlite database. It validates the sample files with the application's normal CSV
+parser, exercises `stage_import` as a maker and `commit_import` as a different
+checker, then submits and independently approves one fictional receipt and partial
+allocation. The test checks open AR, unapplied cash, debit-versus-credit handling,
+idempotent import commits, and journal counts. The database is closed at test
+completion; this path does not connect to Supabase, Vercel, or production customer
+data.

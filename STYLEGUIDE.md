@@ -62,8 +62,11 @@ whole-account overdue balances grouped by oldest invoice; they are not invoice-a
 bucket totals. Six non-overlapping bands replace overlapping 90+/120+/180+ totals.
 
 At narrower widths, the priorities move below the table, aging becomes a card grid,
-and navigation collapses into the existing mobile menu. No fixed-width desktop
-shell should cause page-level horizontal scrolling.
+and navigation collapses into the existing menu. On phones, the primary destinations
+use a safe-area-aware glass dock, with the remaining destinations in its labelled
+More sheet. Receivables, customer, bank and receipt records, plus agent-run history,
+switch from tables to labelled cards below 640px; keep the full evidence table on
+desktop. No fixed-width desktop shell should cause page-level horizontal scrolling.
 
 ## Motion and interaction
 
