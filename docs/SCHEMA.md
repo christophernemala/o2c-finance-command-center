@@ -2,7 +2,7 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 22 · public tables: 37 · tables with RLS: 37
+Migrations: 23 · public tables: 37 · tables with RLS: 37
 
 Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting archived source CSVs into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.
 
@@ -720,13 +720,17 @@ RLS: enabled · policies: tenant_read (SELECT)
 | agent_ops_overview | definer |
 | agent_record_step | definer |
 | agent_run_detail | definer |
+| ai_spend_status | definer |
 | archive_customer_contact | definer |
 | collections_worklist | definer |
 | commit_import | definer |
 | copilot_append | definer |
 | copilot_attach | definer |
 | copilot_file | definer |
+| copilot_finish_turn | definer |
 | copilot_history | definer |
+| copilot_pending_turn | definer |
+| copilot_start_turn | definer |
 | copilot_threads_list | definer |
 | customer_account | definer |
 | customer_remarks_list | definer |
@@ -758,15 +762,19 @@ RLS: enabled · policies: tenant_read (SELECT)
 | propose_guardrail | definer |
 | propose_guardrail_stage | definer |
 | record_payment_promise | definer |
+| release_ai_spend | definer |
 | release_customer_hold | definer |
 | remarks_logged | definer |
 | report_ar_pack | definer |
 | request_agent_run | definer |
+| reserve_ai_spend | definer |
 | resolve_agent_incident | definer |
 | resolve_payment_promise | definer |
 | run_agent_job | definer |
 | set_agent_schedule | definer |
+| set_ai_spend_cap | definer |
 | set_customer_segments | definer |
+| settle_ai_spend | definer |
 | short_payment_candidates | definer |
 | simulate_guardrail | definer |
 | source_entity_access | invoker |

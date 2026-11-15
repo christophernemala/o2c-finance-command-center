@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { migratedDatabase } from "./pg-helper";
 import { blockFor, canonicalJson, evaluateGuardrails, inputHash, type Guardrail } from "../src/lib/ai/guardrails";
+import { testSpend } from "./ai-spend-stub";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const hash = (n: number) => String(n).padStart(64, "0");
 const T = id(10), E = id(20);
@@ -166,7 +167,7 @@ test("tool loop records guardrail hits and never runs a blocked tool", async () 
       usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } as never;
   };
   const events: string[] = [];
-  const result = await runLoop({ call: call as never, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 3,
+  const result = await runLoop({ call: call as never, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 3, spend: testSpend,
     guardrails: [{ id: "g1", name: "No repeats", kind: "max_identical_calls", params: { limit: "2" }, stage: "block", version: 2 }],
     onEvent: async event => { events.push(event.type === "guardrail" ? `guardrail:${event.hit.action}` : event.type); } });
   assert.equal(result.status, "succeeded");

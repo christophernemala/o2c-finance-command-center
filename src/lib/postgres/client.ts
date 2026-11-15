@@ -21,6 +21,13 @@ const routines = {
   agent_console: ["p_tenant", "p_entity"], agent_run_detail: ["p_tenant", "p_entity", "p_run", "p_after"],
   copilot_append: ["p_tenant", "p_entity", "p_thread", "p_role", "p_content", "p_trace"],
   copilot_history: ["p_tenant", "p_entity", "p_thread"], copilot_threads_list: ["p_tenant", "p_entity"],
+  copilot_start_turn: ["p_tenant", "p_entity", "p_thread", "p_request", "p_fingerprint", "p_content", "p_payload"],
+  copilot_finish_turn: ["p_tenant", "p_entity", "p_thread", "p_request", "p_status", "p_content", "p_trace"],
+  copilot_pending_turn: ["p_tenant", "p_entity", "p_thread"],
+  ai_spend_status: ["p_tenant", "p_entity"], set_ai_spend_cap: ["p_tenant", "p_entity", "p_daily_cap"],
+  reserve_ai_spend: ["p_tenant", "p_entity", "p_request", "p_call", "p_model", "p_input_bytes", "p_max_output"],
+  settle_ai_spend: ["p_tenant", "p_entity", "p_request", "p_call", "p_model", "p_input_tokens", "p_output_tokens", "p_cache_read_tokens", "p_cache_write_tokens"],
+  release_ai_spend: ["p_tenant", "p_entity", "p_request", "p_call"],
   copilot_attach: ["p_tenant", "p_entity", "p_id", "p_name", "p_media_type", "p_content"],
   copilot_file: ["p_tenant", "p_entity", "p_id"],
   propose_guardrail: ["p_tenant", "p_entity", "p_id", "p_name", "p_kind", "p_agent_kind", "p_params", "p_simulation"],
@@ -57,7 +64,7 @@ const routines = {
   adjustment_notes_list: ["p_tenant", "p_entity", "p_status"], short_payment_candidates: ["p_tenant", "p_entity", "p_tolerance"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
-const jsonParameters = new Set(["p_payload", "p_detail", "p_trace", "p_params", "p_simulation", "p_rows"]);
+const jsonParameters = new Set(["p_detail", "p_trace", "p_params", "p_simulation", "p_rows", "p_payload"]);
 export type Routine = keyof typeof routines;
 export interface ImportBatch extends Record<string, unknown> { id: string; kind: string; file_name: string; digest: string; payload: Record<string, string>[]; rows: number; status: string; maker: string }
 export function financeClient(pool: SqlPool, session: () => string | undefined) {

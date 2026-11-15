@@ -2,6 +2,7 @@ import { agentControl, financeClient, type ClaimedRun } from "../postgres/client
 import type { SqlPool } from "../postgres/transaction";
 import { newToken, tokenHash } from "../auth/crypto";
 import type { AiConfig } from "./config";
+import { aiSpendController } from "./budget";
 import { agentDefinitions, agentKickoff, agentSystemPrompt } from "./agents";
 import { PersistenceError, runLoop, serializeResult, type ModelCaller } from "./loop";
 import { usageCost } from "./pricing";
@@ -44,7 +45,7 @@ export async function executeRun(runId: string, deps: { pool: SqlPool; config: A
     if (active.error) throw new Error("Guardrails unavailable");
     const guardrails = parseGuardrails(active.data);
     const result = await runLoop({
-      guardrails, deadline: options.deadline,
+      guardrails, deadline: options.deadline, spend: aiSpendController(client, run.tenant_id, run.entity_id, run.id),
       call: deps.call, model: deps.config.model, effort: deps.config.agentEffort, maxTurns: definition.maxTurns,
       system: agentSystemPrompt(definition), tools: tools.filter(entry => definition.tools.includes(entry.name)), context,
       messages: [{ role: "user", content: agentKickoff({ asOf: run.as_of, entity: run.entity_id, trigger: run.trigger }) }],

@@ -185,8 +185,8 @@ export const tools: AgentTool[] = [
   }),
 ];
 
-export function toolsFor(actor: ToolContext["actor"], canWrite: boolean) {
-  return tools.filter(entry => entry.actors.includes(actor) && (!entry.writes || canWrite || actor === "agent"));
+export function toolsFor(actor: ToolContext["actor"], allowWrites = false) {
+  return tools.filter(entry => entry.actors.includes(actor) && (!entry.writes || allowWrites || actor === "agent"));
 }
 /** JSON-schema tool definitions for the Messages API. Inputs are re-validated with zod before running. */
 export function toolDefinitions(list: AgentTool[]): Anthropic.Beta.BetaTool[] {

@@ -4,10 +4,10 @@ import { randomUUID } from "node:crypto";
 import { access, entities, snapshot } from "@/lib/workspace";
 import { postgresConfig } from "@/lib/postgres/config";
 import { workspaces, type Workspace } from "@/types/workspace";
-import type { AgentConsoleData } from "@/types/agents";
+import type { AgentConsoleData, AiSpendStatus } from "@/types/agents";
 import { FinanceWorkspace } from "@/components/workspace";
 import { AgentConsole } from "@/components/agent-console";
-import { Copilot } from "@/components/copilot";
+import { Copilot, type PendingCopilotRequest } from "@/components/copilot";
 import { Reports } from "@/components/reports";
 import { aiConfig } from "@/lib/ai/config";
 import { validateArPack } from "@/lib/ar-pack";
@@ -56,8 +56,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     if (pack && view === "reports") analysis = <Reports pack={pack} tenant={tenant.tenant_id} entity={entity.id}/>;
   }
   if (view === "agents") {
-    const result = await auth.client.rpc("agent_console", scope);
-    if (!result.error) analysis = <AgentConsole data={data} consoleData={result.data as AgentConsoleData} aiReady={aiReady} userId={auth.user.id}
+    const [result,budget] = await Promise.all([auth.client.rpc("agent_console", scope),auth.client.rpc("ai_spend_status", scope)]);
+    if (!result.error) analysis = <AgentConsole data={data} consoleData={result.data as AgentConsoleData} aiReady={aiReady} aiBudget={budget.error ? null : budget.data as AiSpendStatus} userId={auth.user.id}
       selectedRun={typeof params.run === "string" && uuid.test(params.run) ? params.run : undefined}/>;
   }
   if (view === "operations") {
@@ -115,14 +115,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   }
   if (view === "copilot") {
     const thread = typeof params.thread === "string" && uuid.test(params.thread) ? params.thread : randomUUID();
-    const [history, threads] = await Promise.all([auth.client.rpc("copilot_history", { ...scope, p_thread: thread }), auth.client.rpc("copilot_threads_list", scope)]);
+    const [history, threads, budget, pendingTurn] = await Promise.all([auth.client.rpc("copilot_history", { ...scope, p_thread: thread }), auth.client.rpc("copilot_threads_list", scope), auth.client.rpc("ai_spend_status", scope),
+      auth.client.rpc("copilot_pending_turn", { ...scope, p_thread: thread })]);
     const turns = history.error ? [] : (history.data as { role: "user" | "assistant"; content: string }[]).map(row => ({ role: row.role, content: row.content }));
     const list = threads.error ? [] : threads.data as { id: string; title: string; updated_at: string }[];
+    const pending = pendingTurn.error ? null : pendingTurn.data as PendingCopilotRequest | null;
     const link = (id: string) => `/?${new URLSearchParams({ view: "copilot", tenant: tenant.tenant_id, entity: entity.id, thread: id })}`;
     analysis = <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
       <nav aria-label="Conversations" className="space-y-2"><a className="button w-full" href={link(randomUUID())}>New conversation</a>
         {list.map(row => <a key={row.id} href={link(row.id)} aria-current={row.id === thread ? "page" : undefined} className="block truncate rounded-xl border border-line bg-surface px-3 py-2 text-sm aria-[current=page]:border-primary aria-[current=page]:text-link">{row.title}</a>)}</nav>
-      <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} thread={thread} initial={turns} aiReady={aiReady}/></div>;
+      <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} thread={thread} initial={turns} aiReady={aiReady} canWrite={["maker", "admin"].includes(data.role)} budget={budget.error ? null : budget.data as AiSpendStatus} pending={pending}/></div>;
   }
   return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} nonce={typeof params.nonce === "string" ? params.nonce : undefined} analysis={analysis}/>;
 }

@@ -1,8 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import nodemailer from 'nodemailer';
 import {emailDeliverySettings,sendEmailCode} from '../src/lib/auth/email-delivery';
 const smtp={SMTP_FROM:'O2C <signin@example.com>',SMTP_HOST:'smtp.example.com',SMTP_PORT:'587',SMTP_MODE:'starttls',SMTP_USERNAME:'test-only-user',SMTP_PASSWORD:'test-only-password'};
+test('environment example names the sender required for Resend sign-in codes', async () => {
+ const example=await readFile(new URL('../.env.example',import.meta.url),'utf8');
+ assert.match(example,/^AUTH_EMAIL_FROM=$/m); assert.match(example,/RESEND_API_KEY/);
+});
 test('email configuration requires a sender and verified TLS transport',()=>{
  assert.equal(emailDeliverySettings({}),null);
  assert.equal(emailDeliverySettings(smtp)?.kind,'smtp');

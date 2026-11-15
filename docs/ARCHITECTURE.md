@@ -52,10 +52,11 @@ roles, tenant IDs or tokens grant nothing.
 |---|---|
 | Agent definitions (goal, tool subset, turn cap) | `src/lib/ai/agents.ts` |
 | Tools (zod schema → JSON schema → one routine each) | `src/lib/ai/tools.ts` |
-| Manual tool loop (thinking, refusals, max tokens, sequential tools) | `src/lib/ai/loop.ts` |
+| Manual tool loop (thinking, refusals, max tokens, sequential tools, spend reservation) | `src/lib/ai/loop.ts` |
 | Run execution (claim, agent session, step recording, finish) | `src/lib/ai/runner.ts` |
 | Copilot turn (user session, streamed text) | `src/lib/ai/copilot.ts` |
 | Schema, controls and read tools | `postgres/migrations/202610150001_agent_runtime.sql` |
+| Daily AI budget, reservations and Copilot request replay | `postgres/migrations/202611150001_ai_budget_and_copilot_idempotency.sql` |
 
 ### Run lifecycle
 
@@ -72,12 +73,12 @@ roles, tenant IDs or tokens grant nothing.
    - provisions the tenant's **agent identity** on first use (`auth.users.kind='agent'`,
      membership role `agent`, no password, so it cannot log in);
    - inserts a **20-minute session bound to this one run** (`o2c_private.agent_sessions`).
-3. **Loop.** The runner calls Claude through `client.beta.messages.stream` with:
+3. **Loop.** The runner calls Claude through `client.beta.messages.stream` with provider retries disabled and no alternate-model fallback. Before each request it reserves the maximum listed cost through the shared tenant budget; after a response it settles reported token usage. Calls fail closed if pricing or budget checks fail. It uses:
    - model `claude-opus-5-5`;
    - adaptive thinking with summarized display, so reasoning summaries can be shown;
    - effort `medium` for agents and `low` for the copilot;
    - automatic prompt caching;
-   - server-side refusal fallbacks (`fallbacks: "default"`).
+   - a 4,096-token output limit so the pre-call reserve is bounded.
 
    Tools run one at a time, in order. Each input is validated with zod before it runs.
 4. **Record.** Every thinking summary, message, tool call, tool result, proposal,
@@ -236,10 +237,28 @@ Migration `202610160007_adjustment_notes.sql`. Screen `/?view=notes` (`src/compo
 ## Copilot
 
 `/api/copilot` streams server-sent events. It runs as the signed-in user, so RLS
-and their role apply. Write tools (`propose_receipt`, `propose_allocation`) are
-offered only to makers and admins, and approval is still required. Conversation
-history is stored as text only in `copilot_threads` and `copilot_messages`, which
-are owner-only and append-only. That makes every model request append-only.
+and their role apply. Turns are read-only by default. A maker or admin must enable
+the per-message proposal option before `propose_receipt`, `propose_allocation` or
+`propose_collection_message` is exposed; the server checks the role again, and an
+independent human approval is still required. Copilot cannot approve or post.
+Client disconnects abort the model request and prevent subsequent tool calls; an
+already-running database call may still finish. Conversation history is stored in
+`copilot_threads` and `copilot_messages`, which are owner-only and append-only.
+
+Agents and Copilot share a per-tenant daily USD cap. An admin must configure it in
+the Agent Console; there is no default, and an unset or zero cap disables model
+calls. The database atomically reserves worst-case listed cost before each provider
+request, then settles usage reported by Anthropic and releases unused headroom. If a
+provider call may have been sent but its result cannot be safely settled, the full
+reservation remains held for the day. These rate-card estimates are not a guarantee
+of the provider's invoice; a provider-side spend limit is still recommended.
+
+Each Copilot request persists a stable id and its exact message, attachment ids and
+per-message proposal permission before model work starts. A thread can have only
+one running turn; conflicting replays are rejected and a completed replay returns
+the stored answer without another model call. The owner-only pending-turn lookup
+lets the UI check the same request after a page reload. It never re-sends uncertain
+provider work.
 
 Uploads go to `/api/copilot/files`:
 - CSV up to 1 MB, or .xlsx up to 2 MB;

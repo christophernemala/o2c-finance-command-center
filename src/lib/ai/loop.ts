@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Effort } from "./config";
-import { emptyUsage, type TokenUsage } from "./pricing";
+import { AiSpendError, type AiSpendController } from "./budget";
+import { emptyUsage, MAX_MODEL_OUTPUT_TOKENS, type TokenUsage } from "./pricing";
 import { toolDefinitions, type AgentTool, type ToolContext } from "./tools";
 import { blockFor, evaluateGuardrails, inputHash, type Guardrail, type GuardrailHit } from "./guardrails";
 
@@ -15,7 +16,7 @@ export type LoopEvent =
 export interface LoopResult { status: "succeeded" | "failed"; text: string; error?: string; usage: TokenUsage; model: string; turns: number }
 
 export function anthropicCaller(apiKey: string): ModelCaller {
-  const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 5 * 60 * 1000 });
+  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: 5 * 60 * 1000 });
   return async (params, onText, signal) => {
     const stream = client.beta.messages.stream(params, signal ? { signal } : undefined);
     if (onText) stream.on("text", onText);
@@ -34,12 +35,14 @@ export function serializeResult(value: unknown) {
 
 /**
  * Manual tool loop: every step is surfaced through onEvent so callers can persist it before the next
- * model turn. Tool inputs are validated with zod (eager input streaming sends them unvalidated).
+ * model turn. Tool inputs are validated with zod before they run. Each provider request is reserved
+ * before transmission and settled from the provider's reported token usage.
  */
 export async function runLoop(options: {
   call: ModelCaller; model: string; effort: Effort; system: string; tools: AgentTool[]; context: ToolContext;
   messages: Anthropic.Beta.BetaMessageParam[]; maxTurns: number; onEvent: (event: LoopEvent) => Promise<void>; onText?: (delta: string) => void;
-  guardrails?: Guardrail[];
+  spend: AiSpendController;
+  guardrails?: Guardrail[]; signal?: AbortSignal;
   /** Epoch milliseconds. No model turn starts after it, and a turn still running at that time is aborted. */
   deadline?: number;
 }): Promise<LoopResult> {
@@ -51,28 +54,58 @@ export async function runLoop(options: {
   let streamed = "";
   const onText = options.onText ? (delta: string) => { streamed += delta; options.onText!(delta); } : undefined;
   const timedOut = (turn: number): LoopResult => ({ status: "failed", text: [finalText, streamed].filter(Boolean).join("\n"), error: "Stopped: the run's time budget ran out.", usage, model: served, turns: turn });
+  const cancelled = (turn: number): LoopResult => ({ status: "failed", text: [finalText, streamed].filter(Boolean).join("\n"), error: "The request was cancelled.", usage, model: served, turns: turn });
   for (let turn = 1; turn <= options.maxTurns; turn++) {
+    if (options.signal?.aborted) return cancelled(turn - 1);
     const remaining = options.deadline === undefined ? null : options.deadline - Date.now();
     if (remaining !== null && remaining <= 0) return timedOut(turn - 1);
-    const signal = remaining === null ? undefined : AbortSignal.timeout(remaining);
-    let message: Anthropic.Beta.BetaMessage;
-    try { message = await options.call({
-      model: options.model, max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+    const timeoutSignal = remaining === null ? undefined : AbortSignal.timeout(remaining);
+    const signal = options.signal && timeoutSignal ? AbortSignal.any([options.signal, timeoutSignal]) : options.signal ?? timeoutSignal;
+    const params: Params = {
+      model: options.model, max_tokens: MAX_MODEL_OUTPUT_TOKENS,
       thinking: { type: "adaptive", display: "summarized" }, output_config: { effort: options.effort },
       cache_control: { type: "ephemeral" },
       system: [{ type: "text", text: options.system }],
       tools: definitions, tool_choice: { type: "auto" }, messages: options.messages,
-    }, onText, signal); } catch (error) {
-      if (signal?.aborted) return timedOut(turn);
-      // Return the usage of earlier turns so the run record keeps their tokens and cost.
-      console.error("Model call failed", error instanceof Error ? error.message : error);
-      return { status: "failed", text: finalText, error: "The model call failed. Try again shortly.", usage, model: served, turns: turn };
+    };
+    try {
+      await options.spend.reserve({ call: turn, model: options.model, inputBytes: Buffer.byteLength(JSON.stringify(params), "utf8"), maxOutputTokens: MAX_MODEL_OUTPUT_TOKENS });
+    } catch (error) {
+      if (options.signal?.aborted) return cancelled(turn - 1);
+      if (timeoutSignal?.aborted) return timedOut(turn - 1);
+      return { status: "failed", text: finalText, error: error instanceof AiSpendError ? error.message : "The AI budget could not be verified, so the model request was not sent.", usage, model: served, turns: turn - 1 };
     }
-    streamed = "";
+    if (options.signal?.aborted || timeoutSignal?.aborted) {
+      await options.spend.release(turn);
+      return options.signal?.aborted ? cancelled(turn - 1) : timedOut(turn - 1);
+    }
+    let message: Anthropic.Beta.BetaMessage;
+    try { message = await options.call(params, onText, signal); } catch (error) {
+      if (options.signal?.aborted) return cancelled(turn);
+      if (timeoutSignal?.aborted) return timedOut(turn);
+      // The request may have reached the provider; keep its full reservation until reconciled.
+      console.error("Model call failed", error instanceof Error ? error.message : error);
+      return { status: "failed", text: finalText, error: "The model call failed. Its maximum reserved cost remains held for today; check provider usage before retrying.", usage, model: served, turns: turn };
+    }
     served = message.model;
     usage.input += message.usage.input_tokens; usage.output += message.usage.output_tokens;
     usage.cacheRead += message.usage.cache_read_input_tokens ?? 0; usage.cacheWrite += message.usage.cache_creation_input_tokens ?? 0;
+    try {
+      // Use the requested, rate-checked model ID. If the provider reports a different model,
+      // settlement fails closed and the reservation remains held instead of trusting an unknown rate.
+      if (message.model !== options.model && !message.model.startsWith(`${options.model}-`)) throw new AiSpendError("The provider returned a different model; the full reservation remains held for today.");
+      await options.spend.settle({ call: turn, model: options.model, usage: {
+        input: message.usage.input_tokens, output: message.usage.output_tokens,
+        cacheRead: message.usage.cache_read_input_tokens ?? 0, cacheWrite: message.usage.cache_creation_input_tokens ?? 0,
+      } });
+    } catch (error) {
+      const returnedText = message.content.filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text" && !!block.text.trim()).map(block => block.text).join("\n");
+      if (returnedText) finalText = returnedText;
+      return { status: "failed", text: [finalText, streamed].filter(Boolean).join("\n"), error: error instanceof AiSpendError ? error.message : "Provider usage could not be recorded; the full reservation remains held. Check provider usage before retrying.", usage, model: served, turns: turn };
+    }
+    if (options.signal?.aborted) return cancelled(turn);
+    if (timeoutSignal?.aborted) return timedOut(turn);
+    streamed = "";
     const turnText: string[] = [];
     for (const block of message.content) {
       if (block.type === "thinking" && block.thinking.trim()) await options.onEvent({ type: "thinking", text: block.thinking });
@@ -89,6 +122,8 @@ export async function runLoop(options: {
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     // Sequential execution keeps the persisted step order identical to the effect order in PostgreSQL.
     for (const use of calls) {
+      if (options.signal?.aborted) return cancelled(turn);
+      if (timeoutSignal?.aborted) return timedOut(turn);
       const hash = inputHash(use.name, use.input); const identical = (seen.get(hash) ?? 0) + 1; seen.set(hash, identical);
       await options.onEvent({ type: "tool_call", id: use.id, tool: use.name, input: use.input, input_hash: hash });
       const started = Date.now(); let ok = true; let output: unknown;
