@@ -1,93 +1,50 @@
-# O2C liquid white visual system
+# O2C enterprise finance visual system
 
-Updated 2026-10-16 from the owner's explicit request: iOS-inspired liquid white,
-blue actions, glass navigation, interactive finance graphics and Framer Motion.
-This supersedes the navy/teal treatment. Keep the existing O2C identity and workflows.
+Use the owner-provided screenshots as the visual reference: a professional finance workspace with a deep navy navigation rail, bright blue active actions, clean white content, compact readable typography, multicolour KPI/chart accents, a visible global search field, and card/table layouts that adapt to phones. The references guide layout and color only; do not copy their product names, logos, or proprietary graphics.
 
-## Colour and materials
+## Palette and hierarchy
 
-| Token | Value | Purpose |
+| Token | Value | Use |
 |---|---|---|
-| `--canvas` | `#F3F6FC` | Cool white workspace |
-| `--surface` | `#FFFFFF` | Opaque charts, balances, tables, approval evidence |
-| `--surface-muted` | `#EEF3FB` | Table heads, control tracks, secondary surfaces |
-| `--ink` | `#14243E` | Main text |
-| `--muted` | `#52647D` | Secondary text |
-| `--border` | `#DBE5F3` | Panel divisions |
-| `--primary` / `--link` | `#075DCC` | Actions, selection, links and keyboard focus |
-| `--primary-hover` | `#064DA9` | Hovered primary action |
-| `--primary-soft` | `#E9F1FF` | Active controls and acknowledged statuses |
-| `--success` | `#16703A` (soft `#E8F5EC`); dark `#5FD18A` (soft `#12301E`) | Confirmed/posted status, always accompanied by text; green so it never reads as a link or button (light 6.15:1 on white, 5.48:1 on soft; dark ≥ 7.48:1) |
-| `--warning` / soft | `#885515` / `#FFF5E5` | Waiting, aging and review |
-| `--danger` / soft | `#B72D4D` / `#FFF0F3` | Failure, critical items and credit holds |
-| `--glass` | `#FFFFFFC9` | Translucent header and scope controls |
+| `--canvas` | `#F4F7FB` | Light page background |
+| `--surface` | `#FFFFFF` | Opaque panels, tables, balances and approval evidence |
+| `--surface-muted` | `#F5F7FA` | Table headers, inputs and secondary areas |
+| `--ink` | `#142033` | Primary text |
+| `--muted` | `#66748A` | Secondary text and descriptions |
+| `--border` | `#E4E9F0` | Hairlines, cards and table dividers |
+| `--primary` / `--link` | `#2165ED` / `#1559D6` | Actions, selected controls, links and focus |
+| `--primary-soft` | `#EAF1FF` | Selected states and search focus |
+| `--rail` | `#111B2D` | Desktop navigation rail |
+| `--rail-text` | `#C1CCDC` | Rail labels; use white for the active item |
+| `--chart-1` | `#2165ED` | Blue |
+| `--chart-2` | `#20A77A` | Green |
+| `--chart-3` | `#8B5CF6` | Violet |
+| `--chart-4` | `#E7A232` | Amber |
+| `--chart-5` | `#E4637A` | Coral |
+| `--chart-6` | `#23A6C5` | Cyan |
 
-Green is reserved for server-confirmed success and posted/approved status; it is never a primary action or link. Press feedback uses a brief blue halo, while a green toast appears only after a confirmed success. Charts use a five-tone blue family
-with textual legends and exact figures, so colour never carries a value alone.
-Glass is reserved for navigation and chrome. Money, evidence and financial forms
-remain on opaque white surfaces. Browsers without backdrop-filter keep the white
-fallback. Soft background illumination and shallow shadows support hierarchy.
+The navy rail is a navigation surface, not a page theme. The analytical canvas stays light and uncluttered. Blue remains the primary action color; chart colors only distinguish series and never encode a decision or status by themselves. Green is reserved for server-confirmed success and posted status. Warning and danger colors keep their explicit labels. All amounts remain exact AED decimal strings.
 
-## Typography, spacing and shape
+## Brand and typography
 
-Use bundled Geist for body, controls and KPI values; Space Grotesk for page titles
-and large account-entry headlines; JetBrains Mono for exact amounts. Panel titles
-stay Geist semibold. Keep the O2C wordmark in Geist bold. The display face never
-appears in dense tables, buttons or monetary values. The workspace remains in its
-requested light appearance regardless of the operating-system theme.
-All fonts are locally served with their SIL Open Font Licenses; builds do not fetch fonts. Currency is AED; use `formatAed` and decimal strings. Never abbreviate away
-exact amounts or animate a monetary value. Use sentence-case labels and explicit
-action names such as “Download daily AR workbook” and “Review allocation proposals”.
+The O2C mark combines an ascending ledger/chart motif with restrained blue, mint and amber accents. Use the same product mark in the navigation, sign-in screen, favicon and installable app assets; never use a reference product's identity. Keep the wordmark compact and the rail typography legible.
 
-- Never truncate monetary values. Use horizontal scrolling for long amount columns.
-- Status text accompanies colour; never rely on colour alone, and no colour-only approvals.
+Use locally bundled Geist for interface text, controls and metric labels; Space Grotesk for page titles and key numbers; JetBrains Mono for exact amounts. The UI baseline is 14px. Use approximately 28–32px for page titles, 20–24px for section titles, 23–28px for KPI values, 12–13px for dense tables, and 10–12px for supporting labels. Do not shrink body copy to fit a fixed desktop mockup. On phones, maintain a readable 12px minimum for dense data and use cards or contained horizontal tables where needed. No monetary truncation, invented metrics or animated balances.
 
-Panels: 20px radius; controls: 12–13px; risk cards: 16px. Use a 4/8px spacing rhythm,
-20–24px panel gaps and 16px mobile gutters. Keep tables horizontally scrollable
-inside their panel. Main action targets are at least 44px; chart-mode controls
-are 36px on desktop and 44px on phones. Focus outlines remain clearly visible.
+## Layout and components
 
-## Workspace hierarchy
+- Desktop: fixed-width navy left rail with grouped workspaces; white sticky top bar with tenant/entity context, global search and user actions; light report canvas with generous but compact spacing.
+- Search: searchable workspaces, actions, KPIs/charts and loaded customer records; authenticated invoice search is limited to the selected legal entity. Provide a labelled combobox, keyboard shortcut, arrow/Enter/Escape behavior, visible focus and a clear no-match/unavailable state.
+- Overview: short welcome/context band, four color-coded KPI cards, real work shortcuts, interactive finance charts and source-backed records. Each KPI retains its definition and source.
+- Cards: white surface, subtle hairline and shallow shadow; 16–18px radius. Controls use 10–12px radius. Use an 8px spacing rhythm and 16–24px panel gaps.
+- Charts: bar, donut, matrix and exact-figure table modes. Matrix view shows exact value, share and a distribution cell. Every chart has readable labels and exact values; segment selection only focuses data and never confirms an action.
+- Tables: semantic headers, sortable/filterable where supported, exact amounts aligned to the right, and visible keyboard focus. Keep scroll within a table or card rather than allowing page-wide horizontal overflow.
+- Finance workflow: source evidence remains visible near actions. Preserve maker/checker, current-evidence, approval, and separate posting controls. No design shortcut may auto-approve or post.
 
-The finance overview is a report canvas: scoped KPI tiles, four working shortcuts,
-six interactive analytical tiles, then source records and review priorities.
-Charts offer bar, donut and exact-table views, segment selection and exact-value
-inspection. They use the full-entity read model, not the first page of invoices.
-Customer charts preserve category/region filters and retain the real drill links.
+## Responsive behavior
 
-Collections uses account-aging filters on the left, a searchable/sortable outstanding
-account table in the centre, and real priorities, follow-ups and licence alerts on
-the right. The selected customer workspace contains the existing authenticated
-contact, promise, message, credit and approval controls. Account-aging amounts are
-whole-account overdue balances grouped by oldest invoice; they are not invoice-age
-bucket totals. Six non-overlapping bands replace overlapping 90+/120+/180+ totals.
+On phones, show the O2C mark, entity context and full-width global search in the header. Replace the desktop rail with the safe-area-aware bottom dock for primary destinations and a labelled More menu for all other workspaces. Cards stack vertically; summaries remain readable; tables use labelled record cards or a contained horizontal scroll. Buttons and touch targets are at least 44px high. Respect safe-area insets and reduced-motion preferences.
 
-At narrower widths, the priorities move below the table, aging becomes a card grid,
-and navigation collapses into the existing menu. On phones, the primary destinations
-use a safe-area-aware glass dock, with the remaining destinations in its labelled
-More sheet. Receivables, customer, bank and receipt records, plus agent-run history,
-switch from tables to labelled cards below 640px; keep the full evidence table on
-desktop. No fixed-width desktop shell should cause page-level horizontal scrolling.
+## Real-work behavior and honest boundaries
 
-## Motion and interaction
-
-Framer Motion supports pressed-state feedback, one-time agent workflow arc reveal,
-risk-card hover, donut selection and weekly forecast focus. Motion changes focus
-and emphasis; it never confirms a financial write. Respect `prefers-reduced-motion`.
-Do not animate financial totals, add decorative loops, or hide initial content behind
-an entrance animation. Success feedback is green only after server confirmation.
-
-Every visible control has a real destination, selection, export or authenticated
-server action. Agents can read, draft and propose; current SQL policies govern any
-posting. Confidence percentages alone never authorize an action. Missing forecasts,
-health methodologies, provider setup and source records stay explicitly unavailable.
-
-## Minimalist modern refinement
-
-Retain the existing Apple-blue palette; the external reference does not replace it.
-Use shared radius and action-gradient tokens for buttons, with reduced-motion-safe
-press feedback, visible focus, and separate disabled/secondary states. Section labels
-use restrained monospace pills. Dark navy is reserved for the account-entry capability
-panel; financial evidence remains opaque white. Auth artwork is a locally served
-Adobe-generated illustration with blank space; all product copy remains real HTML.
-The existing interactive bank scene is available from a labeled disclosure.
+Every visible control must have a real selection, destination, export, upload-review or authenticated server action. CSV and XLSX imports share exact source-schema validation, reject formula cells, show row-level errors and control totals, then stage records for independent review; preview alone never commits data. Month-end workbooks are built from authenticated AR, category and region reporting functions and include aging, concentration, KPI basis and exact-decimal tie-outs. They are analysis/support workbooks, not historical reconstructions, GL posting, or native interactive Excel PivotTable objects. Missing records, reports, credentials, providers and integrations remain explicitly unavailable. Respect `prefers-reduced-motion`; visual emphasis must never imply server confirmation.

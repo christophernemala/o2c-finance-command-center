@@ -36,7 +36,17 @@ function validDate(value: string) {
   return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 export function previewImport(text: string, kind: ImportKind): ImportPreview {
-  const grid = parseCsv(text); const expected: readonly string[] = columns[kind];
+  return previewImportRows(parseCsv(text), kind);
+}
+/** Validate CSV/XLSX worksheet rows through the same exact source schema. */
+export function previewImportRows(input: string[][], kind: ImportKind): ImportPreview {
+  let grid = input.map(row => row.map(value => String(value ?? "").trim()));
+  const expected: readonly string[] = columns[kind];
+  const hasExpectedHeaders = (row: string[] | undefined) => !!row
+    && row.length === expected.length && new Set(row).size === row.length && expected.every(key => row.includes(key));
+  // Workbooks exported by this app use a human-readable title row before their headers.
+  if (!hasExpectedHeaders(grid[0]) && grid[0]?.filter(Boolean).length === 1 && hasExpectedHeaders(grid[1])) grid = grid.slice(1);
+  if (grid.length > 2001) throw new Error("Row limit is 2,000 data rows plus a header.");
   const headers = grid.shift() ?? [];
   if (headers.length !== expected.length || new Set(headers).size !== headers.length || expected.some(key => !headers.includes(key))) {
     throw new Error(`Required headers: ${expected.join(", ")}.`);

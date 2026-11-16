@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { routeAccess, snapshot } from "@/lib/workspace";
 import { buildWorkbookBytes } from "@/modules/DashboardRenderer/browserExcel";
 import { receivablesReport } from "@/lib/receivables-report";
-import { arPackWorkbook, validateArPack } from "@/lib/ar-pack";
+import { arPackWorkbook, monthEndWorkbook, validateArPack, validateCloseBreakdown } from "@/lib/ar-pack";
 import { entities } from "@/lib/workspace";
 import { dailyPackWorkbook, validateDailyPack } from "@/lib/daily-pack";
 // Only an authorization refusal is a 403; anything else (an outage, a bad date) is a 503 so it is not mistaken for missing access.
@@ -19,7 +19,24 @@ export async function GET(request: NextRequest) {
     if (!auth.memberships.some(row => row.tenant_id === tenant)) return new NextResponse("Forbidden", { status: 403 });
     const asOf = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" }).format(new Date());
     let bytes: Uint8Array; let fileName = "O2C-receivables-report.xlsx";
-    if (request.nextUrl.searchParams.get("report") === "pack") {
+    if (request.nextUrl.searchParams.get("report") === "month_end") {
+      const period = request.nextUrl.searchParams.get("period") ?? "";
+      const match = /^(20\d{2}|21\d{2})-(0[1-9]|1[0-2])$/.exec(period);
+      if (!match) return new NextResponse("Choose a valid closing month", { status: 400, headers: { "Cache-Control": "no-store" } });
+      const closeDate = new Date(Date.UTC(Number(match[1]), Number(match[2]), 0)).toISOString().slice(0,10);
+      const scope = { p_tenant: tenant, p_entity: entity, p_as_of: closeDate };
+      const [report, byCategory, byRegion] = await Promise.all([
+        auth.client.rpc("report_ar_pack", scope),
+        auth.client.rpc("outstanding_breakdown", { ...scope, p_dimension: "category", p_category: null, p_region: null }),
+        auth.client.rpc("outstanding_breakdown", { ...scope, p_dimension: "region", p_category: null, p_region: null }),
+      ]);
+      const failed = [report, byCategory, byRegion].find(result => result.error);
+      if (failed?.error) return failure(failed.error.message);
+      const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";
+      bytes = buildWorkbookBytes(monthEndWorkbook(validateArPack(report.data), name,
+        validateCloseBreakdown(byCategory.data, "category", closeDate), validateCloseBreakdown(byRegion.data, "region", closeDate), new Date().toISOString()));
+      fileName = `O2C-month-end-${period}.xlsx`;
+    } else if (request.nextUrl.searchParams.get("report") === "pack") {
       const result = await auth.client.rpc("report_ar_pack", { p_tenant: tenant, p_entity: entity, p_as_of: asOf });
       if (result.error) return failure(result.error.message);
       const name = (await entities(tenant)).find(row => row.id === entity)?.name ?? "Legal entity";

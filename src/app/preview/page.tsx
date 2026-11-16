@@ -24,10 +24,11 @@ export default async function SyntheticPreview({ searchParams }: { searchParams:
   const params = await searchParams;
   const requested = params.view;
   const view = workspaces.includes(requested as Workspace) ? requested as Workspace : "overview";
+  const query = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const analysis = view === "agents"
     ? <AgentConsole data={syntheticSnapshot} consoleData={demoConsole} aiReady={false} aiBudget={demoBudget} userId={syntheticViewerId}/>
     : undefined;
 
   return <FinanceWorkspace memberships={syntheticMemberships} entityOptions={syntheticEntities} data={syntheticSnapshot}
-    view={view} userId={syntheticViewerId} email="local-preview@example.invalid" analysis={analysis} previewMode/>;
+    view={view} userId={syntheticViewerId} email="local-preview@example.invalid" analysis={analysis} previewMode query={query}/>;
 }

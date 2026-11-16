@@ -18,12 +18,14 @@ import { emailConfig } from "@/lib/email/resend";
 import { breakdownDimensions, type Breakdown, type BreakdownDimension, type CallListRow, type CustomerAccount, type CustomerRemarks, type FollowUp, type HoldProposal, type LicenceAlert, type Segments, type WorklistRow } from "@/types/collections";
 import { CustomersView } from "@/components/customers";
 import { NotesView } from "@/components/notes";
+import { InvoiceSearchResults } from "@/components/search-results";
+import { validateInvoiceMatches } from "@/lib/search";
 import type { AdjustmentNote, ShortPayment } from "@/types/collections";
 import { agentKinds, type AgentKind } from "@/types/agents";
 import type { Edge, EdgeFailure, GuardrailRecord, Incident, OpsOverview, Simulation } from "@/types/operations";
 export const dynamic = "force-dynamic";
 const viewTitles: Record<Workspace, string> = {
-  overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Copilot", agents: "AI agents", customers: "Customers", notes: "Credit & debit notes", receivables: "Receivables",
+  overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Customer Copilot", agents: "AI agents", customers: "Customers", notes: "Credit & debit notes", receivables: "Receivables",
   reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
   ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
 };
@@ -41,10 +43,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   if (!entity) return <main id="main" className="mx-auto max-w-xl p-12"><h1 className="text-2xl font-semibold">Legal entity setup pending</h1><p className="my-6 text-muted">An administrator needs to provision a legal entity for {tenant.tenant_name} before operational records can be imported.</p><form action="/api/auth" method="post"><input type="hidden" name="intent" value="logout"/><button className="button secondary">Sign out</button></form></main>;
   const requested = Number(params.page ?? 0); const page = Number.isSafeInteger(requested) && requested>=0 && requested<=100000 ? requested : 0;
   const view = workspaces.includes(params.view as Workspace) ? params.view as Workspace : "overview";
+  const searchQuery = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const asOf = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai" }).format(new Date());
   const data = await snapshot(tenant.tenant_id,entity.id,asOf,page);
   const scope = { p_tenant: tenant.tenant_id, p_entity: entity.id }; const aiReady = aiConfig() !== null;
   let analysis;
+  if (view === "receivables" && searchQuery.length >= 2) {
+    const literalQuery = searchQuery.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+    const found = await auth.client.rpc("agent_invoices", { ...scope, p_as_of: asOf, p_filter: "all", p_search: literalQuery, p_limit: 50, p_offset: 0 });
+    let rows: ReturnType<typeof validateInvoiceMatches> = [];
+    try { if (!found.error) rows = validateInvoiceMatches(found.data); } catch { /* Invalid results are shown as unavailable, not inferred. */ }
+    analysis = <InvoiceSearchResults query={searchQuery} rows={rows} unavailable={!!found.error}/>;
+  }
   if (view === "overview" || view === "reports") {
     const result = await auth.client.rpc("report_ar_pack", { ...scope, p_as_of: asOf });
     let pack = null;
@@ -84,11 +94,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       licences={licences.error ? [] : licences.data as LicenceAlert[]} holdProposals={holdProposals.error ? [] : holdProposals.data as HoldProposal[]} remarks={remarks && !remarks.error ? remarks.data as CustomerRemarks : null}/>;
   }
   if (view === "customers") {
-    const dimension = breakdownDimensions.includes(params.dimension as BreakdownDimension) ? params.dimension as BreakdownDimension : "category";
+    const dimension = searchQuery.length >= 2 ? "customer" : breakdownDimensions.includes(params.dimension as BreakdownDimension) ? params.dimension as BreakdownDimension : "category";
     const segment = (key: string) => typeof params[key] === "string" && (params[key] as string).length <= 60 ? params[key] as string : null;
     const [breakdown, segments] = await Promise.all([auth.client.rpc("outstanding_breakdown", { ...scope, p_as_of: asOf, p_dimension: dimension, p_category: segment("category"), p_region: segment("region") }),
       auth.client.rpc("customer_segments", scope)]);
-    if (!breakdown.error && !segments.error) analysis = <CustomersView data={data} breakdown={breakdown.data as Breakdown} segments={segments.data as Segments}/>;
+    if (!breakdown.error && !segments.error) analysis = <CustomersView data={data} breakdown={breakdown.data as Breakdown} segments={segments.data as Segments} query={searchQuery}/>;
   }
   if (view === "notes") {
     const [notes, short] = await Promise.all([auth.client.rpc("adjustment_notes_list", { ...scope, p_status: "all" }), auth.client.rpc("short_payment_candidates", { ...scope, p_tolerance: "50.00" })]);
@@ -126,5 +136,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         {list.map(row => <a key={row.id} href={link(row.id)} aria-current={row.id === thread ? "page" : undefined} className="block truncate rounded-xl border border-line bg-surface px-3 py-2 text-sm aria-[current=page]:border-primary aria-[current=page]:text-link">{row.title}</a>)}</nav>
       <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} thread={thread} initial={turns} aiReady={aiReady} canWrite={["maker", "admin"].includes(data.role)} budget={budget.error ? null : budget.data as AiSpendStatus} pending={pending}/></div>;
   }
-  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} nonce={typeof params.nonce === "string" ? params.nonce : undefined} analysis={analysis}/>;
+  return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} nonce={typeof params.nonce === "string" ? params.nonce : undefined} analysis={analysis} query={searchQuery}/>;
 }

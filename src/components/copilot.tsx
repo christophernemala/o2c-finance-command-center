@@ -81,10 +81,10 @@ export function Copilot({ tenant, entity, thread, initial, aiReady, canWrite, bu
     ? "AI is disabled until a workspace administrator sets a daily USD budget." : budget.paused ? "AI is paused because the daily budget is set to USD 0." : isZero(budget.remaining_usd)
       ? `The daily AI budget is exhausted for ${budget.date} (Asia/Dubai).` : `Daily budget: USD ${budget.daily_limit_usd} · estimated used: USD ${budget.spent_usd} · held: USD ${budget.reserved_usd} · remaining: USD ${budget.remaining_usd} (${budget.date}, Asia/Dubai).`;
 
-  return <section aria-label="O2C Copilot" className="flex min-h-[640px] flex-col rounded-[22px] border border-line bg-canvas">
+  return <section aria-label="Customer Copilot" className="flex min-h-[640px] flex-col rounded-[22px] border border-line bg-canvas">
     <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6" aria-live="polite">
       {!turns.length && <div className="mx-auto max-w-2xl py-10 text-center"><span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-link"><Bot size={24} aria-hidden="true"/></span>
-        <h2 className="text-xl font-semibold">Ask about your receivables</h2><p className="mt-2 text-sm text-muted">Answers come from live tool calls against this legal entity. Attach a CSV or Excel file to analyse it alongside your ledger.</p>
+        <h2 className="text-xl font-semibold">Ask about a customer or receivable</h2><p className="mt-2 text-sm text-muted">Answers come from live tool calls against this legal entity. Attach a CSV or Excel file to analyse it alongside your ledger.</p>
         <div className="mt-6 grid gap-2 sm:grid-cols-2">{suggestions.map(text => <button key={text} type="button" disabled={!aiAllowed || busy || recovering} onClick={() => void ask(text)} className="rounded-xl border border-line bg-surface p-3 text-left text-sm hover:border-primary">{text}</button>)}</div></div>}
       {turns.map((turn, index) => <div key={index} className={`chat-bubble ${turn.role}${turn.error ? " border-danger text-danger" : ""}`}>
         {turn.role === "assistant" && !!turn.tools?.length && <ul className="mb-2 flex flex-wrap gap-2 whitespace-normal">{turn.tools.map((row, i) => <li key={i} className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-1 text-xs text-muted">{row.status === "running" ? <Spinner size={12}/>:<Wrench size={12} aria-hidden="true"/>}{toolNames[row.tool] ?? row.tool}{row.status === "error" ? " · failed" : ""}</li>)}</ul>}
