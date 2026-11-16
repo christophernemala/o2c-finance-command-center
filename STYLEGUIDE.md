@@ -22,7 +22,7 @@ This supersedes the navy/teal treatment. Keep the existing O2C identity and work
 | `--danger` / soft | `#B72D4D` / `#FFF0F3` | Failure, critical items and credit holds |
 | `--glass` | `#FFFFFFC9` | Translucent header and scope controls |
 
-Green is used only for the `--success` status, never for actions or links; there is no teal. Charts use a five-tone blue family
+Green is reserved for server-confirmed success and posted/approved status; it is never a primary action or link. Press feedback uses a brief blue halo, while a green toast appears only after a confirmed success. Charts use a five-tone blue family
 with textual legends and exact figures, so colour never carries a value alone.
 Glass is reserved for navigation and chrome. Money, evidence and financial forms
 remain on opaque white surfaces. Browsers without backdrop-filter keep the white
@@ -30,10 +30,11 @@ fallback. Soft background illumination and shallow shadows support hierarchy.
 
 ## Typography, spacing and shape
 
-Use bundled Inter for body, controls and KPI values; Calistoga (400, without synthetic
-bold) for page titles and large account-entry headlines; JetBrains Mono for exact
-amounts. Panel titles stay Inter semibold. Keep the O2C wordmark in Inter bold.
-The display face never appears in dense tables, buttons or monetary values.
+Use bundled Geist for body, controls and KPI values; Space Grotesk for page titles
+and large account-entry headlines; JetBrains Mono for exact amounts. Panel titles
+stay Geist semibold. Keep the O2C wordmark in Geist bold. The display face never
+appears in dense tables, buttons or monetary values. The workspace remains in its
+requested light appearance regardless of the operating-system theme.
 All fonts are locally served with their SIL Open Font Licenses; builds do not fetch fonts. Currency is AED; use `formatAed` and decimal strings. Never abbreviate away
 exact amounts or animate a monetary value. Use sentence-case labels and explicit
 action names such as “Download daily AR workbook” and “Review allocation proposals”.
@@ -70,10 +71,11 @@ desktop. No fixed-width desktop shell should cause page-level horizontal scrolli
 
 ## Motion and interaction
 
-Framer Motion supports pressed-state feedback, risk-card hover, donut selection
-and weekly forecast focus. Motion changes focus and emphasis; it never confirms a
-financial write. Respect `prefers-reduced-motion`. Do not animate financial totals,
-add decorative loops, or hide initial content behind an entrance animation.
+Framer Motion supports pressed-state feedback, one-time agent workflow arc reveal,
+risk-card hover, donut selection and weekly forecast focus. Motion changes focus
+and emphasis; it never confirms a financial write. Respect `prefers-reduced-motion`.
+Do not animate financial totals, add decorative loops, or hide initial content behind
+an entrance animation. Success feedback is green only after server confirmation.
 
 Every visible control has a real destination, selection, export or authenticated
 server action. Agents can read, draft and propose; current SQL policies govern any

@@ -9,4 +9,6 @@ test("financial visuals offer accessible chart controls, exact balances and mean
   assert.match(html, /Follow-up due/); assert.match(html, /Promise to pay/);
   assert.match(html, /9,999,999,999,999.99/);
   assert.doesNotMatch(html, /follow_up|promise_to_pay|confidence/i);
+  assert.match(html, /role="group" aria-label="Collection states segments"/);
+  assert.match(html, /role="button"[^>]*aria-label="Focus Follow-up due"/);
 });
