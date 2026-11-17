@@ -27,6 +27,7 @@ test("credit and debit notes in PostgreSQL", async t => {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     const propose = (n: number, kind: string, customer: string, invoice: string | null, amount: string, reason: string, reference: string, due: string | null = null) =>
@@ -117,16 +118,24 @@ test("credit and debit notes in PostgreSQL", async t => {
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Cash application agent','queued','cash_application','manual',current_date)", [id(100), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "a".repeat(64)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
       await assert.rejects(propose(70, "debit", C2, null, "5.00", "other", "DN-9", "2026-12-31"), /Forbidden/);
       await assert.rejects(propose(70, "credit", C2, id(42), "5.00", "pricing", "CN-9"), /Forbidden/);
+      const denied = (await db.query<{ v: { allowed: boolean; block: { blocked_by: string } } }>("select public.agent_authorize_tool($1,$2,$3,'propose_credit_note',$4::jsonb) as v",
+        [T,E,id(100),JSON.stringify({customer_id:C2,invoice_id:id(42),amount:"20.00",reason:"bank_charges",reference:"CN-pending-INV-3",memo:"Memo for the adjustment note"})])).rows[0].v;
+      assert.equal(denied.allowed,false); assert.equal(denied.block.blocked_by,"Cap agent credit notes");
       await assert.rejects(propose(70, "credit", C2, id(42), "20.00", "bank_charges", "CN-pending-INV-3"), /Blocked by guardrail: Cap agent credit notes/);
+      const allowed = (await db.query<{ v: { allowed: boolean; block: unknown } }>("select public.agent_authorize_tool($1,$2,$3,'propose_credit_note',$4::jsonb) as v",
+        [T,E,id(100),JSON.stringify({customer_id:C2,invoice_id:id(42),amount:"15.00",reason:"bank_charges",reference:"CN-pending-INV-3",memo:"Memo for the adjustment note"})])).rows[0].v;
+      assert.equal(allowed.allowed,true); assert.equal(allowed.block,null);
       await propose(70, "credit", C2, id(42), "15.00", "bank_charges", "CN-pending-INV-3");
       await assert.rejects(db.query("select public.decide_adjustment_note($1,$2,$3,1,'approved')", [T, E, id(70)]), /Forbidden/);
       await asUser(3);
       assert.deepEqual((await db.query<{ v: unknown[] }>("select public.short_payment_candidates($1,$2,'50.00') as v", [T, E])).rows[0].v, [], "a pending note removes the candidate");
       assert.equal(await version(70), 1);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
       assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','Proposed one credit note',null,0,0,0,null,null) as v", [T, E, id(100)])).rows[0].v,
         "awaiting_approval", "a run that leaves a pending note awaits approval");

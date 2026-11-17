@@ -39,6 +39,7 @@ test("segments and outstanding breakdown in PostgreSQL", async t => {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     const breakdown = async (dimension: string, category: string | null = null, region: string | null = null) =>

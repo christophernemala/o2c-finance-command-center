@@ -14,17 +14,19 @@ const toMinor = (value: string) => {
 };
 const fromMinor = (value: number) => `${Math.floor(value / 100)}.${String(value % 100).padStart(2, "0")}`;
 
-async function asUser(db: PGlite, userId: string, token: number) {
+async function asUser(db: PGlite, userId: string, token: number, tenantId: string, entityId: string) {
   await db.exec("reset role");
   await db.query("update auth.users set email_confirmed_at=now() where id=$1", [userId]);
   const hash = String(token).padStart(64, "0");
   await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do update set aal='aal1'", [hash, userId]);
   await db.query("select set_config('o2c.session_hash',$1,false)", [hash]);
+  await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [tenantId, entityId]);
   await db.exec("set role authenticated");
 }
 
 async function migratedDatabase() {
   const db = new PGlite();
+  await db.exec("create role o2c_worker nologin nosuperuser bypassrls nocreatedb nocreaterole; grant o2c_worker to postgres");
   const dir = new URL("../postgres/migrations/", import.meta.url);
   const files = (await readdir(dir)).filter(name => name.endsWith(".sql")).sort();
   assert.ok(files.length > 0, "migration directory should not be empty");
@@ -73,7 +75,7 @@ test("synthetic import, receipt and allocation follow maker-checker controls in 
 
     const invoicePayload = previewImport(syntheticInvoicesCsv(), "invoices");
     const bankPayload = previewImport(syntheticBankLinesCsv(), "bank_lines");
-    await asUser(db, makerId, 9002);
+    await asUser(db, makerId, 9002, tenantId, entityId);
     const invoiceBatch = (await db.query<{ stage_import: string }>(
       "select public.stage_import($1,$2,'invoices','synthetic-open-invoices.csv',$3::jsonb)",
       [tenantId, entityId, JSON.stringify(invoicePayload.rows)],
@@ -83,7 +85,7 @@ test("synthetic import, receipt and allocation follow maker-checker controls in 
       [tenantId, entityId, JSON.stringify(bankPayload.rows)],
     )).rows[0].stage_import;
 
-    await asUser(db, checkerId, 9003);
+    await asUser(db, checkerId, 9003, tenantId, entityId);
     const commitInvoice = () => db.query("select public.commit_import($1,$2,$3)", [tenantId, entityId, invoiceBatch]);
     const commitBank = () => db.query("select public.commit_import($1,$2,$3)", [tenantId, entityId, bankBatch]);
     await commitInvoice();
@@ -95,7 +97,7 @@ test("synthetic import, receipt and allocation follow maker-checker controls in 
     assert.equal((await db.query<{ count: number }>("select count(*)::integer as count from public.receipts where tenant_id=$1", [tenantId])).rows[0].count, 0);
     assert.equal((await db.query<{ count: number }>("select count(*)::integer as count from public.journals where tenant_id=$1", [tenantId])).rows[0].count, 0);
 
-    await asUser(db, makerId, 9002);
+    await asUser(db, makerId, 9002, tenantId, entityId);
     const readSnapshot = async () => (await db.query<{ workspace_snapshot: Snapshot }>(
       "select public.workspace_snapshot($1,$2,$3,0)", [tenantId, entityId, SYNTHETIC_AS_OF],
     )).rows[0].workspace_snapshot;
@@ -119,24 +121,24 @@ test("synthetic import, receipt and allocation follow maker-checker controls in 
       "select public.propose_action($1,$2,$3,'receipt',$4,$5,null,null,$6,$7)",
       [tenantId, entityId, receiptCommand, credit.amount, `Synthetic test remittance ${credit.reference}; fictional evidence only.`, credit.id, invoice.customer_id],
     );
-    await asUser(db, checkerId, 9003);
+    await asUser(db, checkerId, 9003, tenantId, entityId);
     await db.query("select public.decide_action($1,$2,$3,1,'approved')", [tenantId, entityId, receiptCommand]);
     await db.query("select public.execute_action($1,$2,$3,2)", [tenantId, entityId, receiptCommand]);
 
     await db.exec("reset role");
     const receiptId = (await db.query<{ id: string }>("select id from public.receipts where tenant_id=$1 limit 1", [tenantId])).rows[0].id;
-    await asUser(db, makerId, 9002);
+    await asUser(db, makerId, 9002, tenantId, entityId);
     const allocationMinor = Math.floor(toMinor(invoice.gross) / 2);
     const allocationCommand = id(9005);
     await db.query(
       "select public.propose_action($1,$2,$3,'allocation',$4,$5,$6,$7)",
       [tenantId, entityId, allocationCommand, fromMinor(allocationMinor), "Synthetic partial allocation test; fictional evidence only.", invoice.id, receiptId],
     );
-    await asUser(db, checkerId, 9003);
+    await asUser(db, checkerId, 9003, tenantId, entityId);
     await db.query("select public.decide_action($1,$2,$3,1,'approved')", [tenantId, entityId, allocationCommand]);
     await db.query("select public.execute_action($1,$2,$3,2)", [tenantId, entityId, allocationCommand]);
 
-    await asUser(db, makerId, 9002);
+    await asUser(db, makerId, 9002, tenantId, entityId);
     const posted = await readSnapshot();
     assert.equal(posted.totals.invoice_count, 40);
     assert.equal(posted.totals.open, fromMinor(toMinor(invoicePayload.total) - allocationMinor));

@@ -1,16 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
 import type { Snapshot } from "../src/types/workspace";
 import { approvalEvidenceCurrent } from "../src/lib/approval-evidence";
+import { migratedDatabase } from "./pg-helper";
 const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 test("PostgreSQL finance controls and tenant boundaries", async t => {
-  const db=new PGlite();
+  const db=await migratedDatabase();
   try {
-    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql","202610140001_source_scope.sql","202611170001_xlsx_source_archive.sql"]) {
-      await db.exec(await readFile(new URL(`../postgres/migrations/${file}`, import.meta.url), "utf8"));
-    }
     await db.query(`insert into auth.users(id) values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);
     await db.query(`insert into public.tenants(id,name) values($1,'Tenant A'),($2,'Tenant B')`,[id(10),id(11)]);
     await db.query(`insert into public.memberships values($1,$2,'admin'),($1,$3,'approver'),($1,$4,'viewer'),($5,$6,'admin')`,[id(10),id(1),id(2),id(3),id(11),id(4)]);
@@ -24,6 +20,7 @@ test("PostgreSQL finance controls and tenant boundaries", async t => {
       const hash=String(n).padStart(64,"0");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do update set aal='aal1'", [hash,id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [n===4?id(11):id(10),n===4?id(21):id(20)]);
       await db.exec("set role authenticated");
     }
     const proposeReceipt=(command:number,bank=50)=>db.query(`select public.propose_action($1,$2,$3,'receipt','1000.00','Verified bank remittance',null,null,$4,$5)`,[id(10),id(20),id(command),id(bank),id(30)]);
@@ -143,6 +140,7 @@ test("PostgreSQL finance controls and tenant boundaries", async t => {
       await db.exec("reset role");
       await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Second authorized tenant A entity')", [id(22),id(10)]);
       await asUser(1);
+      await db.query("select set_config('o2c.entity_id','',false)");
       await assert.rejects(put(),/row-level security/);
       await db.query("select set_config('o2c.entity_id',$1,false)", [id(20)]); await put();
       await assert.rejects(put(11,21),/row-level security/);

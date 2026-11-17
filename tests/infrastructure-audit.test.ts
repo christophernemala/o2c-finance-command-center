@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 
 interface Audit {
-  removal_authorized: boolean; rls_disabled: string[]; rls_without_policies: string[];
+  removal_authorized: boolean; rls_disabled: string[]; rls_not_forced: string[]; rls_without_policies: string[];
   tables: { table_name: string; rls_enabled: boolean; policy_count: number }[];
   indexes: { index_name: string; primary_index: boolean; constraint_backed: boolean; supports_foreign_key: boolean }[];
   grants: { table_name: string; grantee: string; privilege_type: string }[];
@@ -26,6 +26,7 @@ test("infrastructure audit runs read-only and identifies access/index invariants
     assert.equal(baseline.removal_authorized, false);
     assert.equal(baseline.tables.length, 15);
     assert.deepEqual(baseline.rls_disabled, []);
+    assert.deepEqual(baseline.rls_not_forced, baseline.tables.map(table => table.table_name).sort());
     assert.deepEqual(baseline.rls_without_policies, []);
     assert.ok(baseline.tables.every(table => table.rls_enabled && table.policy_count > 0));
     assert.ok(baseline.indexes.some(index => index.index_name === "memberships_pkey" && index.primary_index && index.constraint_backed));
@@ -53,6 +54,7 @@ test("infrastructure audit runs read-only and identifies access/index invariants
     await db.exec("begin read only");
     const probes = (await db.query<{ audit: Audit }>(sql)).rows[0].audit;
     assert.deepEqual(probes.rls_disabled, ["default_grant_probe", "unprotected_probe"]);
+    assert.deepEqual(probes.rls_not_forced, [...baseline.rls_not_forced, "deny_all_probe"].sort());
     assert.deepEqual(probes.rls_without_policies, ["deny_all_probe"]);
     assert.equal(probes.removal_authorized, false);
     await db.exec("rollback");

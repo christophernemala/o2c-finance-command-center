@@ -11,16 +11,18 @@ Next.js route handlers
   ├─ src/lib/ai         Claude client, tool registry, loop, agents, runner, copilot
   └─ src/lib/xlsx-read  bounded .xlsx/.csv reader (fflate, no new dependency)
 PostgreSQL (source of truth and enforcement)
-  RLS on every public table · SECURITY DEFINER routines for every write (two RLS-checked
-  exceptions: bounded source CSV/XLSX archival into source_files, and a user's own profile name/avatar)
+  FORCE RLS on every public table · tenant + selected-entity transaction scope · SECURITY DEFINER routines
+  for governed writes · NOLOGIN o2c_worker owns only reviewed background/provisioning routines
   numeric(15,2) money · composite tenant/entity keys · append-only journals, audit, agent steps
 ```
 
 `DATABASE_URL` is a non-owner login granted `o2c_app`. Before any query,
 `transaction()` refuses superuser, BYPASSRLS or table-owner roles. User requests
-set a transaction-local session hash and run `SET LOCAL ROLE authenticated`;
+set transaction-local tenant/entity scope and session hash, then run `SET LOCAL ROLE authenticated`;
 `auth.uid()` resolves the user from the live session table. Browser-supplied
-roles, tenant IDs or tokens grant nothing.
+roles or tokens grant nothing; tenant membership permits switching among that
+tenant's entities, with each transaction's RLS limited to the one selected entity.
+The runtime is not a member of `o2c_worker` and cannot directly bypass RLS.
 
 ## Authentication, sessions and browser security
 
@@ -53,7 +55,7 @@ roles, tenant IDs or tokens grant nothing.
 | Agent definitions (goal, tool subset, turn cap) | `src/lib/ai/agents.ts` |
 | Tools (zod schema → JSON schema → one routine each) | `src/lib/ai/tools.ts` |
 | Manual tool loop (thinking, refusals, max tokens, sequential tools, spend reservation) | `src/lib/ai/loop.ts` |
-| Run execution (claim, agent session, step recording, finish) | `src/lib/ai/runner.ts` |
+| Run execution (claim, agent session, SQL tool gate, step recording, finish) | `src/lib/ai/runner.ts` |
 | Copilot turn (user session, streamed text) | `src/lib/ai/copilot.ts` |
 | Schema, controls and read tools | `postgres/migrations/202610150001_agent_runtime.sql` |
 | Daily AI budget, reservations and Copilot request replay | `postgres/migrations/202611150001_ai_budget_and_copilot_idempotency.sql` |
@@ -81,11 +83,12 @@ roles, tenant IDs or tokens grant nothing.
    - a 4,096-token output limit so the pre-call reserve is bounded.
 
    Tools run one at a time, in order. Each input is validated with zod before it runs.
-4. **Record.** Every thinking summary, message, tool call, tool result, proposal,
-   auto-execution and error is written to `agent_steps` through
-   `agent_record_step`. This table is append-only and has RLS. The console tails it
-   over SSE (`/api/agents/runs/:id`), so what you watch is the database record, not
-   a client-side guess.
+4. **Authorize and record.** Before every tool runs, the runner calls
+   `agent_authorize_tool`, which rechecks current SQL guardrails and atomically records
+   the exact canonical input plus Monitor/Warn/Block outcomes in the append-only
+   `agent_steps` sequence. The routine fails closed. Thinking, messages, tool results,
+   proposals, auto-execution and errors are recorded through `agent_record_step`.
+   The console tails the database record over SSE, not a client-side guess.
 5. **Finish.** `agent_finish_run` stores the summary, model, token counts and USD cost
    (list price, `src/lib/ai/pricing.ts`). If any of the run's proposals are still
    pending, it sets `awaiting_approval`. It writes audit evidence and deletes the
@@ -123,7 +126,9 @@ the Approval inbox.
 
 ## Agent operations: guardrails and incidents
 
-Migration `202610160002_agent_operations.sql`; evaluation in `src/lib/ai/guardrails.ts`.
+Migrations `202610160002_agent_operations.sql` and
+`202611170002_force_rls_and_agent_tool_gates.sql`; canonical hashing and display
+types are in `src/lib/ai/guardrails.ts`.
 
 ### Guardrails
 
@@ -136,12 +141,11 @@ Migration `202610160002_agent_operations.sql`; evaluation in `src/lib/ai/guardra
 
 - **Scope.** A rule applies to one agent kind or to all agents. It does not apply to the copilot, which already acts with the signed-in user's own permissions.
 - **Stages.** A rule is created in **Monitor**, which records hits and changes nothing. Moving it to **Warn**, **Block** or **Rolled back** adds a new version row. That version takes effect only when an approver or admin other than its maker activates it. Version history is kept, and only one version is active at a time.
-- **Evaluation.** The runner loads the active rules before the first model turn. If they cannot be loaded, the run fails rather than running unguarded. Before every tool call, rules are checked in a fixed order: `deny_tool`, then `max_amount`, then `require_field`, then `max_identical_calls`.
-  - Each hit is recorded as a `guardrail` step.
+- **Evaluation.** PostgreSQL reads the active entity/agent rules immediately before each tool call; a database error fails the run closed. It checks `deny_tool`, `max_amount`, `require_field` and `max_identical_calls` and records the full decision beside the exact tool input before the tool can run.
   - Monitor and Warn record the hit, and the tool still runs.
   - Block skips the tool. The agent receives `{ blocked_by, rule_id, stage, reason }` as an error result, so it can adjust its next step.
 - **Identical calls.** "Identical" means the same tool with the same input, compared as canonical JSON with keys sorted. The SHA-256 of that JSON is stored on each `tool_call` step.
-- **Database enforcement.** Block-stage `deny_tool` and `max_amount` rules are also enforced by a trigger on `approvals` for any proposal that carries an `agent_run_id`. A direct RPC by the agent identity cannot bypass them.
+- **Database enforcement.** Agent-side financial writes must consume the newest SQL authorization for the exact tool and inputs. Triggers enforce this for receipts/allocations, credit notes, collection messages, credit-hold proposals and policy auto-posting. An application-only or stale authorization cannot stand in for the database gate; human-authored requests retain their normal approval workflow.
 - **Simulation.** `simulate_guardrail` replays recorded tool calls from the last N days in SQL, with no model calls. It reports how many calls the rule would have acted on, failures it would have caught, false positives (calls that later succeeded), and the cost of the affected runs. The API stores this 30-day snapshot with every new rule and every stage proposal, so the checker sees what the maker saw.
 
 ### Incidents

@@ -7,15 +7,14 @@ verified version. Standard PostgreSQL hosting works with a verified TLS connecti
 
 ## New database setup
 
-Apply all ordered forward migrations, including `202610140001_source_scope.sql` and
-`202611170001_xlsx_source_archive.sql`. The latter allows original CSV/XLSX bytes up
-to the implemented file limits and records the server-selected content type. The
-source-scope migration requires an explicit transaction-local selected entity for
-private source-file access.
-The app reconstructs and clears that scope on every pooled financial transaction.
-Tenant membership authorizes the tenant's entities; the selected entity limits
-the current source-file operation. Separate per-entity membership grants are not
-implemented or claimed by this existing tenant-level authorization model.
+Apply all ordered forward migrations, including `202610140001_source_scope.sql`,
+`202611170001_xlsx_source_archive.sql` and
+`202611170002_force_rls_and_agent_tool_gates.sql`. The archive migration preserves
+supported CSV/XLSX originals; the security migration forces RLS on public tables and
+scopes ordinary finance operations to one selected tenant/entity per transaction.
+Tenant membership still authorizes users to switch among that tenant's entities;
+separate per-entity membership grants are not implemented or claimed. The app
+reconstructs and clears both scope values on every pooled finance transaction.
 
 Create a dedicated database/Neon project and take a backup before importing data.
 Use the schema owner's **direct** connection for migration; use the restricted
@@ -29,6 +28,18 @@ project or over an existing finance schema.
    Use `sslmode=verify-full` for a remote host. All TLS certificates are verified;
    `DATABASE_SSL_CA` can provide a trusted CA PEM when needed. Local PostgreSQL on
    loopback can use `sslmode=disable`.
+   Before step 3, a database administrator must create the isolated worker role and
+   make the schema-migration role a member so it can assign reviewed routines to it:
+
+   ```sql
+   create role o2c_worker nologin nosuperuser bypassrls nocreatedb nocreaterole;
+   grant o2c_worker to <SCHEMA_MIGRATION_ROLE>;
+   ```
+
+   `o2c_worker` must not be granted to `o2c_app` or `o2c_runtime`. It has no login
+   and owns only reviewed cross-entity background/provisioning routines. Those
+   routines are not exposed as a general SQL endpoint. The migration refuses an
+   incorrectly configured worker role.
 3. Run `npm run db:migrate`. The ordered SQL in `postgres/migrations` creates
    identity/session tables and the existing finance schema without business data.
    Advisory locking, checksums and one transaction per file make successful
@@ -44,8 +55,10 @@ project or over an existing finance schema.
    In psql, use `\password o2c_runtime`. Do not put a password in source, chat or
    shell history. Do not grant it the schema owner's role or a Neon owner role.
 5. Set `DATABASE_URL` to that runtime login's connection. The app refuses
-   superuser, BYPASSRLS and finance-owner connections. Each finance transaction
+   superuser, BYPASSRLS, finance-owner, and direct or inherited `o2c_worker`
+   connections. Each finance transaction
    uses `SET LOCAL ROLE authenticated`; live sessions resolve identity and AAL.
+   `o2c_runtime` inherits `o2c_app` only; never grant it membership in `o2c_worker`.
 6. Generate the MFA key and Redis identifier secret privately:
 
    ```sh
@@ -88,9 +101,11 @@ Before cutover:
   path under a controlled process, or require verified identity recovery and
   re-enrollment before granting financial access. Do not silently drop factors.
   Existing provider MFA ciphertext cannot be copied into this application's format.
-- Restore existing finance rows and profiles in foreign-key order. Check row
-  counts, primary keys, amounts, digests, pending/posted states and membership scope.
-  Do not rerun invoice imports as a substitute for transferring settled records.
+- Restore existing finance rows and profiles in foreign-key order using the trusted
+  `o2c_worker` role for the approved bulk restore. Check row counts, primary keys,
+  amounts, digests, pending/posted states and membership scope. Do not rerun invoice
+  imports as a substitute for transferring settled records; never grant the worker
+  role to the deployed runtime.
 - Convert private source objects to `public.source_files`, preserving the uploader,
   tenant/entity, original bytes and SHA-256 digest. Object names alone are not proof
   of authorized scope. New uploads archive bytes and stage rows in one transaction.

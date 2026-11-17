@@ -9,6 +9,7 @@ const routines = {
   commit_import: ["p_tenant", "p_entity", "p_id"],
   request_agent_run: ["p_tenant", "p_entity", "p_id", "p_kind", "p_as_of"],
   agent_record_step: ["p_tenant", "p_entity", "p_run", "p_type", "p_tool", "p_detail", "p_duration"],
+  agent_authorize_tool: ["p_tenant", "p_entity", "p_run", "p_tool", "p_input"],
   agent_finish_run: ["p_tenant", "p_entity", "p_run", "p_status", "p_summary", "p_model", "p_input_tokens", "p_output_tokens", "p_cache_read_tokens", "p_cost", "p_error"],
   agent_auto_post: ["p_tenant", "p_entity", "p_id"],
   propose_agent_policy: ["p_tenant", "p_entity", "p_id", "p_auto", "p_item_limit", "p_daily_limit"],
@@ -64,16 +65,19 @@ const routines = {
   adjustment_notes_list: ["p_tenant", "p_entity", "p_status"], short_payment_candidates: ["p_tenant", "p_entity", "p_tolerance"],
 } as const;
 // jsonb parameters are serialized once here; everything else binds as a scalar.
-const jsonParameters = new Set(["p_detail", "p_trace", "p_params", "p_simulation", "p_rows", "p_payload"]);
+const jsonParameters = new Set(["p_detail", "p_input", "p_trace", "p_params", "p_simulation", "p_rows", "p_payload"]);
 export type Routine = keyof typeof routines;
 export interface ImportBatch extends Record<string, unknown> { id: string; kind: string; file_name: string; digest: string; payload: Record<string, string>[]; rows: number; status: string; maker: string }
 export function financeClient(pool: SqlPool, session: () => string | undefined) {
-  const scoped = <T>(work: (connection: SqlConnection) => Promise<T>, entity?: string) => {
+  const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+  const scoped = <T>(work: (connection: SqlConnection) => Promise<T>, scope: { tenant?: string; entity?: string } = {}) => {
     const token = session(); if (!validToken(token)) throw new Error("Unauthenticated");
-    if (entity !== undefined && !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(entity)) throw new Error("Invalid entity scope");
+    if (scope.tenant !== undefined && !uuid.test(scope.tenant)) throw new Error("Invalid tenant scope");
+    if (scope.entity !== undefined && !uuid.test(scope.entity)) throw new Error("Invalid entity scope");
     return transaction(pool, async connection => {
-      // Clear/reconstruct source-file scope on every pooled transaction.
-      await connection.query("select set_config('o2c.entity_id',$1,true)", [entity?.toLowerCase() ?? ""]);
+      // Clear/reconstruct tenant and selected-entity scope on every pooled transaction.
+      await connection.query("select set_config('o2c.tenant_id',$1,true)", [scope.tenant?.toLowerCase() ?? ""]);
+      await connection.query("select set_config('o2c.entity_id',$1,true)", [scope.entity?.toLowerCase() ?? ""]);
       return work(connection);
     }, tokenHash(token));
   };
@@ -83,13 +87,18 @@ export function financeClient(pool: SqlPool, session: () => string | undefined) 
         if (!Object.hasOwn(routines, name)) throw new Error("Unsupported routine");
         const keys: readonly string[] = routines[name];
         if (Object.keys(input).some(key => !keys.includes(key))) throw new Error("Unsupported argument");
+        if (Object.hasOwn(input, "p_tenant") && typeof input.p_tenant !== "string") throw new Error("Invalid tenant scope");
+        if (Object.hasOwn(input, "p_entity") && typeof input.p_entity !== "string") throw new Error("Invalid entity scope");
         const values = keys.map(key => jsonParameters.has(key) ? JSON.stringify(input[key] ?? null) : input[key] ?? null);
-        const result = await scoped(connection => connection.query<{ value: unknown }>(`select public.${name}(${keys.map((key, i) => `${key} => $${i + 1}`).join(",")}) as value`, values), typeof input.p_entity === "string" ? input.p_entity : undefined);
+        const result = await scoped(connection => connection.query<{ value: unknown }>(`select public.${name}(${keys.map((key, i) => `${key} => $${i + 1}`).join(",")}) as value`, values), {
+          tenant: typeof input.p_tenant === "string" ? input.p_tenant : undefined,
+          entity: typeof input.p_entity === "string" ? input.p_entity : undefined,
+        });
         return { data: result.rows[0]?.value ?? null, error: null };
       } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : "Database operation unavailable" } }; }
     },
     async importBatch(id: string, tenant: string, entity: string) {
-      return scoped(async connection => (await connection.query<ImportBatch>("select id,kind,file_name,digest,payload,rows,status,maker from public.import_batches where id=$1 and tenant_id=$2 and entity_id=$3", [id, tenant, entity])).rows[0] ?? null, entity);
+      return scoped(async connection => (await connection.query<ImportBatch>("select id,kind,file_name,digest,payload,rows,status,maker from public.import_batches where id=$1 and tenant_id=$2 and entity_id=$3", [id, tenant, entity])).rows[0] ?? null, { tenant, entity });
     },
     async stageSource(input: { tenant: string; entity: string; userId: string; digest: string; name: string; contentType: "text/csv" | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; bytes: Uint8Array; kind: string; rows: Record<string, string>[] }) {
       // Original bytes and staged rows commit together; a failed stage leaves no orphan archive.
@@ -97,7 +106,7 @@ export function financeClient(pool: SqlPool, session: () => string | undefined) 
         await connection.query(`insert into public.source_files(tenant_id,entity_id,uploaded_by,digest,original_name,content_type,content)
           values($1,$2,$3,$4,$5,$6,$7) on conflict do nothing`, [input.tenant, input.entity, input.userId, input.digest, input.name.slice(0, 200), input.contentType, Buffer.from(input.bytes)]);
         return (await connection.query<{ value: string }>("select public.stage_import($1,$2,$3,$4,$5::jsonb) as value", [input.tenant, input.entity, input.kind, input.name.slice(0, 200), JSON.stringify(input.rows)])).rows[0].value;
-      }, input.entity);
+      }, { tenant: input.tenant, entity: input.entity });
     },
   };
 }

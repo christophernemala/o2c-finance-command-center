@@ -3,7 +3,7 @@ import type { Effort } from "./config";
 import { AiSpendError, type AiSpendController } from "./budget";
 import { emptyUsage, MAX_MODEL_OUTPUT_TOKENS, type TokenUsage } from "./pricing";
 import { toolDefinitions, type AgentTool, type ToolContext } from "./tools";
-import { blockFor, evaluateGuardrails, inputHash, type Guardrail, type GuardrailHit } from "./guardrails";
+import { blockFor, evaluateGuardrails, inputHash, type Guardrail, type GuardrailBlock, type GuardrailHit } from "./guardrails";
 
 type Params = Anthropic.Beta.Messages.MessageCreateParamsNonStreaming;
 export type ModelCaller = (params: Params, onText?: (delta: string) => void, signal?: AbortSignal) => Promise<Anthropic.Beta.BetaMessage>;
@@ -43,6 +43,7 @@ export async function runLoop(options: {
   messages: Anthropic.Beta.BetaMessageParam[]; maxTurns: number; onEvent: (event: LoopEvent) => Promise<void>; onText?: (delta: string) => void;
   spend: AiSpendController;
   guardrails?: Guardrail[]; signal?: AbortSignal;
+  authorizeTool?: (tool: string, input: unknown) => Promise<{ allowed: boolean; hits: GuardrailHit[]; block: GuardrailBlock | null }>;
   /** Epoch milliseconds. No model turn starts after it, and a turn still running at that time is aborted. */
   deadline?: number;
 }): Promise<LoopResult> {
@@ -125,12 +126,19 @@ export async function runLoop(options: {
       if (options.signal?.aborted) return cancelled(turn);
       if (timeoutSignal?.aborted) return timedOut(turn);
       const hash = inputHash(use.name, use.input); const identical = (seen.get(hash) ?? 0) + 1; seen.set(hash, identical);
+      const started = Date.now();
+      const authorized = options.authorizeTool ? await options.authorizeTool(use.name, use.input) : null;
+      if (authorized && (typeof authorized.allowed !== "boolean" || !Array.isArray(authorized.hits)
+        || !(authorized.block === null || (typeof authorized.block === "object" && authorized.block !== null))
+        || authorized.allowed !== (authorized.block === null))) {
+        throw new PersistenceError("PostgreSQL returned an invalid tool authorization decision.");
+      }
       await options.onEvent({ type: "tool_call", id: use.id, tool: use.name, input: use.input, input_hash: hash });
-      const started = Date.now(); let ok = true; let output: unknown;
-      // Guardrails run before the tool: monitor and warn are recorded, block stops the call.
-      const hits = evaluateGuardrails(options.guardrails ?? [], use.name, use.input, identical);
+      let ok = true; let output: unknown;
+      // PostgreSQL is authoritative in agent runs; the in-memory evaluator remains for isolated loop use.
+      const hits = authorized?.hits ?? evaluateGuardrails(options.guardrails ?? [], use.name, use.input, identical);
       for (const hit of hits) await options.onEvent({ type: "guardrail", tool: use.name, hit });
-      const blocked = blockFor(hits);
+      const blocked = authorized ? authorized.block : blockFor(hits);
       if (blocked) { ok = false; output = blocked; }
       else try {
         const entry = registry.get(use.name); if (!entry) throw new Error(`Unknown tool ${use.name}`);

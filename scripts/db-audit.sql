@@ -42,6 +42,7 @@ select jsonb_build_object(
   'extensions',coalesce((select jsonb_agg(jsonb_build_object('name',extname,'version',extversion) order by extname) from pg_extension),'[]'::jsonb),
   'tables',coalesce((select jsonb_agg(to_jsonb(t)-'oid' order by table_name) from tables t),'[]'::jsonb),
   'rls_disabled',coalesce((select jsonb_agg(table_name order by table_name) from tables where not rls_enabled),'[]'::jsonb),
+  'rls_not_forced',coalesce((select jsonb_agg(table_name order by table_name) from tables where rls_enabled and not rls_forced),'[]'::jsonb),
   'rls_without_policies',coalesce((select jsonb_agg(table_name order by table_name) from tables where rls_enabled and policy_count=0),'[]'::jsonb),
   'policies',coalesce((select jsonb_agg(to_jsonb(p) order by tablename,policyname) from pg_policies p where schemaname='public'),'[]'::jsonb),
   'grants',coalesce((select jsonb_agg(to_jsonb(g) order by table_name,grantee,privilege_type) from table_grants g),'[]'::jsonb),

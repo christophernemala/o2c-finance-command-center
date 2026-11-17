@@ -44,7 +44,7 @@ function violation(rule: Guardrail, tool: string, input: Record<string, unknown>
   }
   if (rule.kind === "require_field") {
     const field = String(rule.params.field); const value = input[field];
-    return target === tool && (value === undefined || value === null || value === "") ? `${tool} requires ${field}` : null;
+    return target === tool && (value === undefined || value === null || value === "" || (typeof value === "string" && value.trim() === "")) ? `${tool} requires ${field}` : null;
   }
   const limit = Number(rule.params.limit);
   return Number.isInteger(limit) && identicalCount > limit ? `Identical ${tool} call repeated ${identicalCount} times in this run (limit ${limit})` : null;

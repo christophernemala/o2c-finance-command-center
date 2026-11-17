@@ -2,13 +2,13 @@
 
 Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.
 
-Migrations: 24 · public tables: 37 · tables with RLS: 37
+Migrations: 25 · public tables: 37 · tables with forced RLS: 37
 
-Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting archived source CSVs into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.
+Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting supported archived source CSV/XLSX files into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.
 
 ## adjustment_journals
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: adjustment_notes
 
 | Column | Type | Null |
@@ -24,7 +24,7 @@ References: adjustment_notes
 
 ## adjustment_notes
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, customers, invoices, users
 
 | Column | Type | Null |
@@ -54,7 +54,7 @@ References: agent_runs, customers, invoices, users
 
 ## agent_guardrail_versions
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_guardrails, entities, users
 
 | Column | Type | Null |
@@ -73,7 +73,7 @@ References: agent_guardrails, entities, users
 
 ## agent_guardrails
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -90,7 +90,7 @@ References: entities, users
 
 ## agent_incidents
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, entities, users
 
 | Column | Type | Null |
@@ -111,7 +111,7 @@ References: agent_runs, entities, users
 
 ## agent_jobs
 
-RLS: enabled · policies: agent_job_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -129,7 +129,7 @@ References: entities, users
 
 ## agent_policies
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -148,7 +148,7 @@ References: entities, users
 
 ## agent_runs
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -179,7 +179,7 @@ References: entities, users
 
 ## agent_schedules
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -193,7 +193,7 @@ References: entities, users
 
 ## agent_steps
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, entities
 
 | Column | Type | Null |
@@ -210,7 +210,7 @@ References: agent_runs, entities
 
 ## allocations
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: adjustment_notes, approvals, invoices, receipts
 
 | Column | Type | Null |
@@ -227,7 +227,7 @@ References: adjustment_notes, approvals, invoices, receipts
 
 ## approvals
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_policies, agent_runs, bank_lines, customers, entities, invoices, receipts, users
 
 | Column | Type | Null |
@@ -256,7 +256,7 @@ References: agent_policies, agent_runs, bank_lines, customers, entities, invoice
 
 ## audit_events
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities
 
 | Column | Type | Null |
@@ -272,7 +272,7 @@ References: entities
 
 ## bank_lines
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities
 
 | Column | Type | Null |
@@ -288,7 +288,7 @@ References: entities
 
 ## cashflow_runs
 
-RLS: enabled · policies: cashflow_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -311,7 +311,7 @@ References: entities, users
 
 ## collection_messages
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, customer_contacts, customers, entities, users
 
 | Column | Type | Null |
@@ -344,7 +344,7 @@ References: agent_runs, customer_contacts, customers, entities, users
 
 ## copilot_files
 
-RLS: enabled · policies: owner_read (SELECT)
+RLS: enabled · forced · policies: copilot_files_owner_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -361,7 +361,7 @@ References: entities, users
 
 ## copilot_messages
 
-RLS: enabled · policies: owner_read (SELECT)
+RLS: enabled · forced · policies: copilot_messages_owner_scope (ALL)
 References: copilot_threads
 
 | Column | Type | Null |
@@ -375,7 +375,7 @@ References: copilot_threads
 
 ## copilot_threads
 
-RLS: enabled · policies: owner_read (SELECT)
+RLS: enabled · forced · policies: copilot_threads_owner_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -390,7 +390,7 @@ References: entities, users
 
 ## credit_limits
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers, entities, users
 
 | Column | Type | Null |
@@ -409,7 +409,7 @@ References: customers, entities, users
 
 ## customer_contacts
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers, entities, users
 
 | Column | Type | Null |
@@ -432,7 +432,7 @@ References: customers, entities, users
 
 ## customer_hold_proposals
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, customers, entities, users
 
 | Column | Type | Null |
@@ -452,7 +452,7 @@ References: agent_runs, customers, entities, users
 
 ## customer_holds
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: agent_runs, customers, entities, users
 
 | Column | Type | Null |
@@ -473,7 +473,7 @@ References: agent_runs, customers, entities, users
 
 ## customer_remarks
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers, entities, invoices, payment_promises, users
 
 | Column | Type | Null |
@@ -493,7 +493,7 @@ References: customers, entities, invoices, payment_promises, users
 
 ## customer_trade_licences
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers, entities, users
 
 | Column | Type | Null |
@@ -511,7 +511,7 @@ References: customers, entities, users
 
 ## customers
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities
 
 | Column | Type | Null |
@@ -526,7 +526,7 @@ References: entities
 
 ## ecl_runs
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities
 
 | Column | Type | Null |
@@ -544,7 +544,7 @@ References: entities
 
 ## entities
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: entity_member_read (SELECT), entity_worker_write (ALL)
 References: tenants
 
 | Column | Type | Null |
@@ -556,7 +556,7 @@ References: tenants
 
 ## import_batches
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: entities, users
 
 | Column | Type | Null |
@@ -577,7 +577,7 @@ References: entities, users
 
 ## invoices
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers
 
 | Column | Type | Null |
@@ -599,7 +599,7 @@ References: customers
 
 ## journals
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: approvals
 
 | Column | Type | Null |
@@ -615,7 +615,7 @@ References: approvals
 
 ## memberships
 
-RLS: enabled · policies: member_read (SELECT)
+RLS: enabled · forced · policies: membership_self_or_scoped_read (SELECT), membership_worker_write (ALL)
 References: tenants, users
 
 | Column | Type | Null |
@@ -626,7 +626,7 @@ References: tenants, users
 
 ## payment_promises
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: customers, entities, invoices, users
 
 | Column | Type | Null |
@@ -645,7 +645,7 @@ References: customers, entities, invoices, users
 
 ## profiles
 
-RLS: enabled · policies: profiles_read_self (SELECT), profiles_update_self (UPDATE)
+RLS: enabled · forced · policies: profiles_read_self (SELECT), profiles_update_self (UPDATE)
 References: users
 
 | Column | Type | Null |
@@ -660,7 +660,7 @@ References: users
 
 ## receipts
 
-RLS: enabled · policies: scope_read (SELECT)
+RLS: enabled · forced · policies: selected_entity_scope (ALL)
 References: bank_lines, customers
 
 | Column | Type | Null |
@@ -676,7 +676,7 @@ References: bank_lines, customers
 
 ## source_files
 
-RLS: enabled · policies: source_insert (INSERT), source_read (SELECT)
+RLS: enabled · forced · policies: source_insert_selected_entity (INSERT), source_read_selected_entity (SELECT)
 References: entities, users
 
 | Column | Type | Null |
@@ -692,7 +692,7 @@ References: entities, users
 
 ## tenants
 
-RLS: enabled · policies: tenant_read (SELECT)
+RLS: enabled · forced · policies: tenant_member_read (SELECT), tenant_worker_write (ALL)
 
 | Column | Type | Null |
 |---|---|---|
@@ -708,6 +708,7 @@ RLS: enabled · policies: tenant_read (SELECT)
 | add_trade_licence | definer |
 | adjustment_notes_list | definer |
 | agent_ar_overview | definer |
+| agent_authorize_tool | definer |
 | agent_auto_post | definer |
 | agent_cash_candidates | definer |
 | agent_console | definer |

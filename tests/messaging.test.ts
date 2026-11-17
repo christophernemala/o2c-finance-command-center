@@ -20,6 +20,7 @@ test("messaging consent, approval, configured-channel claims and no automatic ph
       const hash = String(n).padStart(64, "0");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict do nothing", [hash, id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     await user(1);
