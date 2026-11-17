@@ -32,8 +32,8 @@ Default currency is AED. Time zone is Asia/Dubai.
 | **Copilot** (`/?view=copilot`) | Chat over live ledger data, streamed. It is read-only by default; makers/admins can explicitly enable pending proposals for one message, which still require independent approval. Attach a **CSV or Excel (.xlsx)** file and ask questions about it. Conversations are stored per user in PostgreSQL, never in browser storage. |
 | **Reports** (`/?view=reports`) | AR pack computed in SQL: aging (Current / 1-30 / 31-60 / 61-90 / 91-180 / 180+), **countback DSO**, **30-day CEI** (with its inputs shown), top debtors, disputed and unapplied cash. Downloads as a multi-sheet .xlsx. |
 | Cash application | Bank credit → receipt → allocation proposals with independent approval, separate posting, version locks, idempotency and an append-only journal and audit trail. |
-| Imports | UTF-8 CSV for invoices and bank lines: validation, rejected-row detail, control totals, SHA-256 digest, original bytes archived, independent checker commit (atomic). |
-| Workspaces | Overview (KPIs and 6 charts), Customers, Receivables, Cash application, Approval inbox, 13-week cashflow (approved inputs), ECL review (supplied runs), Import review, Audit explorer. |
+| Imports | UTF-8 CSV/XLSX for invoices and bank lines: validation, rejected-row detail, control totals, SHA-256 digest, original bytes archived, independent checker commit (atomic). |
+| Workspaces | Overview (KPIs and 6 charts), Customers, Receivables, Cash application, Approval inbox, 13-week cashflow (approved inputs plus non-persistent timing what-ifs), ECL review (supplied runs and customer detail when provided), Import review, Audit explorer, and an in-app usage guide. |
 | Security | Invite-only accounts, scrypt, opaque HttpOnly sessions, TOTP MFA enforced in RLS, Redis rate limits (fail closed), CSP nonces, Origin checks, bounded bodies. The runtime DB role is non-owner and cannot bypass RLS. |
 
 ## Architecture in one picture
@@ -111,14 +111,17 @@ Tests never call the live Claude API.
 
 | File | Headers |
 |---|---|
-| Invoice CSV | `number,account,customer,issued_at,due_date,amount,currency` |
-| Bank CSV | `reference,booked_at,direction,amount,currency` |
+| Invoice CSV/XLSX | `number,account,customer,issued_at,due_date,amount,currency` |
+| Bank CSV/XLSX | `reference,booked_at,direction,amount,currency` |
+| ECL detail CSV/XLSX (browser-only) | `account,customer,exposure,pd_percent,lgd_percent,source_provision,currency,source_reference` |
 
 - Amounts must be exact positive decimals.
 - Dates must be ISO `YYYY-MM-DD`.
 - `currency` must be `AED`.
 - Bank `direction` is `credit` or `debit`. Debits never become receipts.
 - Import only entirely unpaid invoices. Opening balances that are partially paid need a reviewed migration.
+- The local ECL detail check is not saved; invoice and bank uploads still require an independent checker before operational commit.
+- Dashboard charts and matrices are native app visuals, not a live Power BI embed. ERP and bank API integrations require dedicated connectors and credentials.
 
 ## What is not built
 
@@ -130,14 +133,18 @@ These limits are deliberate. Read them before you sell or demo the product.
   window: there are no approved templates for proactive messages, no delivery receipts and no
   opt-out webhooks, so a message outside the window is rejected by Twilio and recorded as failed.
 - **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
-  statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
+  statements, are not built. Source files are bounded and schema-specific; CSV/XLSX
+  invoice and bank import, local ECL detail analysis, and Copilot table analysis are
+  not universal integrations.
 - **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
   and no TRN capture in the ledger yet.
 - **Credit holds do not block orders.** Holds and limits are recorded and enforced in this
   platform, but there is no ERP connector to stop orders or deliveries.
 - **No statutory general ledger.** The cash-control journal only (bank → unapplied
   cash → AR). No period locks, FX, write-offs or refunds.
-- **ECL is display-only for supplied runs.** There is no calibrated model.
+- **ECL runs remain source-supplied and display-only.** Customer-level detail is
+  shown only when included in a versioned run. A local CSV/XLSX check calculates
+  EAD × PD × LGD against source values; it is not a calibrated model or IFRS 9 conclusion.
 - **Not yet available:** enterprise SSO (SAML or tenant-wide SSO), tenant self-signup, billing,
   Arabic UI. Google and Microsoft sign-in is built but needs OAuth credentials and is not live-verified.
 - **No external certifications or audits:** no SOC 2, ISO 27001 or penetration test

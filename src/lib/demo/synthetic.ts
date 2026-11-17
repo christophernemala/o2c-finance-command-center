@@ -1,4 +1,5 @@
 import type { Entity, Membership, Snapshot } from "@/types/workspace";
+import type { CashflowRun } from "@/lib/cashflow";
 
 /**
  * Fictional, deterministic O2C records for local UI and import testing only.
@@ -99,6 +100,28 @@ const byOpen = customers.map(customer => ({
 })).sort((a, b) => sumCents([b.value]) - sumCents([a.value])).slice(0, 5);
 const overdueCents = sumCents(invoices.filter(row => row.due_date < SYNTHETIC_AS_OF).map(row => row.open));
 const totalCents = sumCents(invoices.map(row => row.gross));
+const syntheticForecast: CashflowRun = {
+  id: id(7000), tenant_id: syntheticTenantId, entity_id: syntheticEntityId, starts_on: SYNTHETIC_AS_OF,
+  opening_cash: "500000.00", scenario: "Synthetic illustration · no business forecast", model_version: "synthetic-direct-v1",
+  source_digest: `sha256:${"3".repeat(64)}`, maker: id(7001), checker: id(7002),
+  approved_at: "2026-11-15T08:00:00.000Z", evidence: "Fictional preview-only cash movements; not source-system data.",
+  confidence_percent: null, confidence_method: null,
+  entries: [
+    { id: "SYN-CF-001", date: "2026-11-20", direction: "in", category: "operating", amount: "175000.00", source_reference: "Synthetic receipt timing example" },
+    { id: "SYN-CF-002", date: "2026-11-21", direction: "out", category: "operating", amount: "125000.00", source_reference: "Synthetic payroll example" },
+    { id: "SYN-CF-003", date: "2026-12-07", direction: "in", category: "operating", amount: "200000.00", source_reference: "Synthetic receipt timing example" },
+    { id: "SYN-CF-004", date: "2026-12-03", direction: "out", category: "operating", amount: "160000.00", source_reference: "Synthetic supplier payment example" },
+    { id: "SYN-CF-005", date: "2027-01-15", direction: "out", category: "investing", amount: "50000.00", source_reference: "Synthetic capex example" },
+  ],
+};
+const syntheticEclScenario = JSON.stringify({
+  schema_version: "o2c.ecl-customer-detail.v1", detail_complete: true,
+  customer_provisions: [
+    { account: "SYN-0001", customer: "Synthetic Customer 01 · Distribution", exposure: "100000.00", pd_percent: "5.00", lgd_percent: "40.00", source_provision: "2100.00", currency: "AED", source_reference: "Synthetic ECL row 01" },
+    { account: "SYN-0002", customer: "Synthetic Customer 02 · Contracting", exposure: "75000.00", pd_percent: "2.00", lgd_percent: "50.00", source_provision: "700.00", currency: "AED", source_reference: "Synthetic ECL row 02" },
+  ],
+  synthetic_only: true,
+});
 
 export const syntheticSnapshot: Snapshot = {
   tenant_id: syntheticTenantId, entity_id: syntheticEntityId, as_of: SYNTHETIC_AS_OF,
@@ -106,14 +129,15 @@ export const syntheticSnapshot: Snapshot = {
   pagination: { invoices: false, receipts: false, bank_lines: false, approvals: false, ecl_runs: false, agent_runs: false, imports: false, audit: false },
   customers: customers.map(({ id: customerId, name, account }) => ({ id: customerId, name, account })),
   invoices: invoices.map(row => { const { account, ...invoice } = row; void account; return invoice; }), receipts: [], bank_lines: bankLines, approvals,
-  ecl_runs: [], agent_runs: [{ id: id(4000), name: "Synthetic fixture · no AI provider call", status: "completed", operation_id: null, updated_at: "2026-11-15T08:00:00.000Z" }],
+  ecl_runs: [{ id: id(6000), model_version: "synthetic-sample-v1", exposure_snapshot: "Fictional sample only; not a customer exposure snapshot.", scenario: syntheticEclScenario, allowance: "2800.00", status: "approved", as_of: SYNTHETIC_AS_OF }],
+  agent_runs: [{ id: id(4000), name: "Synthetic fixture · no AI provider call", status: "completed", operation_id: null, updated_at: "2026-11-15T08:00:00.000Z" }],
   imports: [
     { id: id(5000), file_name: "synthetic-open-invoices.csv", status: "review", rows: invoices.length, total: money(totalCents), digest: `sha256:${"1".repeat(64)}`, created_at: "2026-11-15T07:30:00.000Z" },
     { id: id(5001), file_name: "synthetic-bank-lines.csv", status: "review", rows: bankLines.length, total: money(sumCents(bankLines.map(row => row.amount))), digest: `sha256:${"2".repeat(64)}`, created_at: "2026-11-15T07:31:00.000Z" },
   ],
   audit: [],
-  totals: { gross: money(totalCents), open: money(totalCents), overdue: money(overdueCents), unapplied: "0.00", allowance: null, dso_days: null, cei_percent: null, invoice_count: invoices.length, pending_count: approvals.length },
-  insights: { forecast: null, charts: [
+  totals: { gross: money(totalCents), open: money(totalCents), overdue: money(overdueCents), unapplied: "0.00", allowance: "2800.00", dso_days: null, cei_percent: null, invoice_count: invoices.length, pending_count: approvals.length },
+  insights: { forecast: syntheticForecast, charts: [
     { key: "aging", title: "Open AR by aging", description: "Synthetic unpaid invoice balances grouped into non-overlapping due-date bands as of 15 Nov 2026.", unit: "AED", series: groupAmounts(row => bucket(row.due_date)) },
     { key: "customer_concentration", title: "Largest synthetic accounts", description: "Open invoice balances for the five largest sample accounts. Names and figures are fictional.", unit: "AED", series: byOpen },
     { key: "collections", title: "Collection work states", description: "Fictional invoice balances grouped by the sample collection state.", unit: "AED", series: groupAmounts(row => row.collection) },

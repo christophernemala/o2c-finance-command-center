@@ -8,7 +8,7 @@ const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 test("PostgreSQL finance controls and tenant boundaries", async t => {
   const db=new PGlite();
   try {
-    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql","202610140001_source_scope.sql"]) {
+    for (const file of ["202610010001_identity.sql","202610040001_workspaces.sql","202610050001_insights.sql","20261006115901_user_profiles.sql","202610080001_release_hardening.sql","202610080002_agent_jobs.sql","202610130001_source_files.sql","202610140001_source_scope.sql","202611170001_xlsx_source_archive.sql"]) {
       await db.exec(await readFile(new URL(`../postgres/migrations/${file}`, import.meta.url), "utf8"));
     }
     await db.query(`insert into auth.users(id) values ($1),($2),($3),($4)`,[id(1),id(2),id(3),id(4)]);

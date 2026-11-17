@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
 const viewTitles: Record<Workspace, string> = {
   overview: "Overview", collections: "Collections", operations: "Agent operations", incidents: "Incidents", guardrails: "Guardrails", copilot: "Customer Copilot", agents: "AI agents", customers: "Customers", notes: "Credit & debit notes", receivables: "Receivables",
   reconciliation: "Cash application", approvals: "Approvals", reports: "Reports", cashflow: "13-week cashflow",
-  ecl: "ECL review", imports: "Import review", audit: "Audit explorer",
+  ecl: "ECL review", imports: "Import review", audit: "Audit explorer", guide: "How to use this app",
 };
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const view = (await searchParams).view;

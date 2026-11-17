@@ -12,7 +12,7 @@ Next.js route handlers
   └─ src/lib/xlsx-read  bounded .xlsx/.csv reader (fflate, no new dependency)
 PostgreSQL (source of truth and enforcement)
   RLS on every public table · SECURITY DEFINER routines for every write (two RLS-checked
-  exceptions: source CSV archival into source_files, and a user's own profile name/avatar)
+  exceptions: bounded source CSV/XLSX archival into source_files, and a user's own profile name/avatar)
   numeric(15,2) money · composite tenant/entity keys · append-only journals, audit, agent steps
 ```
 

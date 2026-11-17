@@ -91,11 +91,11 @@ export function financeClient(pool: SqlPool, session: () => string | undefined) 
     async importBatch(id: string, tenant: string, entity: string) {
       return scoped(async connection => (await connection.query<ImportBatch>("select id,kind,file_name,digest,payload,rows,status,maker from public.import_batches where id=$1 and tenant_id=$2 and entity_id=$3", [id, tenant, entity])).rows[0] ?? null, entity);
     },
-    async stageSource(input: { tenant: string; entity: string; userId: string; digest: string; name: string; bytes: Uint8Array; kind: string; rows: Record<string, string>[] }) {
+    async stageSource(input: { tenant: string; entity: string; userId: string; digest: string; name: string; contentType: "text/csv" | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; bytes: Uint8Array; kind: string; rows: Record<string, string>[] }) {
       // Original bytes and staged rows commit together; a failed stage leaves no orphan archive.
       return scoped(async connection => {
-        await connection.query(`insert into public.source_files(tenant_id,entity_id,uploaded_by,digest,original_name,content)
-          values($1,$2,$3,$4,$5,$6) on conflict do nothing`, [input.tenant, input.entity, input.userId, input.digest, input.name.slice(0, 200), Buffer.from(input.bytes)]);
+        await connection.query(`insert into public.source_files(tenant_id,entity_id,uploaded_by,digest,original_name,content_type,content)
+          values($1,$2,$3,$4,$5,$6,$7) on conflict do nothing`, [input.tenant, input.entity, input.userId, input.digest, input.name.slice(0, 200), input.contentType, Buffer.from(input.bytes)]);
         return (await connection.query<{ value: string }>("select public.stage_import($1,$2,$3,$4,$5::jsonb) as value", [input.tenant, input.entity, input.kind, input.name.slice(0, 200), JSON.stringify(input.rows)])).rows[0].value;
       }, input.entity);
     },

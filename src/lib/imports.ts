@@ -1,9 +1,11 @@
 import { addAmounts, positiveAmount } from "./money";
+import { sourceAdapters } from "./source-adapters";
 export type ImportKind = "invoices" | "bank_lines";
-export const columns = {
-  invoices: ["number", "account", "customer", "issued_at", "due_date", "amount", "currency"],
-  bank_lines: ["reference", "booked_at", "direction", "amount", "currency"],
-} as const;
+const importHeaders = (kind: ImportKind) => sourceAdapters.find(adapter => adapter.importKind === kind)?.headers;
+export const columns: Record<ImportKind, readonly string[]> = {
+  invoices: importHeaders("invoices")!,
+  bank_lines: importHeaders("bank_lines")!,
+};
 export interface ImportPreview { rows: Record<string, string>[]; total: string; errors: string[] }
 /** Bounded RFC 4180 style parser. Quoted commas/newlines and escaped quotes are supported. */
 export function parseCsv(text: string): string[][] {

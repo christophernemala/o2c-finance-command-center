@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         const file = form.get("file"); const filename = file instanceof File ? file.name.toLowerCase() : "";
         const csv = filename.endsWith(".csv"); const xlsx = filename.endsWith(".xlsx");
         if (!(file instanceof File) || (!csv && !xlsx) || file.size > (csv ? 1024 * 1024 : 8 * 1024 * 1024)) throw new Error("Invalid file");
+        const contentType = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         const bytes = new Uint8Array(await file.arrayBuffer());
         let preview;
         if (csv) preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
         if (preview.errors.length) { message = "invalid_import"; throw new Error("Import validation failed"); }
         const digest = createHash("sha256").update(bytes).digest("hex");
         try {
-          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, bytes, kind, rows: preview.rows });
+          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, contentType, bytes, kind, rows: preview.rows });
           result = { data: staged, error: null };
         } catch (error) {
           result = { data: null, error: { message: error instanceof Error ? error.message : "failed" } };

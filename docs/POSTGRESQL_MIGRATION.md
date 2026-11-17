@@ -7,8 +7,11 @@ verified version. Standard PostgreSQL hosting works with a verified TLS connecti
 
 ## New database setup
 
-Apply all ordered forward migrations, including `202610140001_source_scope.sql`.
-It requires an explicit transaction-local selected entity for private CSV access.
+Apply all ordered forward migrations, including `202610140001_source_scope.sql` and
+`202611170001_xlsx_source_archive.sql`. The latter allows original CSV/XLSX bytes up
+to the implemented file limits and records the server-selected content type. The
+source-scope migration requires an explicit transaction-local selected entity for
+private source-file access.
 The app reconstructs and clears that scope on every pooled financial transaction.
 Tenant membership authorizes the tenant's entities; the selected entity limits
 the current source-file operation. Separate per-entity membership grants are not

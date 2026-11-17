@@ -4,6 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import type { Snapshot } from "../src/types/workspace";
 import { previewImport } from "../src/lib/imports";
+import { parseEclRunDetail } from "../src/lib/ecl-provisions";
 import { SYNTHETIC_AS_OF, syntheticBankLinesCsv, syntheticInvoicesCsv, syntheticSnapshot } from "../src/lib/demo/synthetic";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -48,6 +49,12 @@ test("fictional O2C test pack matches the application's importer and preview sna
   assert.ok(bankLines.rows.every(row => row.reference.startsWith("SYN-BANK-") && row.currency === "AED"));
   assert.deepEqual(new Set(syntheticSnapshot.insights.charts[0].series.map(row => row.label)), new Set(["Not yet due", "1–30 days", "31–60 days", "61–90 days", "91+ days"]));
   assert.equal(syntheticSnapshot.as_of, SYNTHETIC_AS_OF);
+  assert.match(syntheticSnapshot.insights.forecast?.scenario ?? "", /Synthetic illustration/);
+  assert.equal(syntheticSnapshot.insights.forecast?.entries.every(row => row.source_reference.startsWith("Synthetic")), true);
+  assert.match(syntheticSnapshot.ecl_runs[0].exposure_snapshot, /Fictional sample only/);
+  const sampleEcl = parseEclRunDetail(syntheticSnapshot.ecl_runs[0].scenario, "synthetic fixture");
+  assert.equal(sampleEcl.result?.customers.length, 2);
+  assert.equal(sampleEcl.result?.total_source_provision, syntheticSnapshot.ecl_runs[0].allowance);
   assert.match(syntheticSnapshot.customers[0].name, /^Synthetic Customer/);
   assert.match(syntheticSnapshot.invoices[0].number, /^SYN-/);
 });
