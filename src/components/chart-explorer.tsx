@@ -6,16 +6,17 @@ import { BarChart3, PieChart, Table2, X, Grid2X2 } from "lucide-react";
 import type { MetricChart } from "@/types/workspace";
 import { chartRatio } from "@/lib/cashflow";
 import { formatAed } from "@/lib/money";
-import { Panel } from "./ui";
+import { Empty, Panel } from "./ui";
+import type { ReactNode } from "react";
 const Exact = Decimal.clone({ precision: 40 });
 const names: Record<string, string> = { normal: "Standard collection", follow_up: "Follow-up due", promise_to_pay: "Promise to pay", none: "No dispute", open: "Dispute open", resolved: "Dispute resolved", pending: "Awaiting approval", approved: "Approved, not posted", rejected: "Rejected", posted: "Posted to ledger", credit: "Incoming credits", debit: "Outgoing debits" };
 const label = (key: string, value: string) => ["collections", "disputes", "approvals", "bank_direction"].includes(key) ? names[value] ?? value : value;
 const color = (index: number) => `var(--chart-${index % 6 + 1})`;
 const modes = [{ id: "bar", name: "Bar chart", Icon: BarChart3 }, { id: "donut", name: "Donut chart", Icon: PieChart }, { id: "matrix", name: "Matrix view", Icon: Grid2X2 }, { id: "table", name: "Exact figures", Icon: Table2 }] as const;
-export function ChartExplorer({ charts, title = "Aging, settlement and cash analysis", scope = "Full legal entity" }: { charts: MetricChart[]; title?: string; scope?: string }) {
-  if (!charts.length) return null;
-  return <section aria-label="Interactive financial analysis" className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow">Financial analysis</p><h2 className="mt-1 text-xl font-semibold">{title}</h2></div><span className="data-scope">{scope} · select a segment to inspect</span></div>
-    <div className="analytics-board"><div className="chart-grid">{charts.map(chart => <ChartTile key={chart.key} chart={chart}/>)}</div></div>
+export function ChartExplorer({ charts, title = "Aging, settlement and cash analysis", scope = "Full legal entity", action }: { charts: MetricChart[]; title?: string; scope?: string; action?: ReactNode }) {
+  return <section id="dashboard-visuals" aria-label="Dashboard analytics" className="space-y-4"><div className="dashboard-analytics-heading"><div><p className="eyebrow">Portfolio analytics</p><h2 className="mt-1 text-xl font-semibold">{title}</h2><p className="mt-1 text-xs text-muted">Source-backed charts, matrices and exact figures · not a live stream</p></div><div className="dashboard-analytics-actions"><span className="data-scope">{scope} · select a segment to inspect</span>{action}</div></div>
+    {charts.length ? <div className="analytics-board"><div className="chart-grid">{charts.map(chart => <ChartTile key={chart.key} chart={chart}/>)}</div></div>
+      : <Panel title="No analytics in this snapshot"><Empty title="Source-backed chart data is unavailable">Charts appear when governed records are available for this entity. No sample values are substituted.</Empty></Panel>}
   </section>;
 }
 function ChartTile({ chart }: { chart: MetricChart }) {

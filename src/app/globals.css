@@ -458,3 +458,35 @@ body { background: var(--canvas); font-size: 14px; }
 
 .product-brand-inverse .product-brand-type { color: #142033; }
 .product-brand-inverse .product-brand-type > span { color: #66748a; }
+
+
+/* Compact analytics-first overview, derived only from the selected entity snapshot. */
+.dashboard-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dashboard-kpis .metric-tile { min-width: 0; padding: 14px 16px; border-radius: 15px; }
+.dashboard-kpis .metric-heading { gap: 8px; }
+.dashboard-kpis .metric-icon { width: 32px; height: 32px; border-radius: 10px; }
+.dashboard-kpis .metric-tile > p:first-of-type { margin-top: 12px; font-size: clamp(16px, 1.25vw, 22px); line-height: 1.3; }
+.dashboard-kpis .metric-tile details { margin-top: 10px; }
+.dashboard-analytics-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.dashboard-analytics-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.dashboard-analytics-actions .data-scope { max-width: 100%; }
+.analytics-board { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.analytics-board .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.analytics-board .chart-tile .workspace-panel { border-radius: 16px; }
+@media (min-width: 640px) { .dashboard-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1440px) { .dashboard-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .analytics-board .chart-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 639px) {
+  .dashboard-kpis .metric-tile { padding: 13px 12px; }
+  .dashboard-kpis .metric-heading { align-items: flex-start; }
+  .dashboard-kpis .metric-icon { width: 30px; height: 30px; }
+  .dashboard-kpis .metric-tile details { font-size: 11px; }
+  .dashboard-analytics-heading { align-items: flex-start; }
+  .dashboard-analytics-actions { width: 100%; justify-content: flex-start; }
+  .dashboard-analytics-actions .button { min-height: 44px; }
+}
+
+.dashboard-kpis .metric-tone-4::before { background: var(--chart-5); }
+.dashboard-kpis .metric-tone-5::before { background: var(--chart-6); }
+.dashboard-kpis .metric-icon-4 { color: #d44d68; background: #fff0f3; }
+.dashboard-kpis .metric-icon-5 { color: #12839d; background: #e8f8fb; }

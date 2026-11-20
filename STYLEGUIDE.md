@@ -35,7 +35,7 @@ Use locally bundled Geist for interface text, controls and metric labels; Space 
 
 - Desktop: fixed-width navy left rail with grouped workspaces; white sticky top bar with tenant/entity context, global search and user actions; light report canvas with generous but compact spacing.
 - Search: searchable workspaces, actions, KPIs/charts and loaded customer records; authenticated invoice search is limited to the selected legal entity. Provide a labelled combobox, keyboard shortcut, arrow/Enter/Escape behavior, visible focus and a clear no-match/unavailable state.
-- Overview: short welcome/context band, four color-coded KPI cards, real work shortcuts, interactive finance charts and source-backed records. Each KPI retains its definition and source.
+- Overview: selected-entity context, four to six compact color-coded KPI cards, interactive paired finance-analysis panels and source-backed records. Each KPI retains its definition and source.
 - Cards: white surface, subtle hairline and shallow shadow; 16–18px radius. Controls use 10–12px radius. Use an 8px spacing rhythm and 16–24px panel gaps.
 - Charts: bar, donut, matrix and exact-figure table modes. Matrix view shows exact value, share and a distribution cell. Every chart has readable labels and exact values; segment selection only focuses data and never confirms an action.
 - Tables: semantic headers, sortable/filterable where supported, exact amounts aligned to the right, and visible keyboard focus. Keep scroll within a table or card rather than allowing page-wide horizontal overflow.
