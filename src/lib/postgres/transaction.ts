@@ -8,6 +8,7 @@ export async function transaction<T>(pool: SqlPool, work: (connection: SqlConnec
   const connection = await pool.connect(); let discard = false;
   try {
     const role = await connection.query<{ unsafe: boolean }>(`select r.rolsuper or r.rolbypassrls or
+      coalesce((select pg_has_role(current_user,worker.oid,'MEMBER') from pg_roles worker where worker.rolname='o2c_worker'),true) or
       exists(select 1 from pg_tables t where t.schemaname='public' and pg_has_role(current_user,t.tableowner,'MEMBER')) as unsafe
       from pg_roles r where r.rolname=current_user`);
     if (role.rows.length !== 1 || role.rows[0].unsafe !== false) throw new Error("Use a non-owner database application role");

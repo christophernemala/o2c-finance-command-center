@@ -33,6 +33,7 @@ test("ledger corrections for notes, cash versus credits, promises and small fixe
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     const value = async <V>(sql: string, params: unknown[]) => (await db.query<{ v: V }>(sql, params)).rows[0].v;
@@ -185,11 +186,13 @@ test("ledger corrections for notes, cash versus credits, promises and small fixe
       await db.query("insert into public.customer_contacts(id,tenant_id,entity_id,customer_id,name,email,created_by) values($1,$2,$3,$4,'Reem','ar@one.example',$5)", [id(310), T, E, C1, id(4)]);
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Collections agent','queued','collections','manual',current_date)", [id(311), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(311), "b".repeat(64)]);
-      const agent = (await db.query<{ agent_user: string }>("select agent_user from public.agent_runs where id=$1", [id(311)])).rows[0].agent_user;
-      await db.query(`insert into public.collection_messages(id,tenant_id,entity_id,customer_id,contact_id,to_email,tone,subject,body,invoice_ids,total_overdue,maker,agent_run_id)
-        values($1,$2,$3,$4,$5,'ar@one.example','firm','Overdue','Please pay the overdue invoices listed.',array[$6::uuid],500.00,$7,$8)`, [id(312), T, E, C1, id(310), A, agent, id(311)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["b".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
+      const body = "Please pay the overdue invoices listed.";
+      const input = {customer_id:C1,contact_id:id(310),invoice_ids:[A],tone:"firm",subject:"Overdue",body,attach_statement:false};
+      await db.query("select public.agent_authorize_tool($1,$2,$3,'propose_collection_message',$4::jsonb)", [T,E,id(311),JSON.stringify(input)]);
+      await db.query("select public.propose_collection_message($1,$2,$3,$4,$5,'firm','Overdue',$6,$7,false)", [T,E,id(312),C1,id(310),body,[A]]);
       assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','Proposed one message',null,0,0,0,null,null) as v", [T, E, id(311)])).rows[0].v, "awaiting_approval");
     });
 

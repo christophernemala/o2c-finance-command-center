@@ -3,7 +3,7 @@
 Apply both migrations in filename order. `cashflow_runs` stores a preserved approved
 AED forecast supplied by a trusted integration/database administrator; application
 roles can only read it through tenant RLS. There is no forecast upload/approval UI or
-connected source adapter in this change. Do not populate this table with examples.
+connected source adapter. Do not populate this table with examples.
 
 Each run contains tenant/entity IDs, `starts_on`, exact signed `opening_cash`, scenario,
 model version, the actual source document's SHA-256 digest, independent maker/checker
@@ -37,6 +37,10 @@ unlike units and is not applied as a probability.
 The latest approved run covering the current Dubai date is displayed. Future and
 expired horizons are unavailable. Weeks remain anchored to the recorded start date;
 the UI explicitly warns when a preserved run has not been rebased to today's cash.
+The Cashflow workspace also offers a browser-only what-if calculator: users can shift
+all supplied receipts and payments later by 0–4 whole weeks. It changes no amount or
+opening cash, reports movements shifted past week 13, and does not save, approve, rebase
+or post a new run. This is a sensitivity view, not a forecast update or approved scenario.
 Receipts/payments are unweighted cash amounts. Decimal.js preserves exact cents and
 negative closing cash. SVG scaling uses only dimensionless ratios; the table is the
 authoritative numerical presentation. This projection does not execute cash movements.

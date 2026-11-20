@@ -23,16 +23,17 @@ Default currency is AED. Time zone is Asia/Dubai.
 | **AI agents** (`/?view=agents`) | Four agents run on demand or daily via Vercel Cron: **Cash application**, **Collections**, **Credit risk** and **Reporting**. Each runs a Claude tool-use loop under its own non-human database identity. Reasoning summaries, tool calls, results, proposals and posting decisions stream live into the Agent Console, which also shows token cost per run. |
 | **Autonomy policy** | Off by default. An admin proposes per-item and daily AED limits and a *different* approver activates them. Within those limits, the cash application agent may auto-post **exact** matches (bank reference = invoice number and amount = open balance). Everything else waits in the Approval inbox. |
 | **Agent operations** (`/?view=operations`) | Health score with its formula and inputs, run success and latency, pending approvals, AED auto-posted today, an agent-to-tool handoff map, a context comparison for failed handoffs (the tool's schema against what the agent sent), open incidents and model cost per agent. Every figure comes from recorded runs and steps; with no runs the screens show empty states. |
+| **AI spend cap** (`/?view=agents`) | An admin sets a daily USD cap shared across Copilot and all agents. Every model call reserves its maximum listed cost before transmission; settled token usage is recorded and unused reservations are released. No default cap exists: missing, zero or exhausted budgets block calls. A provider-side spend limit is still recommended because app estimates are not an invoice guarantee. |
 | **Guardrails and incidents** (`/?view=guardrails`, `/?view=incidents`) | Rules checked before every agent tool call: deny a tool, cap a proposal amount, require a field, limit identical calls. Simulate a rule on the last 30 days of recorded calls, create it in Monitor, then Warn or Block with an independent approver. Block-stage amount and deny rules are also enforced in PostgreSQL. Detectors open incidents for loops, tool error spikes, stuck and failed runs, and guardrail blocks. |
 | **Credit and debit notes** (`/?view=notes`) | Record credit and debit notes issued in your ERP (the source document number is required). A maker or the cash application agent proposes, a different human approver decides, and posting is a separate step. A posted credit note reduces one invoice (checked against its open amount and version at approval and posting); a posted debit note becomes a new receivable. Short payments of AED 50.00 or less are listed for one-click proposals. These are ledger adjustments: the app does not issue VAT credit notes or e-invoices. |
 | **Customers and segments** (`/?view=customers`) | Outstanding AR by customer category, region or customer, with current / 1–30 / 31–60 / 61–90 / 90+ buckets, disputed amounts and share of total; click a category or region to drill into its customers. Makers set categories and regions one at a time or from an `account,category,region` CSV (all-or-nothing, audited). Customers without one show as "Unassigned". |
 | **Collections workbench** (`/?view=collections`) | A daily call list ranked by a disclosed formula (overdue AED weighted by age and broken promises), follow-ups due, structured remarks (outcome, channel, note, next follow-up; a "promised" remark records the promise), UAE trade-licence expiry alerts, and a daily collections pack in Excel. Remarks are a permanent record and cannot be edited. |
 | **Collections and credit** (`/?view=collections`) | Overdue worklist, customer contacts, payment promises (kept from the ledger or marked by a person; broken ones flagged), maker/checker credit limits, and credit holds: the credit risk agent can only **propose** a hold, which takes effect when a human approver or admin approves it; only a different human approver releases a hold. Collections emails, proposed by a person or the collections agent, are sent through Resend **only after an independent approver approves them**, optionally with a PDF statement of the approved invoices. The invoices are re-checked against the ledger at approval and at sending, so a paid or disputed invoice is never dunned. |
-| **Copilot** (`/?view=copilot`) | Chat over live ledger data, streamed. The copilot calls the same scoped tools as the agents, under *your* role. Attach a **CSV or Excel (.xlsx)** file and ask questions about it. Conversations are stored per user in PostgreSQL, never in browser storage. |
+| **Copilot** (`/?view=copilot`) | Chat over live ledger data, streamed. It is read-only by default; makers/admins can explicitly enable pending proposals for one message, which still require independent approval. Attach a **CSV or Excel (.xlsx)** file and ask questions about it. Conversations are stored per user in PostgreSQL, never in browser storage. |
 | **Reports** (`/?view=reports`) | AR pack computed in SQL: aging (Current / 1-30 / 31-60 / 61-90 / 91-180 / 180+), **countback DSO**, **30-day CEI** (with its inputs shown), top debtors, disputed and unapplied cash. Downloads as a multi-sheet .xlsx. |
 | Cash application | Bank credit → receipt → allocation proposals with independent approval, separate posting, version locks, idempotency and an append-only journal and audit trail. |
-| Imports | UTF-8 CSV for invoices and bank lines: validation, rejected-row detail, control totals, SHA-256 digest, original bytes archived, independent checker commit (atomic). |
-| Workspaces | Overview (KPIs and 6 charts), Customers, Receivables, Cash application, Approval inbox, 13-week cashflow (approved inputs), ECL review (supplied runs), Import review, Audit explorer. |
+| Imports | UTF-8 CSV/XLSX for invoices and bank lines: validation, rejected-row detail, control totals, SHA-256 digest, original bytes archived, independent checker commit (atomic). |
+| Workspaces | Overview (KPIs and 6 charts), Customers, Receivables, Cash application, Approval inbox, 13-week cashflow (approved inputs plus non-persistent timing what-ifs), ECL review (supplied runs and customer detail when provided), Import review, Audit explorer, and an in-app usage guide. |
 | Security | Invite-only accounts, scrypt, opaque HttpOnly sessions, TOTP MFA enforced in RLS, Redis rate limits (fail closed), CSP nonces, Origin checks, bounded bodies. The runtime DB role is non-owner and cannot bypass RLS. |
 
 ## Architecture in one picture
@@ -69,7 +70,9 @@ auto-post an exact match under policy. Details are in [docs/ARCHITECTURE.md](doc
    - `AI_COPILOT_EFFORT` (default `low`)
 
    Without a key, the agents and copilot show "not configured", and requested runs
-   are recorded as failed with that reason. Nothing is simulated.
+   are recorded as failed with that reason. After setup, a workspace admin must set
+   the daily USD cap in AI agents; there is no preset amount, and zero pauses all AI.
+   Budget checks fail closed. Nothing is simulated.
 5. **Scheduler:** set `CRON_SECRET` (32 or more random characters). `vercel.json`
    calls `/api/cron/agents` daily at 04:00 UTC (08:00 GST). An admin chooses which
    agents run daily in the Agent Console. The same call sweeps for incidents and
@@ -77,6 +80,8 @@ auto-post an exact match under policy. Details are in [docs/ARCHITECTURE.md](doc
 6. **Collections email:** set `RESEND_API_KEY` and `COLLECTIONS_FROM` (for example
    `Accounts Receivable <ar@your-domain.example>` on a domain verified in Resend).
    Without both, approved messages stay queued and the Collections screen says so.
+   For email sign-in codes, also set `AUTH_EMAIL_FROM` with a verified sender, or
+   configure authenticated SMTP; see [docs/AUTH_SETUP.md](docs/AUTH_SETUP.md).
 7. Provision a real tenant and entity, then invite users:
    `npm run auth:invite -- '<WORK EMAIL>' '<TENANT UUID>' maker`.
    You need at least one maker and a separate approver. See [docs/PRODUCTION_PROVISIONING.md](docs/PRODUCTION_PROVISIONING.md).
@@ -106,14 +111,17 @@ Tests never call the live Claude API.
 
 | File | Headers |
 |---|---|
-| Invoice CSV | `number,account,customer,issued_at,due_date,amount,currency` |
-| Bank CSV | `reference,booked_at,direction,amount,currency` |
+| Invoice CSV/XLSX | `number,account,customer,issued_at,due_date,amount,currency` |
+| Bank CSV/XLSX | `reference,booked_at,direction,amount,currency` |
+| ECL detail CSV/XLSX (browser-only) | `account,customer,exposure,pd_percent,lgd_percent,source_provision,currency,source_reference` |
 
 - Amounts must be exact positive decimals.
 - Dates must be ISO `YYYY-MM-DD`.
 - `currency` must be `AED`.
 - Bank `direction` is `credit` or `debit`. Debits never become receipts.
 - Import only entirely unpaid invoices. Opening balances that are partially paid need a reviewed migration.
+- The local ECL detail check is not saved; invoice and bank uploads still require an independent checker before operational commit.
+- Dashboard charts and matrices are native app visuals, not a live Power BI embed. ERP and bank API integrations require dedicated connectors and credentials.
 
 ## What is not built
 
@@ -125,14 +133,18 @@ These limits are deliberate. Read them before you sell or demo the product.
   window: there are no approved templates for proactive messages, no delivery receipts and no
   opt-out webhooks, so a message outside the window is rejected by Twilio and recorded as failed.
 - **No ERP or bank connectors.** Oracle, SAP, Zoho and Odoo, and MT940/CAMT.053
-  statements, are not built. Data enters through CSV, plus .xlsx for copilot analysis.
+  statements, are not built. Source files are bounded and schema-specific; CSV/XLSX
+  invoice and bank import, local ECL detail analysis, and Copilot table analysis are
+  not universal integrations.
 - **No UAE e-invoicing / FTA (Peppol PINT-AE).** There is also no VAT return logic
   and no TRN capture in the ledger yet.
 - **Credit holds do not block orders.** Holds and limits are recorded and enforced in this
   platform, but there is no ERP connector to stop orders or deliveries.
 - **No statutory general ledger.** The cash-control journal only (bank → unapplied
   cash → AR). No period locks, FX, write-offs or refunds.
-- **ECL is display-only for supplied runs.** There is no calibrated model.
+- **ECL runs remain source-supplied and display-only.** Customer-level detail is
+  shown only when included in a versioned run. A local CSV/XLSX check calculates
+  EAD × PD × LGD against source values; it is not a calibrated model or IFRS 9 conclusion.
 - **Not yet available:** enterprise SSO (SAML or tenant-wide SSO), tenant self-signup, billing,
   Arabic UI. Google and Microsoft sign-in is built but needs OAuth credentials and is not live-verified.
 - **No external certifications or audits:** no SOC 2, ISO 27001 or penetration test

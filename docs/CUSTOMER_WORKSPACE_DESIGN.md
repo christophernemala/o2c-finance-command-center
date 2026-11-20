@@ -43,8 +43,9 @@ portal, an unrestricted URL, or automatic email delivery.
 
 - Store original documents in private cloud object storage with tenant,
   entity and customer authorization enforced server-side and in storage policies.
-- The existing private CSV source bucket has a 1 MB CSV-only contract; it must
-  not be silently repurposed for PDFs or other customer documents.
+- The private finance source archive currently accepts CSV up to 1 MB and XLSX up
+  to 8 MB for the bounded invoice/bank import schemas; it must not be repurposed
+  for PDFs or other customer documents.
 - Define a separate document storage contract, allowed formats, size limits,
   version retention and upload validation before enabling the upload control.
 - Use authorized short-lived access for document viewing. Deny cross-tenant,

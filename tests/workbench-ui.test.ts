@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CollectionsView } from "../src/components/collections";
+import { Copilot, type PendingCopilotRequest } from "../src/components/copilot";
 import { dailyPackWorkbook, validateDailyPack } from "../src/lib/daily-pack";
 import type { Snapshot } from "../src/types/workspace";
 import type { CustomerAccount } from "../src/types/collections";
@@ -66,4 +67,15 @@ test("an agent hold proposal is shown as pending; only approvers can approve or 
   assert.doesNotMatch(maker, /Approve hold/); assert.doesNotMatch(maker, /Credit hold active/);
   const approver = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "approver" } as Snapshot, account, holdProposals }));
   assert.match(approver, /Approve hold/); assert.match(approver, /value="hold_decide"/); assert.match(approver, /name="note" required/);
+});
+
+test("a reloaded Copilot thread can check its persisted request without duplicating model work", () => {
+  const pending: PendingCopilotRequest = { requestId: "00000000-0000-4000-8000-000000000201", message: "Summarize overdue AR", files: [], allowProposals: false };
+  const html = renderToStaticMarkup(createElement(Copilot, { tenant: base.tenant_id, entity: base.entity_id, thread: "00000000-0000-4000-8000-000000000200",
+    initial: [{ role: "user", content: pending.message }], aiReady: true, canWrite: true,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false }, pending }));
+  assert.match(html, /This Copilot request was interrupted or may still be running/);
+  assert.match(html, /Retry\/check this same request \(no duplicate model call\)/);
+  assert.match(html, /Check the pending Copilot request before asking another question/);
+  assert.match(html, /Daily budget: USD 1\.000000/);
 });

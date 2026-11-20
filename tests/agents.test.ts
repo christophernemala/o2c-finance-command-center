@@ -25,12 +25,19 @@ test("agent runtime controls in PostgreSQL", async t => {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [n===5?OTHER_T:T,n===5?OTHER_E:E]);
       await db.exec("set role authenticated");
     }
     async function asAgent(sessionHash: string) {
       await db.exec("reset role");
       await db.query("select set_config('o2c.session_hash',$1,false)", [sessionHash]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
+    }
+    async function authorize(run: string, tool: string, input: Record<string, unknown>) {
+      const decision = (await db.query<{ decision: { allowed: boolean; block: unknown } }>(
+        "select public.agent_authorize_tool($1,$2,$3,$4,$5::jsonb) as decision", [T,E,run,tool,JSON.stringify(input)])).rows[0].decision;
+      assert.equal(decision.allowed,true,JSON.stringify(decision.block));
     }
     async function claim(run: string, sessionHash: string) {
       await db.exec("reset role");
@@ -72,19 +79,21 @@ test("agent runtime controls in PostgreSQL", async t => {
 
     await t.test("agent proposes but cannot approve, execute, stage, or touch other runs", async () => {
       await asAgent(agentSession);
-      await db.query("select public.propose_action($1,$2,$3,'receipt','1000.00','AI agent: exact reference INV-1',null,null,$4,$5)", [T, E, id(200), id(50), id(30)]);
+      await authorize(id(100),"propose_receipt",{bank_line_id:id(50),customer_id:id(30),amount:"1000.00",evidence:"exact reference INV-1"});
+      await db.query("select public.propose_action($1,$2,$3,'receipt','1000.00',$6,null,null,$4,$5)", [T, E, id(200), id(50), id(30), `AI agent run ${id(100)}: exact reference INV-1`]);
       const row = await db.query<{ agent_run_id: string; maker: string }>("select agent_run_id from public.approvals where id=$1", [id(200)]);
       assert.equal(row.rows[0].agent_run_id, id(100));
       await assert.rejects(db.query("select public.decide_action($1,$2,$3,1,'approved')", [T, E, id(200)]), /Forbidden/);
       await assert.rejects(db.query("select public.execute_action($1,$2,$3,1)", [T, E, id(200)]), /Forbidden/);
       await assert.rejects(db.query("select public.stage_import($1,$2,'invoices','x.csv','[]'::jsonb)", [T, E]), /Forbidden/);
       await assert.rejects(db.query("select public.agent_record_step($1,$2,$3,'message',null,'{}'::jsonb,1)", [T, E, id(999)]), /Forbidden/);
-      assert.equal((await db.query<{ v: number }>("select public.agent_record_step($1,$2,$3,'message',null,'{\"text\":\"hi\"}'::jsonb,1) as v", [T, E, id(100)])).rows[0].v, 1);
+      assert.equal((await db.query<{ v: number }>("select public.agent_record_step($1,$2,$3,'message',null,'{\"text\":\"hi\"}'::jsonb,1) as v", [T, E, id(100)])).rows[0].v, 2);
       await assert.rejects(db.query("update public.agent_steps set tool='x'"), /permission denied/);
     });
 
     await t.test("auto-post is refused without an active, independently approved policy", async () => {
       await asAgent(agentSession);
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(200)});
       const result = (await db.query<{ v: { status: string; reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v;
       assert.deepEqual(result, { status: "awaiting_approval", reason: "Auto-execution disabled for this entity" });
       await asUser(4);
@@ -94,6 +103,7 @@ test("agent runtime controls in PostgreSQL", async t => {
       await db.query("select public.propose_agent_policy($1,$2,$3,true,'1500.00','2000.00')", [T, E, id(300)]);
       await assert.rejects(db.query("select public.decide_agent_policy($1,$2,$3,'active')", [T, E, id(300)]), /Independent checker/);
       await asAgent(agentSession);
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(200)});
       assert.equal((await db.query<{ v: { status: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v.status, "awaiting_approval");
       await asUser(2);
       await db.query("select public.decide_agent_policy($1,$2,$3,'active')", [T, E, id(300)]);
@@ -101,15 +111,19 @@ test("agent runtime controls in PostgreSQL", async t => {
 
     await t.test("auto-post executes exact matches under the limit and journals once", async () => {
       await asAgent(agentSession);
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(200)});
       const posted = (await db.query<{ v: { status: string; journal_id: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v;
       assert.equal(posted.status, "posted");
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(200)});
       const replay = (await db.query<{ v: { status: string; journal_id: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v;
       assert.equal(replay.journal_id, posted.journal_id);
       const approval = (await db.query<{ status: string; checker_basis: string; approver: string | null }>("select status,checker_basis,approver from public.approvals where id=$1", [id(200)])).rows[0];
       assert.deepEqual(approval, { status: "posted", checker_basis: "policy", approver: null });
       const receipt = (await db.query<{ id: string }>("select id from public.receipts where bank_line_id=$1", [id(50)])).rows[0].id;
-      await db.query("select public.propose_action($1,$2,$3,'allocation','1000.00','AI agent: allocate INV-1',$4,$5)", [T, E, id(201), id(40), receipt]);
+      await authorize(id(100),"propose_allocation",{invoice_id:id(40),receipt_id:receipt,amount:"1000.00",evidence:"allocate INV-1"});
+      await db.query("select public.propose_action($1,$2,$3,'allocation','1000.00',$6,$4,$5)", [T, E, id(201), id(40), receipt, `AI agent run ${id(100)}: allocate INV-1`]);
       // Daily limit is 2000.00 with 1000.00 used: the allocation (another 1000.00) still fits.
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(201)});
       assert.equal((await db.query<{ v: { status: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(201)])).rows[0].v.status, "posted");
       const open = (await db.query<{ v: { open_ar: string } }>("select public.agent_ar_overview($1,$2,$3) as v", [T, E, AS_OF])).rows[0].v.open_ar;
       assert.equal(open, "11900.50");
@@ -117,9 +131,13 @@ test("agent runtime controls in PostgreSQL", async t => {
 
     await t.test("over-limit and daily-cap breaches stay pending for a human", async () => {
       await asAgent(agentSession);
-      await db.query("select public.propose_action($1,$2,$3,'receipt','9000.00','AI agent: exact reference INV-4',null,null,$4,$5)", [T, E, id(202), id(52), id(31)]);
+      await authorize(id(100),"propose_receipt",{bank_line_id:id(52),customer_id:id(31),amount:"9000.00",evidence:"exact reference INV-4"});
+      await db.query("select public.propose_action($1,$2,$3,'receipt','9000.00',$6,null,null,$4,$5)", [T, E, id(202), id(52), id(31), `AI agent run ${id(100)}: exact reference INV-4`]);
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(202)});
       assert.match((await db.query<{ v: { reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(202)])).rows[0].v.reason, /per-item/);
-      await db.query("select public.propose_action($1,$2,$3,'receipt','400.00','AI agent: amount-only match INV-3',null,null,$4,$5)", [T, E, id(203), id(51), id(31)]);
+      await authorize(id(100),"propose_receipt",{bank_line_id:id(51),customer_id:id(31),amount:"400.00",evidence:"amount-only match INV-3"});
+      await db.query("select public.propose_action($1,$2,$3,'receipt','400.00',$6,null,null,$4,$5)", [T, E, id(203), id(51), id(31), `AI agent run ${id(100)}: amount-only match INV-3`]);
+      await authorize(id(100),"auto_post_if_policy_allows",{approval_id:id(203)});
       assert.equal((await db.query<{ v: { reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(203)])).rows[0].v.reason, "Daily auto-execution limit reached");
       const pending = await db.query("select id from public.approvals where status='pending'");
       assert.equal(pending.rows.length, 2);
@@ -138,7 +156,7 @@ test("agent runtime controls in PostgreSQL", async t => {
       const consoleData = (await db.query<{ v: { runs: { id: string; status: string; proposals: number; auto_posted: number; cost_usd: string }[] } }>("select public.agent_console($1,$2) as v", [T, E])).rows[0].v;
       assert.deepEqual(consoleData.runs.map(run => [run.status, run.proposals, run.auto_posted, run.cost_usd]), [["awaiting_approval", 4, 2, "0.001400"]]);
       const detail = (await db.query<{ v: { steps: { seq: number }[] } }>("select public.agent_run_detail($1,$2,$3,0) as v", [T, E, id(100)])).rows[0].v;
-      assert.equal(detail.steps.length, 1);
+      assert.ok(detail.steps.length > 1, "the SQL gate persists calls and the run records follow-on activity");
     });
 
     await t.test("schedules fan out once per day", async () => {
@@ -189,14 +207,23 @@ test("policy daily limit counts postings by posting date, not proposal date", as
     await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Cash application agent','queued','cash_application','schedule','2026-10-15')", [id(100), T, E]);
     const session = "c".repeat(64);
     await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), session]);
-    const asAgent = async () => { await db.exec("reset role"); await db.query("select set_config('o2c.session_hash',$1,false)", [session]); await db.exec("set role authenticated"); };
+    const asAgent = async () => { await db.exec("reset role"); await db.query("select set_config('o2c.session_hash',$1,false)", [session]); await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]); await db.exec("set role authenticated"); };
+    const authorize = async (tool: string, input: Record<string, unknown>) => {
+      const decision = (await db.query<{ decision: { allowed: boolean; block: unknown } }>(
+        "select public.agent_authorize_tool($1,$2,$3,$4,$5::jsonb) as decision", [T,E,id(100),tool,JSON.stringify(input)])).rows[0].decision;
+      assert.equal(decision.allowed,true,JSON.stringify(decision.block));
+    };
     await asAgent();
-    await db.query("select public.propose_action($1,$2,$3,'receipt','1000.00','AI agent: exact INV-A',null,null,$4,$5)", [T, E, id(200), id(50), id(30)]);
+    await authorize("propose_receipt",{bank_line_id:id(50),customer_id:id(30),amount:"1000.00",evidence:"exact INV-A"});
+    await db.query("select public.propose_action($1,$2,$3,'receipt','1000.00',$6,null,null,$4,$5)", [T, E, id(200), id(50), id(30), `AI agent run ${id(100)}: exact INV-A`]);
     // The first proposal was raised yesterday and is auto-posted today.
     await db.exec("reset role"); await db.query("update public.approvals set created_at=now()-interval '1 day' where id=$1", [id(200)]);
     await asAgent();
+    await authorize("auto_post_if_policy_allows",{approval_id:id(200)});
     assert.equal((await db.query<{ v: { status: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v.status, "posted");
-    await db.query("select public.propose_action($1,$2,$3,'receipt','500.00','AI agent: exact INV-B',null,null,$4,$5)", [T, E, id(201), id(51), id(30)]);
+    await authorize("propose_receipt",{bank_line_id:id(51),customer_id:id(30),amount:"500.00",evidence:"exact INV-B"});
+    await db.query("select public.propose_action($1,$2,$3,'receipt','500.00',$6,null,null,$4,$5)", [T, E, id(201), id(51), id(30), `AI agent run ${id(100)}: exact INV-B`]);
+    await authorize("auto_post_if_policy_allows",{approval_id:id(201)});
     const second = (await db.query<{ v: { status: string; reason?: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(201)])).rows[0].v;
     assert.deepEqual(second, { status: "awaiting_approval", reason: "Daily auto-execution limit reached" });
   } finally { await db.close(); }

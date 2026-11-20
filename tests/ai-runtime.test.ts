@@ -4,13 +4,16 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { buildWorkbookBytes } from "../src/modules/DashboardRenderer/browserExcel";
 import { describeWorkbook, readXlsx, XLSX_TYPE } from "../src/lib/xlsx-read";
 import { runLoop, type ModelCaller } from "../src/lib/ai/loop";
+import { runCopilot } from "../src/lib/ai/copilot";
 import { executeRun } from "../src/lib/ai/runner";
 import { toolDefinitions, tools, toolsFor, type ToolContext } from "../src/lib/ai/tools";
 import { usageCost } from "../src/lib/ai/pricing";
 import { aiConfig } from "../src/lib/ai/config";
+import { AiSpendError } from "../src/lib/ai/budget";
 import { arPackWorkbook, validateArPack } from "../src/lib/ar-pack";
 import type { SqlPool } from "../src/lib/postgres/transaction";
 import { migratedDatabase } from "./pg-helper";
+import { testSpend } from "./ai-spend-stub";
 
 // Test-only scripted model responses. Production code never fabricates model output.
 type Block = Anthropic.Beta.BetaContentBlock;
@@ -54,9 +57,30 @@ test("tool registry: schemas, actor scoping and pricing", () => {
   assert.ok(!toolsFor("copilot", true).some(entry => entry.name === "auto_post_if_policy_allows"));
   assert.ok(!toolsFor("agent", true).some(entry => entry.name === "read_uploaded_file"));
   assert.equal(usageCost("claude-opus-5-5", { input: 1_000_000, output: 100_000, cacheRead: 1_000_000, cacheWrite: 0 }), "6.200000");
+  assert.equal(usageCost("claude-sonnet-5-5", { input: 0, output: 0, cacheRead: 1_000_000, cacheWrite: 0 }), "0.100000");
+  assert.equal(usageCost("claude-opus-5-5-20251101", { input: 1, output: 0, cacheRead: 0, cacheWrite: 0 }), "0.000004");
   assert.equal(usageCost("unknown-model", { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }), null);
   assert.equal(aiConfig({}), null);
   assert.equal(aiConfig({ ANTHROPIC_API_KEY: "k", AI_AGENT_EFFORT: "bogus" })?.agentEffort, "medium");
+});
+
+test("Copilot exposes proposal tools only after per-turn opt-in and only for makers or admins", async () => {
+  const client = { rpc: async () => ({ data: null, error: null }) };
+  const config = { apiKey: "test-only", model: "claude-opus-5-5", agentEffort: "medium" as const, copilotEffort: "low" as const };
+  let offered: string[] = [];
+  const call: ModelCaller = async params => { offered = (params.tools ?? []).flatMap(entry => "name" in entry && typeof entry.name === "string" ? [entry.name] : []); return reply([say("Answer")], "end_turn"); };
+  const run = (role: string, allowProposals: boolean) => runCopilot({
+    client, config, call, spend: testSpend, tenant: "tenant", entity: "entity", asOf: "2026-10-15", role,
+    thread: "thread", message: "Please prepare a proposal", files: [], history: [], allowProposals,
+    readFile: undefined, emit: () => {},
+  });
+  await run("maker", false);
+  assert.ok(!offered.some(name => name.startsWith("propose_")), "makers are read-only unless they opt in for this turn");
+  await run("maker", true);
+  assert.ok(offered.includes("propose_receipt")); assert.ok(offered.includes("propose_collection_message"));
+  assert.ok(!offered.includes("auto_post_if_policy_allows"), "Copilot cannot auto-post");
+  await run("viewer", true);
+  assert.ok(!offered.some(name => name.startsWith("propose_")), "a client flag cannot elevate a viewer role");
 });
 
 test("loop validates tool input, reports refusals and caps turns", async () => {
@@ -72,25 +96,39 @@ test("loop validates tool input, reports refusals and caps turns", async () => {
     assert.match(String(results[1].content), /10\.00/);
     return reply([say("Open AR is AED 10.00.")], "end_turn");
   };
-  const result = await runLoop({ call, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 4, onEvent: async event => { events.push(event.type); } });
+  const result = await runLoop({ call, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 4, spend: testSpend, onEvent: async event => { events.push(event.type); } });
   assert.equal(result.status, "succeeded"); assert.equal(result.text, "Open AR is AED 10.00.");
   assert.deepEqual(events, ["tool_call", "tool_result", "tool_call", "tool_result", "message"]);
-  const refused = await runLoop({ call: async () => reply([], "refusal"), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
+  const refused = await runLoop({ call: async () => reply([], "refusal"), model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend, onEvent: async () => {} });
   assert.equal(refused.status, "failed");
-  const looping = await runLoop({ call: async () => reply([toolUse("x", "get_ar_overview", {})]), model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, onEvent: async () => {} });
+  const looping = await runLoop({ call: async () => reply([toolUse("x", "get_ar_overview", {})]), model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend, onEvent: async () => {} });
   assert.match(looping.error ?? "", /Stopped after 2/);
   let calls = 0;
-  const expired = await runLoop({ call: async () => { calls++; return reply([say("late")], "end_turn"); }, model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, deadline: Date.now() - 1, onEvent: async () => {} });
+  const expired = await runLoop({ call: async () => { calls++; return reply([say("late")], "end_turn"); }, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend, deadline: Date.now() - 1, onEvent: async () => {} });
   assert.deepEqual([expired.status, calls], ["failed", 0], "no model turn starts after the deadline");
   assert.match(expired.error ?? "", /time budget/);
+  const cancellation = new AbortController(); let rpcCalls = 0;
+  const cancellationContext: ToolContext = { ...context, client: { rpc: async () => { rpcCalls++; return { data: null, error: null }; } } };
+  const cancelled = await runLoop({ call: async () => { cancellation.abort(); return reply([toolUse("c", "propose_receipt", {})]); }, model: "claude-opus-5-5", effort: "low", system: "s", tools, context: cancellationContext, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend, signal: cancellation.signal, onEvent: async () => {} });
+  assert.equal(cancelled.status, "failed"); assert.match(cancelled.error ?? "", /cancelled/); assert.equal(rpcCalls, 0, "an aborted request must not start a tool");
   // A real request keeps the event loop alive; the stub holds a timer so the unref'd abort timer can fire.
   const hanging: ModelCaller = (_params, _onText, signal) => new Promise((_resolve, reject) => {
     const alive = setTimeout(() => reject(new Error("deadline not enforced")), 5000);
     signal?.addEventListener("abort", () => { clearTimeout(alive); reject(new Error("aborted")); });
   });
-  const aborted = await runLoop({ call: hanging, model: "m", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, deadline: Date.now() + 50, onEvent: async () => {} });
+  const aborted = await runLoop({ call: hanging, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend, deadline: Date.now() + 50, onEvent: async () => {} });
   assert.deepEqual([aborted.status, aborted.turns], ["failed", 1], "a turn still running at the deadline is aborted");
   assert.match(aborted.error ?? "", /time budget/);
+});
+
+test("model requests never reach the provider when the shared spend reservation is refused", async () => {
+  const context: ToolContext = { client: { rpc: async () => ({ data: null, error: null }) }, tenant: "t", entity: "e", asOf: "2026-10-15", actor: "copilot", findings: [] };
+  let reservations = 0; let providerCalls = 0;
+  const spend = { ...testSpend, reserve: async () => { reservations++; throw new AiSpendError("The workspace daily AI spend cap would be exceeded; this model request was not sent."); } };
+  const result = await runLoop({ call: async () => { providerCalls++; return reply([say("unreachable")], "end_turn"); }, model: "claude-opus-5-5", effort: "low", system: "s", tools,
+    context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend, onEvent: async () => {} });
+  assert.deepEqual([result.status, reservations, providerCalls], ["failed", 1, 0]);
+  assert.match(result.error ?? "", /spend cap would be exceeded/);
 });
 
 test("AR pack workbook keeps decimal strings", () => {
@@ -112,6 +150,7 @@ test("end-to-end agent run: claim, tools through RLS, policy auto-post, recorded
     await db.query("insert into public.tenants(id,name) values($1,'Tenant')", [id(10)]);
     await db.query("insert into public.memberships values($1,$2,'admin'),($1,$3,'approver'),($1,$4,'maker')", [id(10), id(1), id(2), id(3)]);
     await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Entity')", [id(20), id(10)]);
+    await db.query("insert into o2c_private.ai_spend_caps(tenant_id,daily_limit_usd,updated_by) values($1,100.00,$2)", [id(10), id(1)]);
     await db.query("insert into public.customers(id,tenant_id,entity_id,account,name) values($1,$2,$3,'C1','Customer One')", [id(30), id(10), id(20)]);
     await db.query("insert into public.invoices(id,tenant_id,entity_id,customer_id,number,issued_at,due_date,gross) values($1,$2,$3,$4,'INV-9','2026-09-01','2026-10-01',750.25)", [id(40), id(10), id(20), id(30)]);
     await db.query("insert into public.bank_lines(id,tenant_id,entity_id,reference,booked_at,direction,amount) values($1,$2,$3,'INV-9','2026-10-14','credit',750.25)", [id(50), id(10), id(20)]);
@@ -122,7 +161,8 @@ test("end-to-end agent run: claim, tools through RLS, policy auto-post, recorded
     let turn = 0;
     const call: ModelCaller = async params => {
       turn++;
-      assert.equal(params.model, "claude-opus-5-5"); assert.deepEqual(params.thinking, { type: "adaptive", display: "summarized" }); assert.equal(params.fallbacks, "default");
+      assert.equal(params.model, "claude-opus-5-5"); assert.equal(params.max_tokens, 4096); assert.deepEqual(params.thinking, { type: "adaptive", display: "summarized" });
+      assert.ok(!("fallbacks" in params), "provider fallback models are disabled so the reserved price cannot silently change");
       if (turn === 1) return reply([{ type: "thinking", thinking: "Check candidates first.", signature: "sig" } as unknown as Block, toolUse("t1", "get_cash_match_candidates", { limit: 50 })]);
       if (turn === 2) {
         const credit = lastToolResult(params).bank_credits[0];

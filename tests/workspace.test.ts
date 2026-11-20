@@ -28,6 +28,8 @@ test("every workspace renders honest empty states and visible authenticated scop
     assert.match(html,/Test tenant/);assert.match(html,/Test entity/);assert.match(html,/Verified snapshot/);
     assert.doesNotMatch(html,/demo123|Offline local data|1,250|Math.random/);
     if(view==="overview") assert.match(html,/Unavailable/);
+    if(view==="overview") { assert.match(html,/Portfolio analytics/); assert.match(html,/Source-backed chart data is unavailable/); assert.match(html,/Unapplied cash/); assert.match(html,/Pending approvals/); assert.doesNotMatch(html,/Power BI-style dashboard visuals/); }
+    if(view==="guide") { assert.match(html,/How to use this app/); assert.match(html,/different approver/i); assert.match(html,/independent checker commit/i); }
     if(view==="cashflow") assert.match(html,/No approved 13-week forecast/);
     if(view==="customers") assert.match(html,/No customers in this entity/);
     if(view==="reconciliation") assert.doesNotMatch(html,/Submit for approval/);

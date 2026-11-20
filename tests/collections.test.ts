@@ -29,6 +29,7 @@ test("collections and credit controls in PostgreSQL", async t => {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     const value = async <V = unknown>(sql: string, values: unknown[]) => (await db.query<{ v: V }>(sql, values)).rows[0].v;
@@ -88,8 +89,11 @@ test("collections and credit controls in PostgreSQL", async t => {
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Credit risk agent','queued','credit_risk','manual',current_date)", [id(100), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "a".repeat(64)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
+      await db.query("select public.agent_authorize_tool($1,$2,$3,'place_credit_hold',$4::jsonb)", [T,E,id(100),JSON.stringify({customer_id:C2,reason:"INV-4 is 20 days overdue"})]);
       await db.query("select public.place_customer_hold($1,$2,$3,$4,'INV-4 is 20 days overdue')", [T, E, id(80), C2]);
+      await db.query("select public.agent_authorize_tool($1,$2,$3,'place_credit_hold',$4::jsonb)", [T,E,id(100),JSON.stringify({customer_id:C2,reason:"INV-4 again"})]);
       assert.equal((await db.query<{ v: string }>("select public.place_customer_hold($1,$2,$3,$4,'INV-4 again') as v", [T, E, id(82), C2])).rows[0].v, id(80), "one pending proposal per customer");
       await assert.rejects(db.query("select public.decide_hold_proposal($1,$2,$3,'approved',null)", [T, E, id(80)]), /Forbidden/, "the agent cannot approve its own proposal");
       assert.equal((await db.query<{ v: string }>("select public.agent_finish_run($1,$2,$3,'succeeded','done',null,0,0,0,null,null) as v", [T, E, id(100)])).rows[0].v, "awaiting_approval");

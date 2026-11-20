@@ -28,12 +28,22 @@ that have not enrolled; mandatory organization-wide enrollment is not implemente
 Account security provides manual-key enrollment. Recovery requires reviewed
 administrator identity verification; automatic emails and recovery codes are absent.
 
-`DATABASE_URL` must use a non-owner role without SUPERUSER/BYPASSRLS. The application
-refuses privileged/owner connections. Every finance transaction switches locally
-to `authenticated` and resolves an opaque session hash. RLS, tenant/entity FKs,
-record ownership checks, independent maker/checker, versions and exact decimal
-limits remain in PostgreSQL. UI checks are supplemental. Application identifiers
-are fixed allowlists and all external values are SQL parameters.
+`DATABASE_URL` must use a non-owner role without SUPERUSER/BYPASSRLS or direct/transitive
+membership in `o2c_worker`. The application refuses privileged/owner connections. Every finance transaction switches locally
+to `authenticated`, resolves an opaque session hash, and sets a transaction-local
+tenant plus selected entity. Public-table RLS is forced, so table owners are subject
+to the same policies; tenant membership still allows deliberate entity switching
+within that tenant. RLS, tenant/entity FKs, record ownership checks, independent
+maker/checker, versions and exact decimal limits remain in PostgreSQL. UI checks are
+supplemental. Application identifiers are fixed allowlists and external values are
+SQL parameters.
+
+One `o2c_worker` role is required for reviewed cross-entity background tasks,
+operator provisioning, and the scoped current-user membership lookup. It is `NOLOGIN`,
+`NOSUPERUSER`, `BYPASSRLS`, is not granted to `o2c_app` or `o2c_runtime`, and owns only
+an explicit allowlist of scoped membership, worker and provisioning routines. The runtime can execute those routines through the limited app grants but
+cannot assume the worker role or directly bypass table policies. Never deploy a
+login/password for `o2c_worker`.
 
 ## Requests, uploads and abuse controls
 
@@ -92,7 +102,7 @@ logs so invitation query strings are not retained as plaintext credentials.
 | MFA | In-app enrollment, challenges, counter replay protection and AAL2 enforcement. |
 | CORS | No cross-origin API allowlist or permissive response headers. |
 | Browser token storage | HttpOnly cookies; no localStorage/sessionStorage tokens. |
-| RLS | Enabled and tested; runtime cannot bypass/own finance tables. |
+| RLS | Enabled, forced and tested; normal access is tenant/entity scoped. Runtime cannot bypass/own finance tables. |
 | Webhooks | No receiver exists; any new receiver needs signature verification. |
 | SSRF | No user URL fetch; Redis origin restrictions and verified database TLS. |
 | Source maps | Production browser maps disabled. |

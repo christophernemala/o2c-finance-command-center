@@ -4,12 +4,12 @@ import Decimal from "decimal.js";
 import { motion, useReducedMotion } from "framer-motion";
 import { chartRatio, type ForecastWeek } from "@/lib/cashflow";
 import { Money } from "./ui";
-export function CashflowTimeline({ weeks }: { weeks: ForecastWeek[] }) {
+export function CashflowTimeline({ weeks, scenario = false }: { weeks: ForecastWeek[]; scenario?: boolean }) {
   const [selected, setSelected] = useState(0); const reduced = useReducedMotion(); const active = weeks[selected];
   const maximum = weeks.reduce((max, week) => Decimal.max(max, new Decimal(week.opening).abs(), new Decimal(week.closing).abs()), new Decimal(0)).toFixed(2);
   if (!active) return null;
-  return <section aria-label="Interactive approved cash forecast" className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted">Select a week to inspect its preserved cash movements.</p><span className="data-scope">Approved source model · no inferred receipts</span></div>
+  return <section aria-label={scenario ? "Interactive cashflow what-if timeline" : "Interactive approved cash forecast"} className="space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted">Select a week to inspect its cash movements.</p><span className="data-scope">{scenario ? "What-if view · not approved" : "Approved source model · no inferred receipts"}</span></div>
     <svg viewBox="0 0 780 190" className="w-full" role="img" aria-label="Opening-to-closing weekly cash bridge; select a week using the buttons below">
       <line x1="0" y1="90" x2="780" y2="90" stroke="var(--muted)" strokeWidth="1"/>{weeks.map((week, index) => {
         const opening = 90 - chartRatio(week.opening, maximum) * 70, closing = 90 - chartRatio(week.closing, maximum) * 70, x = index * 60 + 10;

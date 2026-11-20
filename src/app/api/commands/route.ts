@@ -2,7 +2,8 @@ import { apiLimit } from "@/lib/api-limiter";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/postgres/server";
 import { positiveAmount } from "@/lib/money";
-import { previewImport, type ImportKind } from "@/lib/imports";
+import { previewImport, previewImportRows, type ImportKind } from "@/lib/imports";
+import { readXlsx } from "@/lib/xlsx-read";
 import { workspaces } from "@/types/workspace";
 import { sameOrigin, boundedFormRequest } from "@/lib/request-security";
 import { commandSchema } from "@/lib/validation";
@@ -11,7 +12,7 @@ import { createHash } from "node:crypto";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request.headers)) return new NextResponse("Forbidden", { status: 403 });
-  const body = await boundedFormRequest(request, 1100000);
+  const body = await boundedFormRequest(request, 9 * 1024 * 1024);
   if (body instanceof Response) return body;
   let form: FormData;
   try { form = await body.formData(); }
@@ -52,13 +53,24 @@ export async function POST(request: NextRequest) {
       }
       case "stage": {
         const kind = String(form.get("kind")); if (!["invoices", "bank_lines"].includes(kind)) throw new Error("Invalid import type");
-        const file = form.get("file"); if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".csv") || file.size > 1024 * 1024) throw new Error("Invalid file");
+        const file = form.get("file"); const filename = file instanceof File ? file.name.toLowerCase() : "";
+        const csv = filename.endsWith(".csv"); const xlsx = filename.endsWith(".xlsx");
+        if (!(file instanceof File) || (!csv && !xlsx) || file.size > (csv ? 1024 * 1024 : 8 * 1024 * 1024)) throw new Error("Invalid file");
+        const contentType = csv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         const bytes = new Uint8Array(await file.arrayBuffer());
-        const preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
+        let preview;
+        if (csv) preview = previewImport(new TextDecoder("utf-8",{fatal:true}).decode(bytes), kind as ImportKind);
+        else {
+          const sheets = readXlsx(bytes); const selected = String(form.get("sheet") ?? "");
+          const sheet = sheets.find(row => row.name === selected);
+          if (!sheet || sheet.truncated) throw new Error("Choose a complete worksheet within the safe import limit.");
+          if (sheet.contains_formulas) throw new Error("Formula cells are not accepted in finance source imports.");
+          preview = previewImportRows(sheet.rows, kind as ImportKind);
+        }
         if (preview.errors.length) { message = "invalid_import"; throw new Error("Import validation failed"); }
         const digest = createHash("sha256").update(bytes).digest("hex");
         try {
-          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, bytes, kind, rows: preview.rows });
+          const staged = await client.stageSource({ tenant, entity, userId: user.id, digest, name: file.name, contentType, bytes, kind, rows: preview.rows });
           result = { data: staged, error: null };
         } catch (error) {
           result = { data: null, error: { message: error instanceof Error ? error.message : "failed" } };
