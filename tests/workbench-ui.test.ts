@@ -1,13 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CollectionsView } from "../src/components/collections";
+import { AgentConsole } from "../src/components/agent-console";
+import { CopilotMascot } from "../src/components/copilot-mascot";
+import { Reports } from "../src/components/reports";
 import { Copilot, type PendingCopilotRequest } from "../src/components/copilot";
 import { copilotHistoryTools } from "../src/lib/ai/copilot-history";
 import { dailyPackWorkbook, validateDailyPack } from "../src/lib/daily-pack";
 import type { Snapshot } from "../src/types/workspace";
-import type { CustomerAccount } from "../src/types/collections";
+import type { CustomerAccount, WorklistRow } from "../src/types/collections";
 
 const base = { tenant_id: "00000000-0000-4000-8000-000000000010", entity_id: "00000000-0000-4000-8000-000000000020", role: "viewer", as_of: "2026-10-16" } as unknown as Snapshot;
 const empty = { worklist: [], account: null, emailReady: true, userId: "u1", callList: [], followUps: [], allFollowUps: false, licences: [], remarks: null };
@@ -31,6 +35,25 @@ test("call list shows the score and its reasons; viewers cannot log remarks", ()
   assert.match(approver, /Log remark/); assert.doesNotMatch(approver, /name="promise_amount" inputMode/, "approvers log calls but not promises");
   const maker = renderToStaticMarkup(createElement(CollectionsView, { data: { ...base, role: "maker" } as Snapshot, ...empty, account, remarks: { remarks: [], licences: [] } }));
   assert.match(maker, /name="promise_amount"/); assert.match(maker, /Record a licence/);
+});
+
+test("collection worklist and customer invoice tables are labelled keyboard-scrollable regions", () => {
+  const row: WorklistRow = { customer_id: "c1", customer: "Customer One", account: "C1", overdue: "100.00", open: "100.00", overdue_invoices: 1, oldest_days: 20,
+    disputed_invoices: 0, broken_promises: 0, open_promises: 0, on_hold: false, contacts: 1, credit_limit: null, last_message: null };
+  const invoiceAccount: CustomerAccount = { ...account, invoices: [{ id: "i1", number: "INV-1", issued_at: "2026-01-01", due_date: "2026-02-01", gross: "100.00", open: "100.00", days_overdue: 20, dispute: "none" }] };
+  const html = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "viewer" } as Snapshot, account: invoiceAccount, worklist: [row] }));
+  assert.match(html, /role="region" aria-label="Collections worklist" tabindex="0"/);
+  assert.match(html, /role="region" aria-label="Customer open invoices" tabindex="0"/);
+});
+
+test("AR report tables expose named keyboard-scrollable regions", () => {
+  const pack = { as_of: "2026-10-16", open_ar: "100.00", overdue_ar: "50.00", disputed_ar: "0.00", unapplied_cash: "0.00", open_invoice_count: 1, customer_count: 1,
+    unposted_bank_credits: 0, pending_approvals: 0, aging: [{ bucket: "1–30 days", amount: "50.00", invoices: 1 }],
+    top_debtors: [{ customer: "Customer One", account: "C1", open: "100.00", overdue: "50.00", oldest_due: "2026-10-01", invoices: 1 }],
+    dso_countback_days: "30", dso_basis: "countback", cei_30d_percent: "80.00", cei_basis: { period_start: "2026-09-16", period_end: "2026-10-16", beginning_ar: "100.00", credit_sales: "0.00", debit_notes: "0.00", credit_notes: "0.00", ending_ar: "100.00", ending_current_ar: "50.00" } };
+  const html = renderToStaticMarkup(createElement(Reports, { pack, tenant: base.tenant_id, entity: base.entity_id }));
+  assert.match(html, /role="region" aria-label="Aging by days past due" tabindex="0"/);
+  assert.match(html, /role="region" aria-label="Top debtors by open balance" tabindex="0"/);
 });
 
 test("daily pack keeps amounts as decimal strings and rejects malformed rows", () => {
@@ -106,13 +129,15 @@ test("Copilot answers show entity scope and truthful source and proposal states"
     budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
   }));
   assert.match(html, /Convergint Middle East &amp; Africa/);
-  assert.match(html, /1 data source checked/);
+  assert.match(html, /1 data tool completed/);
   assert.match(html, /Customer account/);
   assert.match(html, /Allocation proposal/);
   assert.match(html, /Approval required/);
   assert.match(html, /AR KPI pack/);
   assert.match(html, /Unavailable/);
-  assert.doesNotMatch(html, /3 data sources checked/);
+  assert.doesNotMatch(html, /3 data tools completed/);
+  assert.match(html, /role="status" aria-live="polite" aria-atomic="true"/);
+  assert.doesNotMatch(html, /class="copilot-transcript"[^>]*aria-live/);
   assert.match(html, /Allow pending proposals for this message/);
   assert.match(html, /It cannot approve or post/);
 });
@@ -130,4 +155,31 @@ test("Copilot welcome presents suggested finance questions without inventing led
   assert.match(html, /Ask about customers, invoices, cash or KPIs/);
   assert.match(html, /copilot-mascot/);
   assert.doesNotMatch(html, /AED [0-9]/);
+});
+
+test("multiple Copilot robo-cats use instance-unique SVG gradient IDs", () => {
+  const html = renderToStaticMarkup(createElement("div", null, createElement(CopilotMascot), createElement(CopilotMascot)));
+  const ids = [...html.matchAll(/id="(copilot-cat-[^"]+)"/g)].map(match => match[1]);
+  assert.equal(ids.length, 16);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.every(id => html.includes(`url(#${id}-`) || html.includes(`id="${id}"`)));
+});
+
+test("robo-cat motion is gentle and disabled under reduced-motion preferences", async () => {
+  const css = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.copilot-mascot svg[^\n]*animation: copilot-cat-float 5s ease-in-out infinite/);
+  assert.match(css, /\.copilot-cat-tail[^\n]*animation: copilot-tail-sway/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.copilot-mascot svg,[\s\S]*?animation: none !important/);
+});
+
+test("an admin can switch an existing daily agent schedule to manual without an AI budget", () => {
+  const html = renderToStaticMarkup(createElement(AgentConsole, {
+    data: { ...base, role: "admin" } as Snapshot,
+    consoleData: { agent_user: null, schedules: { cash_application: "daily" }, policies: [], auto_posted_today: "0.00", runs: [] },
+    aiReady: false, aiBudget: null, userId: "u1",
+  }));
+  const manual = /<button([^>]*)>Switch to manual<\/button>/.exec(html);
+  const schedule = /<button([^>]*)>Schedule daily<\/button>/.exec(html);
+  assert.ok(manual); assert.doesNotMatch(manual[1], /\bdisabled\b/);
+  assert.ok(schedule); assert.match(schedule[1], /\bdisabled\b/);
 });

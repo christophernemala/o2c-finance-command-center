@@ -30,6 +30,9 @@ test("working chart controls, aging selection and forecast week inspection", asy
     assert.ok(container.querySelector("circle"));
     await click(container.querySelector('button[title="Exact figures"]'));
     assert.match(container.querySelector("table")?.textContent ?? "", /Current.*0.10.*90\+ days.*0.20/);
+    assert.equal(container.querySelector('[role="region"][aria-label="Exact figures for Receivables aging"]')?.getAttribute("tabindex"), "0");
+    await click(container.querySelector('button[title="Matrix view"]'));
+    assert.equal(container.querySelector('[role="region"][aria-label="Distribution matrix for Receivables aging"]')?.getAttribute("tabindex"), "0");
 
     const row = (name: string, days: number): WorklistRow => ({ customer_id: name, customer: name, account: name, oldest_days: days, overdue: "0.10", open: "0.10", overdue_invoices: 1, disputed_invoices: 0, broken_promises: 0, open_promises: 0, on_hold: false, contacts: 1, credit_limit: null, last_message: null });
     await act(async () => { root.render(createElement(CollectionsExplorer, { rows: [row("Recent account", 20), row("Escalation account", 190)], tenant: "t", entity: "e", sidebar: null })); });
@@ -40,6 +43,22 @@ test("working chart controls, aging selection and forecast week inspection", asy
     assert.match(container.querySelector("tbody a")?.getAttribute("href") ?? "", /tenant=t&entity=e&customer=Escalation\+account/);
     await click(buttonNamed("Clear account filters"));
     assert.equal(container.querySelectorAll("tbody tr").length, 2);
+
+    const { WorkspaceSearch } = await import("../src/components/workspace-search");
+    await act(async () => { root.render(createElement(WorkspaceSearch, { tenant: "t", entity: "e", previewMode: true, items: [
+      { label: "Customer Copilot", detail: "Finance assistant", href: "/copilot", kind: "Workspace" },
+      { label: "AR reports", detail: "Finance reporting", href: "/reports", kind: "Workspace" },
+    ] })); });
+    const search = container.querySelector("input[role=combobox]") as HTMLInputElement | null;
+    assert.ok(search);
+    const setSearchValue = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, "value")?.set;
+    assert.ok(setSearchValue);
+    await act(async () => { setSearchValue.call(search, "finance"); search.dispatchEvent(new win.Event("input", { bubbles: true }) as unknown as Event); });
+    assert.equal(container.querySelectorAll('[role="option"]').length, 2);
+    assert.equal(container.querySelector('[role="option"][aria-selected="true"]')?.textContent?.includes("Customer Copilot"), true);
+    await act(async () => { search.dispatchEvent(new win.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }) as unknown as Event); });
+    assert.equal(container.querySelector('[role="option"][aria-selected="true"]')?.textContent?.includes("AR reports"), true);
+    assert.equal(search.getAttribute("aria-activedescendant"), "search-result-1");
 
     const weeks = ["2026-10-01", "2026-10-08"].map((date, i) => ({ starts_on: date, ends_on: date, opening: "0.10", incoming: "0.20", outgoing: "0.00", operating_net: "0.20", investing_net: "0.00", financing_net: "0.00", net: "0.20", closing: i ? "0.50" : "0.30" }));
     await act(async () => { root.render(createElement(CashflowTimeline, { weeks })); });

@@ -197,7 +197,7 @@ function CustomerPanel({ data, account, userId, remarks, holdProposal }: { data:
       </section>
 
       <section aria-labelledby="open-h"><h3 id="open-h" className="font-semibold">Open invoices</h3>
-        <div className="mt-2 overflow-auto"><table><caption className="sr-only">Open invoices</caption><thead><tr><th scope="col">Invoice</th><th scope="col">Due</th><th scope="col" className="text-right">Open</th></tr></thead><tbody>
+        <div className="mt-2 overflow-auto" role="region" aria-label="Customer open invoices" tabIndex={0}><table><caption className="sr-only">Open invoices</caption><thead><tr><th scope="col">Invoice</th><th scope="col">Due</th><th scope="col" className="text-right">Open</th></tr></thead><tbody>
           {account.invoices.map(invoice => <tr key={invoice.id}><td className="money">{invoice.number}{invoice.dispute === "open" && <> <Badge value="review" label="Dispute"/></>}</td><td>{ddmmyyyy(invoice.due_date)}{invoice.days_overdue > 0 && <p className="text-xs text-muted">{invoice.days_overdue}d overdue</p>}</td><td className="money text-right"><Money value={invoice.open}/></td></tr>)}
         </tbody></table></div>
       </section>

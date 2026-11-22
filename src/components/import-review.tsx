@@ -65,7 +65,7 @@ export function ImportReview({ tenant, entity }: { tenant: string; entity: strin
       <p className="font-medium">{preview.rows.length} valid rows · {preview.errors.length} rejected rows · control total <Money value={preview.total}/></p>
       <p className="mt-2 text-sm text-muted">Preview only. No records have been committed. {sheets.length ? `Worksheet: ${sheetName}.` : ""} An independent reviewer must still approve the staged batch.</p>
       {!!preview.errors.length && <ul className="mt-3 space-y-1 text-sm text-danger">{preview.errors.slice(0,20).map(message => <li key={message}>{message}</li>)}{preview.errors.length>20 && <li>{preview.errors.length-20} additional rejected rows. Correct the file before staging.</li>}</ul>}
-      <details className="mt-3"><summary className="font-medium">Inspect first five validated rows</summary><pre className="mt-3 overflow-auto text-xs">{JSON.stringify(preview.rows.slice(0,5),null,2)}</pre></details>
+      <details className="mt-3"><summary className="font-medium">Inspect first five validated rows</summary><pre role="region" aria-label="First five validated import rows" tabIndex={0} className="mt-3 max-h-64 overflow-auto text-xs">{JSON.stringify(preview.rows.slice(0,5),null,2)}</pre></details>
     </div>}
     <button className="button" disabled={!preview || reading || preview.errors.length>0 || !preview.rows.length}>Stage for independent review</button>
   </MutationForm>;

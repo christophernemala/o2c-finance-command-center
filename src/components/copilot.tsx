@@ -36,7 +36,7 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
 }) {
   const [turns, setTurns] = useState<Turn[]>(() => pending ? [...initial, { role: "assistant", content: "This Copilot request was interrupted or may still be running. Check its saved status below; no duplicate model call will be started.", error: true, retryable: true, retry: pending }] : initial);
   const [draft, setDraft] = useState(""); const [busy, setBusy] = useState(false);
-  const [files, setFiles] = useState<{ id: string; name: string }[]>([]); const [uploading, setUploading] = useState(false); const [notice, setNotice] = useState("");
+  const [files, setFiles] = useState<{ id: string; name: string }[]>([]); const [uploading, setUploading] = useState(false); const [notice, setNotice] = useState(""); const [announcement, setAnnouncement] = useState("");
   const [recovering, setRecovering] = useState(!!pending);
   const [allowProposals, setAllowProposals] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null); const end = useRef<HTMLDivElement>(null);
@@ -44,14 +44,14 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
   const update = (change: (turn: Turn) => Turn) => setTurns(current => current.length ? [...current.slice(0, -1), change(current[current.length - 1])] : current);
 
   async function send(request: PendingCopilotRequest) {
-    setBusy(true); setNotice("");
+    setBusy(true); setNotice(""); setAnnouncement("Copilot is preparing an answer.");
     update(turn => ({ ...turn, content: "", error: false, retryable: false, retry: request, tools: [] }));
     try {
       const response = await fetch("/api/copilot", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tenant, entity, thread, requestId: request.requestId, message: request.message, files: request.files, allowProposals: request.allowProposals }) });
       if (!response.ok || !response.body) {
         const body = await response.json().catch(() => ({ error: "The Copilot is unavailable." }));
-        update(turn => ({ ...turn, content: body.error ?? "The Copilot is unavailable.", error: true, retryable: true, retry: request })); return;
+        update(turn => ({ ...turn, content: body.error ?? "The Copilot is unavailable.", error: true, retryable: true, retry: request })); setAnnouncement(body.error ?? "The Copilot is unavailable."); return;
       }
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
       while (true) {
@@ -63,13 +63,13 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
           const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; tool?: string; status?: ToolStatus; text?: string; message?: string };
           if (event.type === "text") update(turn => ({ ...turn, content: turn.content + event.delta }));
           if (event.type === "tool") update(turn => ({ ...turn, content: turn.content && !turn.content.endsWith("\n") ? `${turn.content}\n` : turn.content, tools: [...(turn.tools ?? []).filter(row => !(row.tool === event.tool && row.status === "running")), { tool: event.tool!, status: event.status! }] }));
-          if (event.type === "done") { setRecovering(false); update(turn => ({ ...turn, content: event.text ?? turn.content, error: false, retryable: false })); }
-          if (event.type === "error") { setRecovering(false); update(turn => ({ ...turn, content: event.message ?? "Something went wrong.", error: true, retryable: true, retry: request })); }
+          if (event.type === "done") { setRecovering(false); update(turn => ({ ...turn, content: event.text ?? turn.content, error: false, retryable: false })); setAnnouncement(event.text ?? "Copilot answer ready."); }
+          if (event.type === "error") { setRecovering(false); update(turn => ({ ...turn, content: event.message ?? "Something went wrong.", error: true, retryable: true, retry: request })); setAnnouncement(event.message ?? "Copilot could not complete the request."); }
         }
         end.current?.scrollIntoView({ block: "end" });
       }
     } catch {
-      update(turn => ({ ...turn, content: "The connection was interrupted. Retry this same request to retrieve its result; the server will not start a duplicate model call.", error: true, retryable: true, retry: request }));
+      update(turn => ({ ...turn, content: "The connection was interrupted. Retry this same request to retrieve its result; the server will not start a duplicate model call.", error: true, retryable: true, retry: request })); setAnnouncement("The connection was interrupted. Check the same request to retrieve its saved result.");
     } finally { setBusy(false); }
   }
   async function ask(question: string) {
@@ -98,12 +98,13 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
       ? `The daily AI budget is exhausted for ${budget.date} (Asia/Dubai).` : `Daily budget: USD ${budget.daily_limit_usd} · estimated used: USD ${budget.spent_usd} · held: USD ${budget.reserved_usd} · remaining: USD ${budget.remaining_usd} (${budget.date}, Asia/Dubai).`;
 
   return <section aria-label="Customer Copilot" className={`copilot-shell${busy ? " is-thinking" : ""}`}>
+    <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
     <header className="copilot-topbar">
       <div className="copilot-identity"><span className="copilot-spark"><Sparkles size={18} aria-hidden="true"/></span><div><span className="copilot-eyebrow">O2C FINANCE ASSISTANT</span><h2>Customer Copilot</h2></div></div>
       <div className="copilot-topbar-badges"><span className={`copilot-state ${aiAllowed ? "is-ready" : "is-setup"}`}><span aria-hidden="true" className="copilot-state-dot"/>{aiAllowed ? "AI available" : "Setup required"}</span><span className="copilot-scope"><ShieldCheck size={14} aria-hidden="true"/> {entityName}</span></div>
     </header>
 
-    <div className="copilot-transcript" aria-live="polite" aria-relevant="additions text">
+    <div className="copilot-transcript">
       {!turns.length && <div className="copilot-welcome">
         <div className="copilot-hero">
           <div className="copilot-hero-copy"><span className="copilot-hero-kicker"><Sparkles size={13} aria-hidden="true"/> ENTITY-SCOPED FINANCE SEARCH</span>
@@ -122,15 +123,15 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
 
       {!!turns.length && <div className="copilot-messages">{turns.map((turn, index) => {
         const isLast = index === turns.length - 1; const toolRows = turn.tools ?? [];
-        const verifiedCount = toolRows.filter(row => row.status === "ok" && !proposalTools.has(row.tool)).length;
+        const completedCount = toolRows.filter(row => row.status === "ok" && !proposalTools.has(row.tool)).length;
         return turn.role === "user" ? <div key={index} className="copilot-user-row"><div className="copilot-user-message">{turn.content}</div></div> :
           <article key={index} className={`copilot-assistant-row${turn.error ? " has-error" : ""}`}>
             <CopilotMascot className="copilot-message-mascot" thinking={busy && isLast}/>
             <div className="copilot-answer">
-              <div className="copilot-answer-header"><span>O2C Copilot</span>{verifiedCount > 0 && <span className="copilot-verified-count"><Check size={12} aria-hidden="true"/> {verifiedCount} data {verifiedCount === 1 ? "source" : "sources"} checked</span>}{busy && isLast && <span className="copilot-thinking-label"><span className="pulse-dot"/> Working</span>}</div>
-              {toolRows.length > 0 && <ul className="copilot-source-list" aria-label="Data sources and actions used by this answer">{toolRows.map((row, toolIndex) => {
+              <div className="copilot-answer-header"><span>O2C Copilot</span>{completedCount > 0 && <span className="copilot-verified-count"><Check size={12} aria-hidden="true"/> {completedCount} data {completedCount === 1 ? "tool" : "tools"} completed</span>}{busy && isLast && <span className="copilot-thinking-label"><span className="pulse-dot"/> Working</span>}</div>
+              {toolRows.length > 0 && <ul className="copilot-source-list" aria-label="Finance tools and actions used by this answer">{toolRows.map((row, toolIndex) => {
                 const proposal = proposalTools.has(row.tool); const Icon = row.status === "running" ? Wrench : row.status === "error" ? TriangleAlert : proposal ? ShieldCheck : Check;
-                const state = row.status === "running" ? "Checking" : row.status === "error" ? "Unavailable" : proposal ? "Approval required" : "Checked";
+                const state = row.status === "running" ? "Running" : row.status === "error" ? "Unavailable" : proposal ? "Approval required" : "Completed";
                 return <li key={`${row.tool}-${toolIndex}`} className={`copilot-source-chip status-${row.status}${proposal ? " is-proposal" : ""}`}><Icon size={13} aria-hidden="true"/><span>{toolLabel(row.tool)}</span><span className="copilot-source-state">{state}</span></li>;
               })}</ul>}
               {!turn.error && turn.content ? <p className="copilot-answer-text">{turn.content}</p> : !turn.error && busy && isLast ? <p className="copilot-answer-text copilot-answer-loading"><Spinner size={14}/>Checking scoped finance records…</p> : null}

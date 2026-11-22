@@ -34,7 +34,7 @@ async function fixture() {
 const scope = (entity = entityA) => ({ p_tenant: tenant, p_entity: entity });
 const status = (value: unknown) => value as AiSpendStatus;
 
- test("daily AI cap reserves worst-case spend atomically across entities and fails closed", async () => {
+test("daily AI cap reserves worst-case spend atomically across entities and fails closed", async () => {
   const f = await fixture();
   try {
     const admin = f.client(1);
@@ -75,6 +75,33 @@ const status = (value: unknown) => value as AiSpendStatus;
     await assert.rejects(aiSpendController(admin, tenant, entityA, id(102)).reserve({ ...call, call: 1 }), /paused/);
     const viewer = await f.client(3).rpc("set_ai_spend_cap", { ...scope(), p_daily_cap: "50" });
     assert.match(viewer.error?.message ?? "", /Forbidden/);
+  } finally { await f.close(); }
+});
+
+test("AI settlement rejects usage beyond output-token and dollar reservations and keeps the holds", async () => {
+  const f = await fixture();
+  try {
+    const admin = f.client(1);
+    assert.equal((await admin.rpc("set_ai_spend_cap", { ...scope(), p_daily_cap: "20.000000" })).error, null);
+    const controller = aiSpendController(admin, tenant, entityA, id(300));
+    await controller.reserve({ call: 1, model: "claude-opus-5-5", inputBytes: 1000, maxOutputTokens: 4096 });
+    const tooManyOutput = await admin.rpc("settle_ai_spend", { ...scope(), p_request: id(300), p_call: 1, p_model: "claude-opus-5-5",
+      p_input_tokens: 1000, p_output_tokens: 4097, p_cache_read_tokens: 0, p_cache_write_tokens: 0 });
+    assert.match(tooManyOutput.error?.message ?? "", /output usage exceeded reservation/i);
+
+    await controller.reserve({ call: 2, model: "claude-opus-5-5", inputBytes: 1, maxOutputTokens: 1 });
+    const tooExpensive = await admin.rpc("settle_ai_spend", { ...scope(), p_request: id(300), p_call: 2, p_model: "claude-opus-5-5",
+      p_input_tokens: 2_000_000, p_output_tokens: 1, p_cache_read_tokens: 0, p_cache_write_tokens: 0 });
+    assert.match(tooExpensive.error?.message ?? "", /actual usage exceeded reservation/i);
+    await controller.reserve({ call: 3, model: "claude-opus-5-5", inputBytes: 1, maxOutputTokens: 1 });
+    const missingUsage = await admin.rpc("settle_ai_spend", { ...scope(), p_request: id(300), p_call: 3, p_model: "claude-opus-5-5",
+      p_input_tokens: null, p_output_tokens: 1, p_cache_read_tokens: 0, p_cache_write_tokens: 0 });
+    assert.match(missingUsage.error?.message ?? "", /invalid AI usage/i);
+    const current = await admin.rpc("ai_spend_status", scope());
+    assert.equal(current.error, null);
+    assert.equal(status(current.data).spent_usd, "0.000000");
+    assert.equal(status(current.data).open_reservations, 3);
+    assert.ok(Number(status(current.data).reserved_usd) > 0);
   } finally { await f.close(); }
 });
 

@@ -49,7 +49,7 @@ export function CustomersView({ data, breakdown, segments, query = "" }: { data:
       <nav aria-label="Group by" className="flex flex-wrap gap-2 px-6 pt-4">{(["category", "region", "customer"] as const).map(dimension =>
         <Link key={dimension} href={link(dimension, dimension === "customer" ? current : {})} aria-current={breakdown.dimension === dimension ? "page" : undefined}
           className="rounded-full border border-line px-3 py-1 text-sm aria-[current=page]:border-ink aria-[current=page]:bg-ink aria-[current=page]:text-surface">By {dimensionLabel[dimension].toLowerCase()}</Link>)}</nav>
-      {visibleRows.length ? <div className="mt-4 overflow-auto"><table><caption className="sr-only">Outstanding by {dimensionLabel[breakdown.dimension]}{query ? ` matching ${query}` : ""}</caption>
+      {visibleRows.length ? <div className="mt-4 overflow-auto" role="region" aria-label={`Outstanding balances by ${dimensionLabel[breakdown.dimension]}`} tabIndex={0}><table><caption className="sr-only">Outstanding by {dimensionLabel[breakdown.dimension]}{query ? ` matching ${query}` : ""}</caption>
         <thead><tr><th scope="col">{dimensionLabel[breakdown.dimension]}</th><th scope="col" className="text-right">Open</th>{buckets.map(([key, label]) => <th key={key} scope="col" className="text-right">{label}</th>)}<th scope="col" className="text-right">Share</th></tr></thead>
         <tbody>{visibleRows.map(row => { const href = drill(row.label); const share = normalizedQuery ? (new Decimal(row.open).div(visibleTotal.open || "1").mul(100).toFixed(2)) : row.share_percent; return <tr key={row.customer_id ?? row.label}>
           <td>{href ? <Link className="font-medium text-link underline-offset-2 hover:underline" href={href}>{row.label}</Link>

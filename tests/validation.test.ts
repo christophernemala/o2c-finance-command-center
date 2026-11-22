@@ -11,5 +11,13 @@ test("server schemas reject unbounded credentials, fractional cents, unsupported
   assert.equal(commandSchema.safeParse({ ...base, intent: "close_invoice" }).success, false);
   assert.equal(commandSchema.safeParse({ ...scope, id: scope.entity, intent: "execute", version: "2" }).success, false);
   assert.equal(commandSchema.safeParse({ ...scope, id: scope.entity, intent: "execute", version: "2", acknowledge: "yes" }).success, true);
-  assert.equal(commandSchema.safeParse({ ...scope, intent: "stage", kind: "invoices", file: new File(["x"], "unsafe.xlsx") }).success, false);
+});
+test("stage command accepts only supported extensions within CSV and XLSX size boundaries", () => {
+  const stage = (name: string, size: number) => commandSchema.safeParse({ ...scope, intent: "stage", kind: "invoices", file: new File([new Uint8Array(size)], name) }).success;
+  assert.equal(stage("source.csv", 1024 * 1024), true);
+  assert.equal(stage("source.csv", 1024 * 1024 + 1), false);
+  assert.equal(stage("source.xlsx", 8 * 1024 * 1024), true);
+  assert.equal(stage("source.xlsx", 8 * 1024 * 1024 + 1), false);
+  assert.equal(stage("source.txt", 1), false);
+  assert.equal(stage("unsafe.xlsx", 1), true, "schema checks extension and bounds; the server parser validates workbook structure before staging");
 });

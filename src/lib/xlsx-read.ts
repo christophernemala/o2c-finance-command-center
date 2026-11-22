@@ -43,7 +43,7 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
       const values: string[] = [];
       for (const cell of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const attributes = cell[1]; const body = cell[2] ?? "";
-        if (/<f(?:\s[^>]*)?>/.test(body)) containsFormulas = true;
+        if (/<f(?:\s[^>]*)?(?:\/>|>[\s\S]*?<\/f\s*>)/.test(body)) containsFormulas = true;
         const index = columnIndex(/\br="([A-Z]+\d+)"/.exec(attributes)?.[1] ?? ""); const column = index < 0 ? values.length : index;
         if (column >= MAX_COLUMNS) { if (decode(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? "") || text(body)) wide = true; continue; }
         const type = /\bt="([^"]+)"/.exec(attributes)?.[1];

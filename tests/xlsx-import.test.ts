@@ -26,3 +26,16 @@ test("XLSX parser flags cached formula cells so import review can reject stale c
   assert.equal(parsed.contains_formulas, true);
   assert.equal(parsed.truncated, undefined, "formula presence is not misreported as truncation");
 });
+test("server workbook parser rejects arbitrary bytes despite a valid .xlsx filename", () => {
+  assert.throws(() => readXlsx(new Uint8Array([0x78, 0x79, 0x7a])), /zip|central directory|file|invalid/i);
+});
+test("XLSX parser detects self-closing formula tags and workbook export rejects XML 1.0 controls", () => {
+  const files = unzipSync(buildWorkbookBytes({ "Bank statement": [row] }));
+  const path = "xl/worksheets/sheet1.xml";
+  const source = strFromU8(files[path]);
+  const cell = /<c r="D3"[^>]*>.*?<\/c>/.exec(source)?.[0];
+  assert.ok(cell, "fixture has an amount cell");
+  files[path] = strToU8(source.replace(cell, '<c r="D3" t="str"><f t="shared" ref="D3"/><v>1</v></c>'));
+  assert.equal(readXlsx(zipSync(files))[0].contains_formulas, true);
+  assert.throws(() => buildWorkbookBytes({ "Bank statement": [{ reference: "BANK\u0001-001" }] }), /cannot store/i);
+});

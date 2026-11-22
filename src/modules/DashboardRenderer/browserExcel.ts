@@ -55,6 +55,14 @@ function columnName(index: number) {
 }
 
 function escapeXml(value: string) {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0)!;
+    const allowed = codePoint === 0x9 || codePoint === 0xa || codePoint === 0xd
+      || (codePoint >= 0x20 && codePoint <= 0xd7ff)
+      || (codePoint >= 0xe000 && codePoint <= 0xfffd)
+      || (codePoint >= 0x10000 && codePoint <= 0x10ffff);
+    if (!allowed) throw new Error("Workbook text contains a character that Excel cannot store.");
+  }
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 

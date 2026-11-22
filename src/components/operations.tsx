@@ -45,7 +45,7 @@ export function OperationsOverview({ data, overview, edges, incidents, edge, fai
     {edge && <Panel title={`Context comparison · ${agentName[edge.agent]} → ${edge.tool}`} subtitle="Required fields from the tool's schema against the input of the most recent failed call.">
       {failures.length ? <div className="space-y-4 p-6">
         <div role="note" className="rounded-lg border-l-4 border-danger bg-danger-soft p-4 text-sm"><p className="font-medium">{failures.length} failed call{failures.length === 1 ? "" : "s"} in the window</p><p className="mt-1 break-words">{failures[0].error}</p></div>
-        <div className="overflow-auto"><table><caption className="sr-only">Field comparison</caption><thead><tr><th scope="col">Field · expected</th><th scope="col">Sent</th><th scope="col">Status</th></tr></thead><tbody>
+        <div className="overflow-auto" role="region" aria-label="Agent input and result field comparison" tabIndex={0}><table><caption className="sr-only">Field comparison</caption><thead><tr><th scope="col">Field · expected</th><th scope="col">Sent</th><th scope="col">Status</th></tr></thead><tbody>
           {fields.map(field => <tr key={field.name}><td><span className="money text-sm">{field.name}</span><p className="text-xs text-muted">{field.expected}{field.required ? "" : " · optional"}</p></td>
             <td className="max-w-xs break-words text-sm">{field.sent ?? "—"}</td><td><Badge value={field.status === "match" ? "posted" : field.status === "missing" ? "failed" : "review"} label={field.status}/></td></tr>)}
         </tbody></table></div>
@@ -73,7 +73,7 @@ function AgentMap({ edges, href, selected }: { edges: Edge[]; href: (agent: Agen
   const ay = (agent: AgentKind) => top + agents.indexOf(agent) * rowA + (height - top * 2 - agents.length * rowA) / 2 + 22;
   const ty = (tool: string) => top + tools.indexOf(tool) * rowT + (height - top * 2 - tools.length * rowT) / 2 + 18;
   const max = Math.max(...edges.map(edge => edge.calls));
-  return <div className="overflow-x-auto p-4"><svg viewBox={`0 0 760 ${height}`} className="h-auto w-full min-w-[620px]" role="group" aria-label="Agent to tool handoffs">
+  return <div className="overflow-x-auto p-4" role="region" aria-label="Agent to tool handoff diagram" tabIndex={0}><svg viewBox={`0 0 760 ${height}`} className="h-auto w-full min-w-[620px]" role="group" aria-label="Agent to tool handoffs">
     {edges.map((edge, index) => {
       const y1 = ay(edge.agent), y2 = ty(edge.tool);
       // Stack labels when several agents call the same tool, so they never overlap.

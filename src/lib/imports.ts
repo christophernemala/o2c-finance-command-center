@@ -11,8 +11,8 @@ export interface ImportPreview { rows: Record<string, string>[]; total: string; 
 export function parseCsv(text: string): string[][] {
   if (new TextEncoder().encode(text).byteLength > 1024 * 1024) throw new Error("File limit is 1 MB.");
   text = text.replace(/^\uFEFF/, "");
-  const rows: string[][] = []; let row: string[] = []; let cell = ""; let quoted = false; let closed = false;
-  const flushCell = () => { row.push(cell.trim()); cell = ""; closed = false; };
+  const rows: string[][] = []; let row: string[] = []; let cell = ""; let quoted = false; let closed = false; let cellQuoted = false;
+  const flushCell = () => { row.push(cellQuoted ? cell : cell.trim()); cell = ""; closed = false; cellQuoted = false; };
   const flushRow = () => { flushCell(); if (row.some(Boolean)) rows.push(row); row = []; if (rows.length > 2001) throw new Error("Row limit is 2,000."); };
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -22,7 +22,7 @@ export function parseCsv(text: string): string[][] {
       else cell += char;
     } else if (char === '"') {
       if (cell || closed) throw new Error("Unexpected quote in CSV.");
-      quoted = true;
+      quoted = true; cellQuoted = true;
     } else if (char === ",") flushCell();
     else if (char === "\n" || char === "\r") { if (char === "\r" && text[i + 1] === "\n") i++; flushRow(); }
     else { if (closed) throw new Error("Unexpected content after quoted CSV field."); cell += char; }
@@ -42,7 +42,7 @@ export function previewImport(text: string, kind: ImportKind): ImportPreview {
 }
 /** Validate CSV/XLSX worksheet rows through the same exact source schema. */
 export function previewImportRows(input: string[][], kind: ImportKind): ImportPreview {
-  let grid = input.map(row => row.map(value => String(value ?? "").trim()));
+  let grid = input.map(row => row.map(value => String(value ?? "")));
   const expected: readonly string[] = columns[kind];
   const hasExpectedHeaders = (row: string[] | undefined) => !!row
     && row.length === expected.length && new Set(row).size === row.length && expected.every(key => row.includes(key));
@@ -59,7 +59,7 @@ export function previewImportRows(input: string[][], kind: ImportKind): ImportPr
     try {
       if (values.length !== headers.length) throw new Error("Column count differs from the header.");
       const row = Object.fromEntries(headers.map((key, i) => [key, values[i]]));
-      if (values.some(value => !value || value.length > 200)) throw new Error("All fields are required; maximum length is 200.");
+      if (values.some(value => !value.trim() || value.length > 200)) throw new Error("All fields are required; maximum length is 200.");
       if (row.currency !== "AED") throw new Error("Currency must be AED.");
       row.amount = positiveAmount(row.amount);
       for (const key of kind === "invoices" ? ["issued_at", "due_date"] : ["booked_at"]) {

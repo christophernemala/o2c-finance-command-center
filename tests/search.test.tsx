@@ -1,4 +1,5 @@
 import React from "react"; void React;
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
@@ -24,4 +25,11 @@ test("global workspace search has a labelled combobox, keyboard shortcut and bou
   assert.match(html, /role="combobox"/); assert.match(html, /Search O2C workspaces and records/);
   assert.match(html, /Search customers, invoices, reports/); assert.match(html, /⌘ K/);
   assert.match(html, /aria-expanded="false"/);
+});
+
+test("workspace search preserves visible focus and selected-result cues", async () => {
+  const css = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.workspace-search > input:focus\s*\{[^}]*outline:/);
+  assert.match(css, /\.workspace-search-results > a:focus-visible\s*\{[^}]*outline:/);
+  assert.match(css, /\.workspace-search-results > a:hover, \.workspace-search-results > a\[aria-selected="true"\]/);
 });
