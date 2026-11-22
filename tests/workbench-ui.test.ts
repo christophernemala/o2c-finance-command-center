@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CollectionsView } from "../src/components/collections";
 import { Copilot, type PendingCopilotRequest } from "../src/components/copilot";
+import { copilotHistoryTools } from "../src/lib/ai/copilot-history";
 import { dailyPackWorkbook, validateDailyPack } from "../src/lib/daily-pack";
 import type { Snapshot } from "../src/types/workspace";
 import type { CustomerAccount } from "../src/types/collections";
@@ -78,4 +79,55 @@ test("a reloaded Copilot thread can check its persisted request without duplicat
   assert.match(html, /Retry\/check this same request \(no duplicate model call\)/);
   assert.match(html, /Check the pending Copilot request before asking another question/);
   assert.match(html, /Daily budget: USD 1\.000000/);
+});
+
+test("saved Copilot traces expose only validated tool outcomes, never tool inputs", () => {
+  assert.deepEqual(copilotHistoryTools([
+    { tool: "get_ar_overview", ok: true, input: { internal: "not for source badges" } },
+    { tool: "list_invoices", ok: false, input: { search: "private" } },
+    { tool: "bad", ok: "true" }, null, "invalid",
+  ]), [
+    { tool: "get_ar_overview", status: "ok" },
+    { tool: "list_invoices", status: "error" },
+  ]);
+});
+
+test("Copilot answers show entity scope and truthful source and proposal states", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Convergint Middle East & Africa", thread: "00000000-0000-4000-8000-000000000200",
+    initial: [
+      { role: "user", content: "Summarise the account." },
+      { role: "assistant", content: "Here is the saved result.", tools: [
+        { tool: "get_customer_account", status: "ok" },
+        { tool: "propose_allocation", status: "ok" },
+        { tool: "get_ar_kpi_pack", status: "error" },
+      ] },
+    ], aiReady: true, canWrite: true,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /Convergint Middle East &amp; Africa/);
+  assert.match(html, /1 data source checked/);
+  assert.match(html, /Customer account/);
+  assert.match(html, /Allocation proposal/);
+  assert.match(html, /Approval required/);
+  assert.match(html, /AR KPI pack/);
+  assert.match(html, /Unavailable/);
+  assert.doesNotMatch(html, /3 data sources checked/);
+  assert.match(html, /Allow pending proposals for this message/);
+  assert.match(html, /It cannot approve or post/);
+});
+
+test("Copilot welcome presents suggested finance questions without inventing ledger results", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Selected UAE entity", thread: "00000000-0000-4000-8000-000000000200",
+    initial: [], aiReady: true, canWrite: false,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /Receivables answers, with the evidence behind them/);
+  assert.match(html, /Try asking/);
+  assert.match(html, /Which bank credits could match invoices\?/);
+  assert.match(html, /Scoped to Selected UAE entity/);
+  assert.match(html, /Ask about customers, invoices, cash or KPIs/);
+  assert.match(html, /copilot-mascot/);
+  assert.doesNotMatch(html, /AED [0-9]/);
 });

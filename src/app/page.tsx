@@ -1,6 +1,8 @@
 import { twilioConfig } from "@/lib/messaging/twilio";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
+import { MessageSquareText, Plus } from "lucide-react";
+import { copilotHistoryTools } from "@/lib/ai/copilot-history";
 import { access, entities, snapshot } from "@/lib/workspace";
 import { postgresConfig } from "@/lib/postgres/config";
 import { workspaces, type Workspace } from "@/types/workspace";
@@ -127,14 +129,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     const thread = typeof params.thread === "string" && uuid.test(params.thread) ? params.thread : randomUUID();
     const [history, threads, budget, pendingTurn] = await Promise.all([auth.client.rpc("copilot_history", { ...scope, p_thread: thread }), auth.client.rpc("copilot_threads_list", scope), auth.client.rpc("ai_spend_status", scope),
       auth.client.rpc("copilot_pending_turn", { ...scope, p_thread: thread })]);
-    const turns = history.error ? [] : (history.data as { role: "user" | "assistant"; content: string }[]).map(row => ({ role: row.role, content: row.content }));
+    const turns = history.error ? [] : (history.data as { role: "user" | "assistant"; content: string; trace?: unknown }[]).map(row => ({
+      role: row.role, content: row.content, ...(row.role === "assistant" ? { tools: copilotHistoryTools(row.trace) } : {}),
+    }));
     const list = threads.error ? [] : threads.data as { id: string; title: string; updated_at: string }[];
     const pending = pendingTurn.error ? null : pendingTurn.data as PendingCopilotRequest | null;
     const link = (id: string) => `/?${new URLSearchParams({ view: "copilot", tenant: tenant.tenant_id, entity: entity.id, thread: id })}`;
-    analysis = <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <nav aria-label="Conversations" className="space-y-2"><a className="button w-full" href={link(randomUUID())}>New conversation</a>
-        {list.map(row => <a key={row.id} href={link(row.id)} aria-current={row.id === thread ? "page" : undefined} className="block truncate rounded-xl border border-line bg-surface px-3 py-2 text-sm aria-[current=page]:border-primary aria-[current=page]:text-link">{row.title}</a>)}</nav>
-      <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} thread={thread} initial={turns} aiReady={aiReady} canWrite={["maker", "admin"].includes(data.role)} budget={budget.error ? null : budget.data as AiSpendStatus} pending={pending}/></div>;
+    analysis = <div className="copilot-layout">
+      <nav aria-label="Conversations" className="copilot-history">
+        <div className="copilot-history-heading"><div><h2>Conversations</h2><p>Private to you and this legal entity</p></div><a className="copilot-new-chat" href={link(randomUUID())} aria-label="Start a new conversation"><Plus size={16} aria-hidden="true"/><span>New chat</span></a></div>
+        {list.length ? <ul className="copilot-history-list">{list.map(row => <li key={row.id}><a href={link(row.id)} aria-current={row.id === thread ? "page" : undefined} className="copilot-thread-link"><MessageSquareText size={15} aria-hidden="true"/><span>{row.title}</span></a></li>)}</ul>
+          : <p className="copilot-history-empty">No saved conversations in this entity yet.</p>}
+      </nav>
+      <Copilot key={thread} tenant={tenant.tenant_id} entity={entity.id} entityName={entity.name} thread={thread} initial={turns} aiReady={aiReady} canWrite={["maker", "admin"].includes(data.role)} budget={budget.error ? null : budget.data as AiSpendStatus} pending={pending}/></div>;
   }
   return <FinanceWorkspace key={`${tenant.tenant_id}/${entity.id}`} memberships={auth.memberships} entityOptions={options} data={data} view={view} userId={auth.user.id} email={auth.user.email ?? "Authenticated user"} message={typeof params.message === "string" ? params.message : undefined} nonce={typeof params.nonce === "string" ? params.nonce : undefined} analysis={analysis} query={searchQuery}/>;
 }

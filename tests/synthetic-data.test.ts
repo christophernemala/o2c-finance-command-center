@@ -164,6 +164,8 @@ test("local preview remains production-hidden and never enables AI", async () =>
   const workspace = await readFile(new URL("../src/components/workspace.tsx", import.meta.url), "utf8");
   assert.match(route, /process\.env\.NODE_ENV === "production"\) notFound\(\)/);
   assert.match(route, /aiReady=\{false\}/);
+  assert.match(route, /view === "copilot"/);
+  assert.match(route, /initial=\{\[\]\} aiReady=\{false\} canWrite=\{false\}/);
   assert.match(route, /previewMode/);
   assert.match(proxy, /const productionPreview = process\.env\.NODE_ENV === "production"/);
   assert.match(proxy, /productionPreview\s*\?/);

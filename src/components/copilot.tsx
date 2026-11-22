@@ -1,23 +1,39 @@
 "use client";
 import { useRef, useState, type FormEvent } from "react";
-import { Bot, FileSpreadsheet, Paperclip, Send, Wrench, X } from "lucide-react";
+import { ArrowRight, BarChart3, Check, ClipboardCheck, FileSpreadsheet, Gauge, Landmark, Paperclip, Send, ShieldCheck, Sparkles, TriangleAlert, Wrench, X } from "lucide-react";
 import { Spinner } from "./ui/controls";
+import { CopilotMascot } from "./copilot-mascot";
 import type { AiSpendStatus } from "@/types/agents";
 
 export interface PendingCopilotRequest { requestId: string; message: string; files: { id: string; name: string }[]; allowProposals: boolean }
-interface Turn { role: "user" | "assistant"; content: string; tools?: { tool: string; status: string }[]; error?: boolean; retryable?: boolean; retry?: PendingCopilotRequest }
+type ToolStatus = "running" | "ok" | "error";
+interface ToolUse { tool: string; status: ToolStatus }
+interface Turn { role: "user" | "assistant"; content: string; tools?: ToolUse[]; error?: boolean; retryable?: boolean; retry?: PendingCopilotRequest }
 const suggestions = [
-  "Who are my top 5 overdue customers and how much do they owe?",
-  "Summarise AR aging and tell me what changed risk-wise.",
-  "Which bank credits can be matched to invoices today?",
-  "What are DSO and CEI right now, and how are they calculated?",
+  { text: "Who are my top 5 overdue customers?", prompt: "Who are my top 5 overdue customers and how much do they owe?", icon: ClipboardCheck },
+  { text: "Summarise AR aging and risk changes", prompt: "Summarise AR aging and tell me what changed risk-wise.", icon: BarChart3 },
+  { text: "Which bank credits could match invoices?", prompt: "Which bank credits can be matched to invoices today?", icon: Landmark },
+  { text: "Explain DSO and CEI", prompt: "What are DSO and CEI right now, and how are they calculated?", icon: Gauge },
 ];
-const toolNames: Record<string, string> = { get_ar_overview: "AR position", list_invoices: "invoices", get_cash_match_candidates: "cash matching", get_ar_kpi_pack: "KPI pack", read_uploaded_file: "uploaded file", propose_receipt: "receipt proposal", propose_allocation: "allocation proposal" };
+const toolNames: Record<string, string> = {
+  get_ar_overview: "AR overview", list_invoices: "Invoice ledger", get_cash_match_candidates: "Cash match candidates", get_ar_kpi_pack: "AR KPI pack",
+  get_short_payment_candidates: "Short-payment candidates", get_collections_worklist: "Collections worklist", get_outstanding_breakdown: "Outstanding breakdown",
+  get_customer_account: "Customer account", read_uploaded_file: "Attached spreadsheet", propose_receipt: "Receipt proposal",
+  propose_allocation: "Allocation proposal", propose_collection_message: "Collection message proposal", propose_credit_note: "Credit note proposal",
+  place_credit_hold: "Credit hold proposal", auto_post_if_policy_allows: "Policy-controlled posting",
+};
+const proposalTools = new Set(["propose_receipt", "propose_allocation", "propose_collection_message", "propose_credit_note", "place_credit_hold", "auto_post_if_policy_allows"]);
 const isZero = (value: string | null) => value === null || /^0(?:\.0+)?$/.test(value);
+
+function toolLabel(tool: string) {
+  return toolNames[tool] ?? tool.replace(/^get_/, "").replaceAll("_", " ").replace(/\b\w/g, character => character.toUpperCase());
+}
 
 /** Streams answers from /api/copilot. Nothing is stored in browser storage; history lives in PostgreSQL. */
 const MAX_FILES = 5; // matches the /api/copilot files limit
-export function Copilot({ tenant, entity, thread, initial, aiReady, canWrite, budget, pending = null }: { tenant: string; entity: string; thread: string; initial: Turn[]; aiReady: boolean; canWrite: boolean; budget: AiSpendStatus | null; pending?: PendingCopilotRequest | null }) {
+export function Copilot({ tenant, entity, entityName = "Selected legal entity", thread, initial, aiReady, canWrite, budget, pending = null }: {
+  tenant: string; entity: string; entityName?: string; thread: string; initial: Turn[]; aiReady: boolean; canWrite: boolean; budget: AiSpendStatus | null; pending?: PendingCopilotRequest | null;
+}) {
   const [turns, setTurns] = useState<Turn[]>(() => pending ? [...initial, { role: "assistant", content: "This Copilot request was interrupted or may still be running. Check its saved status below; no duplicate model call will be started.", error: true, retryable: true, retry: pending }] : initial);
   const [draft, setDraft] = useState(""); const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<{ id: string; name: string }[]>([]); const [uploading, setUploading] = useState(false); const [notice, setNotice] = useState("");
@@ -44,7 +60,7 @@ export function Copilot({ tenant, entity, thread, initial, aiReady, canWrite, bu
         const events = buffer.split("\n\n"); buffer = events.pop() ?? "";
         for (const raw of events) {
           const line = raw.split("\n").find(entry => entry.startsWith("data: ")); if (!line) continue;
-          const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; tool?: string; status?: string; text?: string; message?: string };
+          const event = JSON.parse(line.slice(6)) as { type: string; delta?: string; tool?: string; status?: ToolStatus; text?: string; message?: string };
           if (event.type === "text") update(turn => ({ ...turn, content: turn.content + event.delta }));
           if (event.type === "tool") update(turn => ({ ...turn, content: turn.content && !turn.content.endsWith("\n") ? `${turn.content}\n` : turn.content, tools: [...(turn.tools ?? []).filter(row => !(row.tool === event.tool && row.status === "running")), { tool: event.tool!, status: event.status! }] }));
           if (event.type === "done") { setRecovering(false); update(turn => ({ ...turn, content: event.text ?? turn.content, error: false, retryable: false })); }
@@ -81,31 +97,63 @@ export function Copilot({ tenant, entity, thread, initial, aiReady, canWrite, bu
     ? "AI is disabled until a workspace administrator sets a daily USD budget." : budget.paused ? "AI is paused because the daily budget is set to USD 0." : isZero(budget.remaining_usd)
       ? `The daily AI budget is exhausted for ${budget.date} (Asia/Dubai).` : `Daily budget: USD ${budget.daily_limit_usd} · estimated used: USD ${budget.spent_usd} · held: USD ${budget.reserved_usd} · remaining: USD ${budget.remaining_usd} (${budget.date}, Asia/Dubai).`;
 
-  return <section aria-label="Customer Copilot" className="flex min-h-[640px] flex-col rounded-[22px] border border-line bg-canvas">
-    <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6" aria-live="polite">
-      {!turns.length && <div className="mx-auto max-w-2xl py-10 text-center"><span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-link"><Bot size={24} aria-hidden="true"/></span>
-        <h2 className="text-xl font-semibold">Ask about a customer or receivable</h2><p className="mt-2 text-sm text-muted">Answers come from live tool calls against this legal entity. Attach a CSV or Excel file to analyse it alongside your ledger.</p>
-        <div className="mt-6 grid gap-2 sm:grid-cols-2">{suggestions.map(text => <button key={text} type="button" disabled={!aiAllowed || busy || recovering} onClick={() => void ask(text)} className="rounded-xl border border-line bg-surface p-3 text-left text-sm hover:border-primary">{text}</button>)}</div></div>}
-      {turns.map((turn, index) => <div key={index} className={`chat-bubble ${turn.role}${turn.error ? " border-danger text-danger" : ""}`}>
-        {turn.role === "assistant" && !!turn.tools?.length && <ul className="mb-2 flex flex-wrap gap-2 whitespace-normal">{turn.tools.map((row, i) => <li key={i} className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-1 text-xs text-muted">{row.status === "running" ? <Spinner size={12}/>:<Wrench size={12} aria-hidden="true"/>}{toolNames[row.tool] ?? row.tool}{row.status === "error" ? " · failed" : ""}</li>)}</ul>}
-        {turn.content || (busy && index === turns.length - 1 ? <span className="inline-flex items-center gap-2 text-muted"><Spinner size={14}/>Working…</span> : "")}
-        {turn.role === "assistant" && turn.error && turn.retryable && turn.retry && <button type="button" className="button secondary mt-3" disabled={busy} onClick={() => void retry(turn.retry!)}>Retry/check this same request (no duplicate model call)</button>}
-      </div>)}
+  return <section aria-label="Customer Copilot" className={`copilot-shell${busy ? " is-thinking" : ""}`}>
+    <header className="copilot-topbar">
+      <div className="copilot-identity"><span className="copilot-spark"><Sparkles size={18} aria-hidden="true"/></span><div><span className="copilot-eyebrow">O2C FINANCE ASSISTANT</span><h2>Customer Copilot</h2></div></div>
+      <div className="copilot-topbar-badges"><span className={`copilot-state ${aiAllowed ? "is-ready" : "is-setup"}`}><span aria-hidden="true" className="copilot-state-dot"/>{aiAllowed ? "AI available" : "Setup required"}</span><span className="copilot-scope"><ShieldCheck size={14} aria-hidden="true"/> {entityName}</span></div>
+    </header>
+
+    <div className="copilot-transcript" aria-live="polite" aria-relevant="additions text">
+      {!turns.length && <div className="copilot-welcome">
+        <div className="copilot-hero">
+          <div className="copilot-hero-copy"><span className="copilot-hero-kicker"><Sparkles size={13} aria-hidden="true"/> ENTITY-SCOPED FINANCE SEARCH</span>
+            <h3>Receivables answers, with the evidence behind them.</h3>
+            <p>Ask about customers, invoices, collections, cash matching or reported KPIs. Answers use this legal entity’s finance tools, and source checks stay visible in the conversation.</p>
+            <div className="copilot-hero-tags"><span><ShieldCheck size={14} aria-hidden="true"/> Scoped to {entityName}</span><span><FileSpreadsheet size={14} aria-hidden="true"/> CSV / Excel analysis</span></div>
+          </div>
+          <CopilotMascot className="copilot-hero-mascot" thinking={busy}/>
+          <span className="copilot-orbit-dot orbit-one" aria-hidden="true"/><span className="copilot-orbit-dot orbit-two" aria-hidden="true"/>
+        </div>
+        <div className="copilot-suggestion-heading"><div><h3>Try asking</h3><p>Suggested for your finance workspace</p></div><span className="copilot-suggestion-label">4 STARTERS</span></div>
+        <div className="copilot-suggestions">{suggestions.map(({ text, prompt, icon: Icon }) => <button key={text} type="button" disabled={!aiAllowed || busy || recovering} onClick={() => void ask(prompt)} className="copilot-suggestion">
+          <span className="copilot-suggestion-icon"><Icon size={17} aria-hidden="true"/></span><span>{text}</span><ArrowRight size={16} className="copilot-suggestion-arrow" aria-hidden="true"/>
+        </button>)}</div>
+      </div>}
+
+      {!!turns.length && <div className="copilot-messages">{turns.map((turn, index) => {
+        const isLast = index === turns.length - 1; const toolRows = turn.tools ?? [];
+        const verifiedCount = toolRows.filter(row => row.status === "ok" && !proposalTools.has(row.tool)).length;
+        return turn.role === "user" ? <div key={index} className="copilot-user-row"><div className="copilot-user-message">{turn.content}</div></div> :
+          <article key={index} className={`copilot-assistant-row${turn.error ? " has-error" : ""}`}>
+            <CopilotMascot className="copilot-message-mascot" thinking={busy && isLast}/>
+            <div className="copilot-answer">
+              <div className="copilot-answer-header"><span>O2C Copilot</span>{verifiedCount > 0 && <span className="copilot-verified-count"><Check size={12} aria-hidden="true"/> {verifiedCount} data {verifiedCount === 1 ? "source" : "sources"} checked</span>}{busy && isLast && <span className="copilot-thinking-label"><span className="pulse-dot"/> Working</span>}</div>
+              {toolRows.length > 0 && <ul className="copilot-source-list" aria-label="Data sources and actions used by this answer">{toolRows.map((row, toolIndex) => {
+                const proposal = proposalTools.has(row.tool); const Icon = row.status === "running" ? Wrench : row.status === "error" ? TriangleAlert : proposal ? ShieldCheck : Check;
+                const state = row.status === "running" ? "Checking" : row.status === "error" ? "Unavailable" : proposal ? "Approval required" : "Checked";
+                return <li key={`${row.tool}-${toolIndex}`} className={`copilot-source-chip status-${row.status}${proposal ? " is-proposal" : ""}`}><Icon size={13} aria-hidden="true"/><span>{toolLabel(row.tool)}</span><span className="copilot-source-state">{state}</span></li>;
+              })}</ul>}
+              {!turn.error && turn.content ? <p className="copilot-answer-text">{turn.content}</p> : !turn.error && busy && isLast ? <p className="copilot-answer-text copilot-answer-loading"><Spinner size={14}/>Checking scoped finance records…</p> : null}
+              {turn.error && <div role="alert" className="copilot-error-note">{turn.content}</div>}
+              {turn.role === "assistant" && turn.error && turn.retryable && turn.retry && <button type="button" className="button secondary copilot-retry" disabled={busy} onClick={() => void retry(turn.retry!)}>Retry/check this same request (no duplicate model call)</button>}
+            </div>
+          </article>;
+      })}</div>}
       <div ref={end}/>
     </div>
-    <form onSubmit={submit} className="border-t border-line bg-surface p-4">
-      {(files.length > 0 || notice) && <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">{files.map(file => <span key={file.id} className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1 text-link"><FileSpreadsheet size={14} aria-hidden="true"/>{file.name}<button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles(current => current.filter(row => row.id !== file.id))}><X size={14}/></button></span>)}{notice && <span className="text-danger">{notice}</span>}</div>}
-      {canWrite && <label className="mb-3 flex items-start gap-2 text-xs leading-5 text-muted"><input type="checkbox" checked={allowProposals} onChange={event => setAllowProposals(event.target.checked)} disabled={!aiAllowed || busy || recovering} className="mt-1"/><span>Allow Copilot to create pending proposals for this message. An independent approver must still review them.</span></label>}
-      <div className="flex items-end gap-2">
+
+    <form onSubmit={submit} className="copilot-composer-wrap">
+      {(files.length > 0 || notice) && <div className="copilot-attachments">{files.map(file => <span key={file.id} className="copilot-file-chip"><FileSpreadsheet size={14} aria-hidden="true"/><span>{file.name}</span><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles(current => current.filter(row => row.id !== file.id))}><X size={14}/></button></span>)}{notice && <span role="status" className="copilot-notice">{notice}</span>}</div>}
+      {canWrite && <label className="copilot-proposal-toggle"><input type="checkbox" checked={allowProposals} onChange={event => setAllowProposals(event.target.checked)} disabled={!aiAllowed || busy || recovering}/><span>Allow pending proposals for this message. A separate approver must still review them.</span></label>}
+      <div className="copilot-composer">
         <input ref={fileInput} type="file" accept=".csv,.xlsx" className="sr-only" id="copilot-file" disabled={!aiAllowed || uploading || busy || recovering} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file); }}/>
-        <label htmlFor="copilot-file" className={`button secondary shrink-0 cursor-pointer${!aiAllowed || recovering ? " pointer-events-none opacity-60" : ""}`} aria-label="Attach CSV or Excel file">{uploading ? <Spinner size={18}/>:<Paperclip size={18}/>}</label>
+        <label htmlFor="copilot-file" className={`copilot-attach${!aiAllowed || recovering ? " is-disabled" : ""}`} aria-label="Attach CSV or Excel file" title="Attach CSV or Excel file">{uploading ? <Spinner size={18}/>:<Paperclip size={18}/>}</label>
         <label className="sr-only" htmlFor="copilot-input">Message</label>
-        <textarea id="copilot-input" value={draft} onChange={event => setDraft(event.target.value)} maxLength={8000} rows={1} disabled={!aiAllowed || recovering} placeholder={recovering ? "Check the pending Copilot request before asking another question" : !aiReady ? "AI provider not configured" : aiAllowed ? "Ask about customers, invoices, cash, KPIs or an attached file…" : "Set an available workspace AI budget to continue"} className="min-h-[48px] flex-1"
+        <textarea id="copilot-input" value={draft} onChange={event => setDraft(event.target.value)} maxLength={8000} rows={1} disabled={!aiAllowed || recovering} placeholder={recovering ? "Check the pending Copilot request before asking another question" : !aiReady ? "AI provider not configured" : aiAllowed ? "Ask about customers, invoices, cash or KPIs…" : "Set an available workspace AI budget to continue"} className="copilot-input"
           onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(draft); } }}/>
-        <button className="button shrink-0" disabled={!aiAllowed || busy || recovering || !draft.trim()} aria-label="Send">{busy ? <Spinner size={18}/>:<Send size={18}/>}</button>
+        <button className="copilot-send" disabled={!aiAllowed || busy || recovering || !draft.trim()} aria-label="Send message" title="Send message">{busy ? <Spinner size={18}/>:<Send size={18}/>}</button>
       </div>
-      <p className="mt-2 text-xs text-muted">{budgetMessage}</p>
-      <p className="mt-2 text-xs text-muted">{canWrite ? "Copilot is read-only unless you enable proposal permission for that message. It cannot approve or post a proposal." : "This role can ask questions and view data, but cannot create proposals through Copilot."}</p>
+      <div className="copilot-footer"><p className="copilot-budget-note">{budgetMessage}</p><p className="copilot-safety-note">{canWrite ? "Copilot is read-only unless you enable proposals for a message. It cannot approve or post." : "This role can ask questions and view data, but cannot create proposals through Copilot."}</p></div>
     </form>
   </section>;
 }
