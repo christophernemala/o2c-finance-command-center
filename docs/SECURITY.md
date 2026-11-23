@@ -31,7 +31,9 @@ administrator identity verification; automatic emails and recovery codes are abs
 `DATABASE_URL` must use a non-owner role without SUPERUSER/BYPASSRLS or direct/transitive
 membership in `o2c_worker`. The application refuses privileged/owner connections. Every finance transaction switches locally
 to `authenticated`, resolves an opaque session hash, and sets a transaction-local
-tenant plus selected entity. Public-table RLS is forced, so table owners are subject
+tenant plus selected entity. Every tenant/entity-parameterized `SECURITY DEFINER` RPC
+checks those arguments against that transaction-local selection; agent RPCs also check
+their bound run and entity. Public-table RLS is forced, so table owners are subject
 to the same policies; tenant membership still allows deliberate entity switching
 within that tenant. RLS, tenant/entity FKs, record ownership checks, independent
 maker/checker, versions and exact decimal limits remain in PostgreSQL. UI checks are

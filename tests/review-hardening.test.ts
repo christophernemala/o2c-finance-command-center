@@ -23,9 +23,11 @@ test("agent sessions are entity-bound, disabled agents cannot claim, stale runs 
     await db.exec("set role authenticated");
     await db.query("select public.agent_authorize_tool($1,$2,$3,'place_credit_hold',$4::jsonb)", [T,E,id(100),JSON.stringify({customer_id:C,reason:"In the run entity"})]);
     await db.query("select public.place_customer_hold($1,$2,$3,$4,'In the run entity')", [T, E, id(80), C]);
+    await db.query("select set_config('o2c.entity_id',$1,false)", [E2]);
     await assert.rejects(db.query("select public.place_customer_hold($1,$2,$3,$4,'Other entity')", [T, E2, id(81), C2]), /Forbidden/, "require_scope binds the agent to its run's entity");
     await assert.rejects(db.query("select public.propose_action($1,$2,$3,'receipt','100.00','evidence',null,null,$4,$5)", [T, E2, id(82), id(50), C2]), /Forbidden/, "propose_action binds the agent too");
 
+    await db.query("select set_config('o2c.entity_id',$1,false)", [E]);
     await db.exec("reset role");
     await db.query("update auth.users set disabled=true where kind='agent'");
     await run(101);

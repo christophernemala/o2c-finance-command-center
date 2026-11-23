@@ -17,11 +17,11 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
     await db.query("insert into public.customers(id,tenant_id,entity_id,account,name) values($1,$2,$3,'C1','Customer One')", [id(30), T, E]);
     await db.query(`insert into public.bank_lines(id,tenant_id,entity_id,reference,booked_at,direction,amount) values
       ($1,$2,$3,'WIRE 1','2026-10-10','credit',9000.00),($4,$2,$3,'WIRE 2','2026-10-11','credit',400.00)`, [id(50), T, E, id(51)]);
-    async function asUser(n: number) {
+    async function asUser(n: number, entity = E) {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
-      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,entity]);
       await db.exec("set role authenticated");
     }
     const rpc = async <V = unknown>(sql: string, values: unknown[]) => (await db.query<{ v: V }>(sql, values)).rows[0].v;
@@ -136,7 +136,7 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
     await t.test("an entity with no finished runs has no health score", async () => {
       await db.exec("reset role");
       await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Empty')", [id(21), T]);
-      await asUser(3);
+      await asUser(3,id(21));
       const overview = await rpc<{ health: unknown; runs: { finished: number } }>("select public.agent_ops_overview($1,$2,24) as v", [T, id(21)]);
       assert.equal(overview.health, null); assert.equal(overview.runs.finished, 0);
     });
