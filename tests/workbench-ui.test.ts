@@ -157,6 +157,18 @@ test("Copilot welcome presents suggested finance questions without inventing led
   assert.doesNotMatch(html, /AED [0-9]/);
 });
 
+test("the Copilot robo-cat runs the existing guarded overdue-customer starter", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Selected UAE entity", thread: "00000000-0000-4000-8000-000000000201",
+    initial: [], aiReady: true, canWrite: false,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /class="copilot-hero-companion"/);
+  assert.match(html, /Ask Copilot who the top 5 overdue customers are and how much they owe/);
+  assert.match(html, /Overdue review/);
+  assert.match(html, /Top 5 customers · amounts owed/);
+});
+
 test("multiple Copilot robo-cats use instance-unique SVG gradient IDs", () => {
   const html = renderToStaticMarkup(createElement("div", null, createElement(CopilotMascot), createElement(CopilotMascot)));
   const ids = [...html.matchAll(/id="(copilot-cat-[^"]+)"/g)].map(match => match[1]);
@@ -165,11 +177,13 @@ test("multiple Copilot robo-cats use instance-unique SVG gradient IDs", () => {
   assert.ok(ids.every(id => html.includes(`url(#${id}-`) || html.includes(`id="${id}"`)));
 });
 
-test("robo-cat motion is gentle and disabled under reduced-motion preferences", async () => {
+test("robo-cat is still at rest and moves only to indicate Copilot work", async () => {
   const css = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
-  assert.match(css, /\.copilot-mascot svg[^\n]*animation: copilot-cat-float 5s ease-in-out infinite/);
-  assert.match(css, /\.copilot-cat-tail[^\n]*animation: copilot-tail-sway/);
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.copilot-mascot svg,[\s\S]*?animation: none !important/);
+  assert.doesNotMatch(css, /\.copilot-mascot svg[^\n]*animation:/);
+  assert.match(css, /\.copilot-mascot\.is-thinking \.copilot-cat-head \{ animation: copilot-head-nod 2\.4s ease-in-out infinite; \}/);
+  assert.match(css, /\.copilot-mascot\.is-thinking \.copilot-mascot-halo[^\n]*animation: copilot-halo-breathe/);
+  assert.doesNotMatch(css, /@keyframes copilot-cat-float|@keyframes copilot-tail-sway|@keyframes copilot-body-breathe|@keyframes copilot-blink|@keyframes copilot-orbit/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.copilot-mascot\.is-thinking \.copilot-cat-head,[\s\S]*?animation: none !important/);
 });
 
 test("an admin can switch an existing daily agent schedule to manual without an AI budget", () => {
