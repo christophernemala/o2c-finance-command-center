@@ -22,6 +22,7 @@ test("working chart controls, aging selection and forecast week inspection", asy
   const buttonNamed = (name: string) => [...container.querySelectorAll("button")].find(button => button.textContent?.includes(name)) ?? null;
   try {
     await act(async () => { root.render(createElement(ChartExplorer, { charts: [{ key: "aging", title: "Receivables aging", unit: "AED", description: "Test source", series: [{ label: "Current", value: "0.10" }, { label: "90+ days", value: "0.20" }] }] })); });
+    assert.equal(container.querySelector('button[title="Bar chart"]')?.getAttribute("aria-pressed"), "true");
     await click(buttonNamed("90+ days"));
     assert.equal(buttonNamed("90+ days")?.getAttribute("aria-pressed"), "true");
     assert.match(container.querySelector('[aria-live="polite"]')?.textContent ?? "", /90\+ days.*0.20/);
@@ -33,6 +34,8 @@ test("working chart controls, aging selection and forecast week inspection", asy
     assert.equal(container.querySelector('[role="region"][aria-label="Exact figures for Receivables aging"]')?.getAttribute("tabindex"), "0");
     await click(container.querySelector('button[title="Matrix view"]'));
     assert.equal(container.querySelector('[role="region"][aria-label="Distribution matrix for Receivables aging"]')?.getAttribute("tabindex"), "0");
+    await click(container.querySelector('button[title="Bar chart"]'));
+    assert.equal(container.querySelector('button[title="Bar chart"]')?.getAttribute("aria-pressed"), "true");
 
     const row = (name: string, days: number): WorklistRow => ({ customer_id: name, customer: name, account: name, oldest_days: days, overdue: "0.10", open: "0.10", overdue_invoices: 1, disputed_invoices: 0, broken_promises: 0, open_promises: 0, on_hold: false, contacts: 1, credit_limit: null, last_message: null });
     await act(async () => { root.render(createElement(CollectionsExplorer, { rows: [row("Recent account", 20), row("Escalation account", 190)], tenant: "t", entity: "e", sidebar: null })); });

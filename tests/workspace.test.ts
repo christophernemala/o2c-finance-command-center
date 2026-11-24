@@ -29,13 +29,24 @@ test("every workspace renders honest empty states and visible authenticated scop
     assert.doesNotMatch(html,/demo123|Offline local data|1,250|Math.random/);
     if(view==="overview") assert.match(html,/Unavailable/);
     if(view==="overview") { assert.match(html,/Portfolio analytics/); assert.match(html,/Source-backed chart data is unavailable/); assert.match(html,/Unapplied cash/); assert.match(html,/Pending approvals/); assert.doesNotMatch(html,/Power BI-style dashboard visuals/); }
-    if(view==="guide") { assert.match(html,/How to use this app/); assert.match(html,/different approver/i); assert.match(html,/independent checker commit/i); }
+    if(view==="guide") { assert.match(html,/How to use this app/); assert.match(html,/different approver/i); assert.match(html,/independent checker commit/i); assert.match(html,/After login/); assert.match(html,/Bar chart, Donut chart, Matrix view, and Exact figures/); assert.match(html,/not an embedded Microsoft Power BI report/); }
     if(view==="cashflow") assert.match(html,/No approved 13-week forecast/);
     if(view==="customers") assert.match(html,/No customers in this entity/);
     if(view==="reconciliation") assert.doesNotMatch(html,/Submit for approval/);
     // Without server data these views show the fallback; their real content is rendered in the per-view UI tests.
     if(["agents","copilot","reports","notes","collections"].includes(view)) assert.match(html,/Workspace unavailable/);
   }
+});
+test("overview has exactly five KPI cards and keeps pending approvals in the Action queue",()=>{
+  const html=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview"}));
+  const cards=html.match(/<article class="metric-tile metric-tone-\d+ p-5">[\s\S]*?<\/article>/g) ?? [];
+  assert.equal(cards.length,5);
+  const cardMarkup=cards.join(" ");
+  for(const label of ["Total AR","Overdue AR","DSO","CEI","Unapplied cash"]) assert.ok(cardMarkup.includes(label),label);
+  assert.doesNotMatch(cardMarkup,/Pending approvals/);
+  const queue=html.indexOf("Action queue");
+  assert.ok(queue>=0,"Action queue remains on the overview");
+  assert.ok(html.indexOf("Pending approvals",queue)>queue,"pending approvals remains in the Action queue");
 });
 test("overview does not invent DSO, CEI, forecasts, or UAE customer records",()=>{
   const html=renderToStaticMarkup(createElement(FinanceWorkspace,{...props,data:empty,view:"overview"}));
