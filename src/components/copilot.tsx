@@ -2,7 +2,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ArrowRight, BarChart3, Check, ClipboardCheck, FileSpreadsheet, Gauge, Landmark, Paperclip, Send, ShieldCheck, Sparkles, TriangleAlert, Wrench, X } from "lucide-react";
 import { Spinner } from "./ui/controls";
-import { CopilotMascot } from "./copilot-mascot";
 import type { AiSpendStatus } from "@/types/agents";
 
 export interface PendingCopilotRequest { requestId: string; message: string; files: { id: string; name: string }[]; allowProposals: boolean }
@@ -112,12 +111,12 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
             <p>Ask about customers, invoices, collections, cash matching or reported KPIs. Answers use this legal entity’s finance tools, and source checks stay visible in the conversation.</p>
             <div className="copilot-hero-tags"><span><ShieldCheck size={14} aria-hidden="true"/> Scoped to {entityName}</span><span><FileSpreadsheet size={14} aria-hidden="true"/> CSV / Excel analysis</span></div>
           </div>
-          <button type="button" className="copilot-hero-companion" onClick={() => void ask(suggestions[0].prompt)} disabled={!aiAllowed || busy || recovering}
+          <button type="button" className="copilot-quick-check" onClick={() => void ask(suggestions[0].prompt)} disabled={!aiAllowed || busy || recovering}
             aria-label="Ask Copilot who the top 5 overdue customers are and how much they owe"
             title="Run the overdue-customer starter with the selected-entity Copilot">
-            <span className="copilot-hero-companion-art"><CopilotMascot className="copilot-hero-mascot" thinking={busy}/></span>
-            <span className="copilot-hero-companion-copy"><span className="copilot-hero-companion-kicker">QUICK CHECK</span><span className="copilot-hero-companion-title">Overdue review</span><span className="copilot-hero-companion-note">Top 5 customers · amounts owed</span></span>
-            <ArrowRight className="copilot-hero-companion-arrow" size={14} aria-hidden="true"/>
+            <span className="copilot-quick-check-icon"><ClipboardCheck size={19} aria-hidden="true"/></span>
+            <span className="copilot-quick-check-copy"><span className="copilot-quick-check-kicker">QUICK CHECK</span><span className="copilot-quick-check-title">Overdue review</span><span className="copilot-quick-check-note">Top 5 customers · amounts owed</span></span>
+            <ArrowRight className="copilot-quick-check-arrow" size={15} aria-hidden="true"/>
           </button>
         </div>
         <div className="copilot-suggestion-heading"><div><h3>Try asking</h3><p>Suggested for your finance workspace</p></div><span className="copilot-suggestion-label">4 STARTERS</span></div>
@@ -131,7 +130,6 @@ export function Copilot({ tenant, entity, entityName = "Selected legal entity", 
         const completedCount = toolRows.filter(row => row.status === "ok" && !proposalTools.has(row.tool)).length;
         return turn.role === "user" ? <div key={index} className="copilot-user-row"><div className="copilot-user-message">{turn.content}</div></div> :
           <article key={index} className={`copilot-assistant-row${turn.error ? " has-error" : ""}`}>
-            <CopilotMascot className="copilot-message-mascot" thinking={busy && isLast}/>
             <div className="copilot-answer">
               <div className="copilot-answer-header"><span>O2C Copilot</span>{completedCount > 0 && <span className="copilot-verified-count"><Check size={12} aria-hidden="true"/> {completedCount} data {completedCount === 1 ? "tool" : "tools"} completed</span>}{busy && isLast && <span className="copilot-thinking-label"><span className="pulse-dot"/> Working</span>}</div>
               {toolRows.length > 0 && <ul className="copilot-source-list" aria-label="Finance tools and actions used by this answer">{toolRows.map((row, toolIndex) => {
