@@ -27,6 +27,7 @@ test("collections hardening in PostgreSQL", async t => {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
     }
     const propose = (msg: number, customer: string, contact: string, invoices: string[]) =>
@@ -117,8 +118,13 @@ test("collections hardening in PostgreSQL", async t => {
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Collections agent','queued','collections','manual',current_date)", [id(100), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "a".repeat(64)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
+      const holdGate = (await db.query<{ v: { allowed: boolean; block: { blocked_by: string } } }>("select public.agent_authorize_tool($1,$2,$3,'place_credit_hold',$4::jsonb) as v", [T,E,id(100),JSON.stringify({customer_id:C1,reason:"Agent hold"})])).rows[0].v;
+      assert.equal(holdGate.allowed,false); assert.equal(holdGate.block.blocked_by,"Deny place_credit_hold");
       await assert.rejects(db.query("select public.place_customer_hold($1,$2,$3,$4,'Agent hold')", [T, E, id(80), C1]), /Blocked by guardrail: Deny place_credit_hold/);
+      const messageGate = (await db.query<{ v: { allowed: boolean; block: { blocked_by: string } } }>("select public.agent_authorize_tool($1,$2,$3,'propose_collection_message',$4::jsonb) as v", [T,E,id(100),JSON.stringify({customer_id:C1,contact_id:K1,invoice_ids:[id(40)],tone:"firm",subject:"Overdue",body,attach_statement:true})])).rows[0].v;
+      assert.equal(messageGate.allowed,false); assert.equal(messageGate.block.blocked_by,"Deny propose_collection_message");
       await assert.rejects(propose(76, C1, K1, [id(40)]), /Blocked by guardrail: Deny propose_collection_message/);
       await asUser(4);
       await db.query("select public.place_customer_hold($1,$2,$3,$4,'Human hold is unaffected')", [T, E, id(81), C1]);

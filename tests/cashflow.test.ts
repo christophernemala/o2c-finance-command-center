@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { forecastWeeks, validateCashflowRun, chartRatio, type CashflowRun } from "../src/lib/cashflow";
+import { forecastWeeks, simulateCashflowScenario, validateCashflowRun, chartRatio, type CashflowRun } from "../src/lib/cashflow";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const run: CashflowRun = {
   id: id(1), tenant_id: id(10), entity_id: id(20), starts_on: "2026-10-05", opening_cash: "0.10",
@@ -40,4 +40,19 @@ test("drawing ratios scale exact large decimals and zero scopes without NaN", ()
   assert.equal(chartRatio("0.00", "0.00"), 0);
   assert.equal(chartRatio("99999999999999999999.99", "99999999999999999999.99"), 1);
   assert.equal(chartRatio("-0.10", "0.20"), -0.5);
+});
+test("cash timing what-if shifts source movements without mutating the approved run", () => {
+  const before = JSON.stringify(run);
+  const scenario = simulateCashflowScenario(run, { receiptDelayWeeks: 1, paymentDelayWeeks: 1 });
+  assert.equal(JSON.stringify(run), before);
+  assert.equal(scenario.base[0].incoming, "0.20");
+  assert.equal(scenario.weeks[0].incoming, "0.00");
+  assert.equal(scenario.weeks[1].incoming, "0.20");
+  assert.equal(scenario.weeks[1].outgoing, "0.40");
+  assert.equal(scenario.outside_horizon_payments, "20.00");
+  assert.equal(scenario.outside_horizon_receipts, "0.00");
+  assert.equal(scenario.weeks[12].closing_delta, "20.00");
+});
+test("cash timing what-if accepts only whole-week delays up to four weeks", () => {
+  for (const value of [-1, 1.5, 5]) assert.throws(() => simulateCashflowScenario(run, { receiptDelayWeeks: value, paymentDelayWeeks: 0 }), /whole weeks/);
 });

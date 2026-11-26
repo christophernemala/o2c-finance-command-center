@@ -98,7 +98,7 @@ export function createLoginLimiter(config: LimiterConfig, transport: typeof fetc
     return data.result;
   }
   return {
-    async reserveApi(userId: string, scope: "commands" | "agents" | "copilot" | "export"): Promise<{ allowed: boolean; retryAfter: number }> {
+    async reserveApi(userId: string, scope: "commands" | "agents" | "copilot" | "export" | "search"): Promise<{ allowed: boolean; retryAfter: number }> {
       const key = `o2c:{api}:${scope}:${digest(userId)}`;
       const script = `
 local time = redis.call('TIME')
@@ -112,7 +112,7 @@ redis.call('ZADD', KEYS[1], now, ARGV[1])
 redis.call('PEXPIRE', KEYS[1], 60000)
 return {1, 0}
 `;
-      const result = await command(["EVAL", script, 1, key, randomUUID(), scope === "commands" ? 120 : 30]);
+      const result = await command(["EVAL", script, 1, key, randomUUID(), scope === "commands" ? 120 : scope === "search" ? 60 : 30]);
       if (!Array.isArray(result) || result.length !== 2 || ![0, 1].includes(result[0]) || !Number.isInteger(result[1])
         || result[1] < 0 || result[1] > 60 || (result[0] === 1 && result[1] !== 0) || (result[0] === 0 && result[1] === 0)) throw new Error("Invalid API protection result");
       return { allowed: result[0] === 1, retryAfter: result[1] };

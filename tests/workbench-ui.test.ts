@@ -1,11 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CollectionsView } from "../src/components/collections";
+import { AgentConsole } from "../src/components/agent-console";
+import { Reports } from "../src/components/reports";
+import { Copilot, type PendingCopilotRequest } from "../src/components/copilot";
+import { copilotHistoryTools } from "../src/lib/ai/copilot-history";
 import { dailyPackWorkbook, validateDailyPack } from "../src/lib/daily-pack";
 import type { Snapshot } from "../src/types/workspace";
-import type { CustomerAccount } from "../src/types/collections";
+import type { CustomerAccount, WorklistRow } from "../src/types/collections";
 
 const base = { tenant_id: "00000000-0000-4000-8000-000000000010", entity_id: "00000000-0000-4000-8000-000000000020", role: "viewer", as_of: "2026-10-16" } as unknown as Snapshot;
 const empty = { worklist: [], account: null, emailReady: true, userId: "u1", callList: [], followUps: [], allFollowUps: false, licences: [], remarks: null };
@@ -29,6 +34,25 @@ test("call list shows the score and its reasons; viewers cannot log remarks", ()
   assert.match(approver, /Log remark/); assert.doesNotMatch(approver, /name="promise_amount" inputMode/, "approvers log calls but not promises");
   const maker = renderToStaticMarkup(createElement(CollectionsView, { data: { ...base, role: "maker" } as Snapshot, ...empty, account, remarks: { remarks: [], licences: [] } }));
   assert.match(maker, /name="promise_amount"/); assert.match(maker, /Record a licence/);
+});
+
+test("collection worklist and customer invoice tables are labelled keyboard-scrollable regions", () => {
+  const row: WorklistRow = { customer_id: "c1", customer: "Customer One", account: "C1", overdue: "100.00", open: "100.00", overdue_invoices: 1, oldest_days: 20,
+    disputed_invoices: 0, broken_promises: 0, open_promises: 0, on_hold: false, contacts: 1, credit_limit: null, last_message: null };
+  const invoiceAccount: CustomerAccount = { ...account, invoices: [{ id: "i1", number: "INV-1", issued_at: "2026-01-01", due_date: "2026-02-01", gross: "100.00", open: "100.00", days_overdue: 20, dispute: "none" }] };
+  const html = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "viewer" } as Snapshot, account: invoiceAccount, worklist: [row] }));
+  assert.match(html, /role="region" aria-label="Collections worklist" tabindex="0"/);
+  assert.match(html, /role="region" aria-label="Customer open invoices" tabindex="0"/);
+});
+
+test("AR report tables expose named keyboard-scrollable regions", () => {
+  const pack = { as_of: "2026-10-16", open_ar: "100.00", overdue_ar: "50.00", disputed_ar: "0.00", unapplied_cash: "0.00", open_invoice_count: 1, customer_count: 1,
+    unposted_bank_credits: 0, pending_approvals: 0, aging: [{ bucket: "1–30 days", amount: "50.00", invoices: 1 }],
+    top_debtors: [{ customer: "Customer One", account: "C1", open: "100.00", overdue: "50.00", oldest_due: "2026-10-01", invoices: 1 }],
+    dso_countback_days: "30", dso_basis: "countback", cei_30d_percent: "80.00", cei_basis: { period_start: "2026-09-16", period_end: "2026-10-16", beginning_ar: "100.00", credit_sales: "0.00", debit_notes: "0.00", credit_notes: "0.00", ending_ar: "100.00", ending_current_ar: "50.00" } };
+  const html = renderToStaticMarkup(createElement(Reports, { pack, tenant: base.tenant_id, entity: base.entity_id }));
+  assert.match(html, /role="region" aria-label="Aging by days past due" tabindex="0"/);
+  assert.match(html, /role="region" aria-label="Top debtors by open balance" tabindex="0"/);
 });
 
 test("daily pack keeps amounts as decimal strings and rejects malformed rows", () => {
@@ -66,4 +90,101 @@ test("an agent hold proposal is shown as pending; only approvers can approve or 
   assert.doesNotMatch(maker, /Approve hold/); assert.doesNotMatch(maker, /Credit hold active/);
   const approver = renderToStaticMarkup(createElement(CollectionsView, { ...empty, data: { ...base, role: "approver" } as Snapshot, account, holdProposals }));
   assert.match(approver, /Approve hold/); assert.match(approver, /value="hold_decide"/); assert.match(approver, /name="note" required/);
+});
+
+test("a reloaded Copilot thread can check its persisted request without duplicating model work", () => {
+  const pending: PendingCopilotRequest = { requestId: "00000000-0000-4000-8000-000000000201", message: "Summarize overdue AR", files: [], allowProposals: false };
+  const html = renderToStaticMarkup(createElement(Copilot, { tenant: base.tenant_id, entity: base.entity_id, thread: "00000000-0000-4000-8000-000000000200",
+    initial: [{ role: "user", content: pending.message }], aiReady: true, canWrite: true,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false }, pending }));
+  assert.match(html, /This Copilot request was interrupted or may still be running/);
+  assert.match(html, /Retry\/check this same request \(no duplicate model call\)/);
+  assert.match(html, /Check the pending Copilot request before asking another question/);
+  assert.match(html, /Daily budget: USD 1\.000000/);
+});
+
+test("saved Copilot traces expose only validated tool outcomes, never tool inputs", () => {
+  assert.deepEqual(copilotHistoryTools([
+    { tool: "get_ar_overview", ok: true, input: { internal: "not for source badges" } },
+    { tool: "list_invoices", ok: false, input: { search: "private" } },
+    { tool: "bad", ok: "true" }, null, "invalid",
+  ]), [
+    { tool: "get_ar_overview", status: "ok" },
+    { tool: "list_invoices", status: "error" },
+  ]);
+});
+
+test("Copilot answers show entity scope and truthful source and proposal states", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Convergint Middle East & Africa", thread: "00000000-0000-4000-8000-000000000200",
+    initial: [
+      { role: "user", content: "Summarise the account." },
+      { role: "assistant", content: "Here is the saved result.", tools: [
+        { tool: "get_customer_account", status: "ok" },
+        { tool: "propose_allocation", status: "ok" },
+        { tool: "get_ar_kpi_pack", status: "error" },
+      ] },
+    ], aiReady: true, canWrite: true,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /Convergint Middle East &amp; Africa/);
+  assert.match(html, /1 data tool completed/);
+  assert.match(html, /Customer account/);
+  assert.match(html, /Allocation proposal/);
+  assert.match(html, /Approval required/);
+  assert.match(html, /AR KPI pack/);
+  assert.match(html, /Unavailable/);
+  assert.doesNotMatch(html, /3 data tools completed/);
+  assert.match(html, /role="status" aria-live="polite" aria-atomic="true"/);
+  assert.doesNotMatch(html, /class="copilot-transcript"[^>]*aria-live/);
+  assert.match(html, /Allow pending proposals for this message/);
+  assert.match(html, /It cannot approve or post/);
+});
+
+test("Copilot welcome presents suggested finance questions without inventing ledger results", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Selected UAE entity", thread: "00000000-0000-4000-8000-000000000200",
+    initial: [], aiReady: true, canWrite: false,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /Receivables answers, with the evidence behind them/);
+  assert.match(html, /Try asking/);
+  assert.match(html, /Which bank credits could match invoices\?/);
+  assert.match(html, /Scoped to Selected UAE entity/);
+  assert.match(html, /Ask about customers, invoices, cash or KPIs/);
+  assert.match(html, /class="copilot-quick-check"/);
+  assert.doesNotMatch(html, /copilot-mascot|copilot-cat|robo-cat/);
+  assert.doesNotMatch(html, /AED [0-9]/);
+});
+
+test("the Copilot overdue quick action runs the existing guarded starter", () => {
+  const html = renderToStaticMarkup(createElement(Copilot, {
+    tenant: base.tenant_id, entity: base.entity_id, entityName: "Selected UAE entity", thread: "00000000-0000-4000-8000-000000000201",
+    initial: [], aiReady: true, canWrite: false,
+    budget: { date: "2026-11-15", daily_limit_usd: "1.000000", spent_usd: "0.100000", reserved_usd: "0.200000", remaining_usd: "0.700000", open_reservations: 1, configured: true, paused: false },
+  }));
+  assert.match(html, /class="copilot-quick-check"/);
+  assert.match(html, /Ask Copilot who the top 5 overdue customers are and how much they owe/);
+  assert.match(html, /Overdue review/);
+  assert.match(html, /Top 5 customers · amounts owed/);
+  const action = html.match(/<button type="button" class="copilot-quick-check"[^>]*>/)?.[0];
+  assert.ok(action); assert.doesNotMatch(action, /disabled=/);
+});
+
+test("Copilot styles contain no mascot artwork or mascot animation", async () => {
+  const css = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /copilot-mascot|copilot-cat|copilot-head-nod|copilot-halo-breathe/);
+  assert.match(css, /\.copilot-quick-check:focus-visible/);
+});
+
+test("an admin can switch an existing daily agent schedule to manual without an AI budget", () => {
+  const html = renderToStaticMarkup(createElement(AgentConsole, {
+    data: { ...base, role: "admin" } as Snapshot,
+    consoleData: { agent_user: null, schedules: { cash_application: "daily" }, policies: [], auto_posted_today: "0.00", runs: [] },
+    aiReady: false, aiBudget: null, userId: "u1",
+  }));
+  const manual = /<button([^>]*)>Switch to manual<\/button>/.exec(html);
+  const schedule = /<button([^>]*)>Schedule daily<\/button>/.exec(html);
+  assert.ok(manual); assert.doesNotMatch(manual[1], /\bdisabled\b/);
+  assert.ok(schedule); assert.match(schedule[1], /\bdisabled\b/);
 });

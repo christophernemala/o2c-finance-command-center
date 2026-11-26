@@ -10,9 +10,11 @@ import { dubaiDate } from "@/lib/ai/config";
 export const maxDuration = 300;
 const kind = z.enum(["collections", "cash_application", "credit_risk", "reporting"]);
 const decimal = z.string().regex(/^(0|[1-9]\d{0,12})(\.\d{1,2})?$/);
+const usdDecimal = z.string().regex(/^(0|[1-9]\d{0,5})(\.\d{1,6})?$/);
 const input = z.discriminatedUnion("intent", [
   z.object({ intent: z.literal("run"), tenant: z.uuid(), entity: z.uuid(), id: z.uuid(), kind }),
   z.object({ intent: z.literal("schedule"), tenant: z.uuid(), entity: z.uuid(), kind, cadence: z.enum(["manual", "daily"]) }),
+  z.object({ intent: z.literal("ai_spend_cap"), tenant: z.uuid(), entity: z.uuid(), daily_cap_usd: usdDecimal }),
   z.object({ intent: z.literal("policy_propose"), tenant: z.uuid(), entity: z.uuid(), id: z.uuid(), auto: z.enum(["on", "off"]), item_limit: decimal, daily_limit: decimal }),
   z.object({ intent: z.literal("policy_decide"), tenant: z.uuid(), entity: z.uuid(), id: z.uuid(), decision: z.enum(["active", "rejected"]) }),
   z.object({ intent: z.literal("guardrail_create"), tenant: z.uuid(), entity: z.uuid(), id: z.uuid(), name: z.string().trim().min(3).max(120),
@@ -57,6 +59,7 @@ export async function POST(request: NextRequest) {
         destination.searchParams.set("run", runId);
       }
     } else if (data.intent === "schedule") result = await auth.client.rpc("set_agent_schedule", { ...scope, p_kind: data.kind, p_cadence: data.cadence });
+    else if (data.intent === "ai_spend_cap") result = await auth.client.rpc("set_ai_spend_cap", { ...scope, p_daily_cap: data.daily_cap_usd });
     else if (data.intent === "policy_propose") result = await auth.client.rpc("propose_agent_policy", { ...scope, p_id: data.id, p_auto: data.auto === "on", p_item_limit: data.item_limit, p_daily_limit: data.daily_limit });
     else if (data.intent === "policy_decide") result = await auth.client.rpc("decide_agent_policy", { ...scope, p_id: data.id, p_decision: data.decision });
     else if (data.intent === "guardrail_create") {

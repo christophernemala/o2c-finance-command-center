@@ -6,9 +6,13 @@ export function proxy(request: NextRequest) {
   // Reject malformed IDs before App Router streaming can commit a 200 response.
   const importId = request.nextUrl.pathname.match(/^\/imports\/([^/]+)\/?$/)?.[1];
   const invalidImport = importId !== undefined && !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(importId);
+  const productionPreview = process.env.NODE_ENV === "production"
+    && (request.nextUrl.pathname === "/preview" || request.nextUrl.pathname === "/preview/");
   const response = invalidImport
     ? new NextResponse("Import not found", { status: 404 })
-    : NextResponse.next({ request: { headers } });
+    : productionPreview
+      ? new NextResponse("Not Found", { status: 404 })
+      : NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy", policy); response.headers.set("Cache-Control", "private, no-store");
   return response;
 }

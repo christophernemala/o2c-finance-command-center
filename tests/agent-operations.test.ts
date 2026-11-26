@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { migratedDatabase } from "./pg-helper";
 import { blockFor, canonicalJson, evaluateGuardrails, inputHash, type Guardrail } from "../src/lib/ai/guardrails";
+import { testSpend } from "./ai-spend-stub";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const hash = (n: number) => String(n).padStart(64, "0");
 const T = id(10), E = id(20);
@@ -16,13 +17,16 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
     await db.query("insert into public.customers(id,tenant_id,entity_id,account,name) values($1,$2,$3,'C1','Customer One')", [id(30), T, E]);
     await db.query(`insert into public.bank_lines(id,tenant_id,entity_id,reference,booked_at,direction,amount) values
       ($1,$2,$3,'WIRE 1','2026-10-10','credit',9000.00),($4,$2,$3,'WIRE 2','2026-10-11','credit',400.00)`, [id(50), T, E, id(51)]);
-    async function asUser(n: number) {
+    async function asUser(n: number, entity = E) {
       await db.exec("reset role");
       await db.query("insert into auth.sessions(token_hash,user_id,purpose,aal,expires_at) values($1,$2,'login','aal1',now()+interval '1 hour') on conflict(token_hash) do nothing", [hash(n), id(n)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", [hash(n)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,entity]);
       await db.exec("set role authenticated");
     }
     const rpc = async <V = unknown>(sql: string, values: unknown[]) => (await db.query<{ v: V }>(sql, values)).rows[0].v;
+    const authorize = async (tool: string, input: Record<string, unknown>, run = id(100)) =>
+      rpc<{ allowed: boolean; block: { blocked_by: string } | null }>("select public.agent_authorize_tool($1,$2,$3,$4,$5::jsonb) as v", [T,E,run,tool,JSON.stringify(input)]);
     const G = id(200);
     const amountRule = { tool: "propose_receipt", limit: "5000.00" };
 
@@ -60,9 +64,14 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
       await db.query("insert into public.agent_runs(id,tenant_id,entity_id,name,status,kind,trigger,as_of) values($1,$2,$3,'Cash application agent','queued','cash_application','manual','2026-10-15')", [id(100), T, E]);
       await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "a".repeat(64)]);
       await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
+      await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
       await db.exec("set role authenticated");
-      await assert.rejects(db.query("select public.propose_action($1,$2,$3,'receipt','9000.00','Agent proposal over the cap',null,null,$4,$5)", [T, E, id(300), id(50), id(30)]), /Blocked by guardrail: Receipt cap/);
-      await db.query("select public.propose_action($1,$2,$3,'receipt','400.00','Agent proposal under the cap',null,null,$4,$5)", [T, E, id(301), id(51), id(30)]);
+      const blocked = await authorize("propose_receipt",{bank_line_id:id(50),customer_id:id(30),amount:"9000.00",evidence:"Agent proposal over the cap"});
+      assert.equal(blocked.allowed,false); assert.equal(blocked.block?.blocked_by,"Receipt cap");
+      await assert.rejects(db.query("select public.propose_action($1,$2,$3,'receipt','9000.00',$6,null,null,$4,$5)", [T, E, id(300), id(50), id(30), `AI agent run ${id(100)}: Agent proposal over the cap`]), /Blocked by guardrail: Receipt cap/);
+      const allowed = await authorize("propose_receipt",{bank_line_id:id(51),customer_id:id(30),amount:"400.00",evidence:"Agent proposal under the cap"});
+      assert.equal(allowed.allowed,true);
+      await db.query("select public.propose_action($1,$2,$3,'receipt','400.00',$6,null,null,$4,$5)", [T, E, id(301), id(51), id(30), `AI agent run ${id(100)}: Agent proposal under the cap`]);
       await assert.rejects(db.query("select public.propose_guardrail_stage($1,$2,$3,3,'rolled_back',null)", [T, E, G]), /Forbidden/, "agents cannot change guardrails");
       await asUser(4);
       await db.query("select public.propose_action($1,$2,$3,'receipt','9000.00','Human proposal over the cap',null,null,$4,$5)", [T, E, id(302), id(50), id(30)]);
@@ -82,9 +91,9 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
       for (const [seq, type, tool, detail] of steps) await db.query("insert into public.agent_steps(run_id,seq,tenant_id,entity_id,type,tool,detail,duration_ms) values($1,$2,$3,$4,$5,$6,$7,$8)", [id(110), seq, T, E, type, tool, detail, 100 * seq]);
       await asUser(3);
       const identical = await rpc<Record<string, unknown>>("select public.simulate_guardrail($1,$2,'max_identical_calls',null,$3,30) as v", [T, E, { limit: "2" }]);
-      assert.deepEqual([identical.calls_replayed, identical.would_act_on, identical.failures_caught, identical.false_positives], [4, 1, 0, 1]);
+      assert.deepEqual([identical.calls_replayed, identical.would_act_on, identical.failures_caught, identical.false_positives], [6, 1, 0, 1]);
       const cap = await rpc<Record<string, unknown>>("select public.simulate_guardrail($1,$2,'max_amount','cash_application',$3,30) as v", [T, E, amountRule]);
-      assert.deepEqual([cap.would_act_on, cap.failures_caught, cap.false_positives, cap.total_failures, cap.cost_of_affected_runs_usd], [1, 1, 0, 1, "0.500000"]);
+      assert.deepEqual([cap.calls_replayed, cap.would_act_on, cap.failures_caught, cap.false_positives, cap.total_failures, cap.cost_of_affected_runs_usd], [6, 2, 1, 0, 1, "0.500000"]);
       const other = await rpc<Record<string, unknown>>("select public.simulate_guardrail($1,$2,'deny_tool','reporting',$3,30) as v", [T, E, { tool: "get_ar_overview" }]);
       assert.equal(other.calls_replayed, 0, "scoped to the agent kind");
     });
@@ -98,9 +107,10 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
       await db.query("update public.agent_runs set updated_at=now() where id=$1", [id(100)]);
       const first = (await db.query<{ n: number }>("select o2c_private.detect_agent_incidents($1,$2) as n", [T, E])).rows[0].n;
       const second = (await db.query<{ n: number }>("select o2c_private.detect_agent_incidents($1,$2) as n", [T, E])).rows[0].n;
-      assert.equal(first, 3); assert.equal(second, 0, "idempotent");
+      assert.equal(first, 4); assert.equal(second, 0, "idempotent");
       const kinds = (await db.query<{ kind: string; severity: string; run_id: string }>("select kind,severity,run_id from public.agent_incidents order by kind")).rows;
       assert.deepEqual(kinds, [
+        { kind: "guardrail_block", severity: "info", run_id: id(100) },
         { kind: "loop", severity: "warning", run_id: id(110) },
         { kind: "run_failed", severity: "critical", run_id: id(111) },
         { kind: "stuck_run", severity: "critical", run_id: id(112) },
@@ -120,13 +130,13 @@ test("agent operations: guardrails, enforcement, simulation, incidents and read 
       await assert.rejects(db.query("select public.resolve_agent_incident($1,$2,(select id from public.agent_incidents where kind='loop'))", [T, E]), /Forbidden/);
       await asUser(2);
       await db.query("select public.resolve_agent_incident($1,$2,(select id from public.agent_incidents where kind='loop'))", [T, E]);
-      assert.equal((await rpc<unknown[]>("select public.agent_incidents_list($1,$2,'open') as v", [T, E])).length, 2);
+      assert.equal((await rpc<unknown[]>("select public.agent_incidents_list($1,$2,'open') as v", [T, E])).length, 3, "the open list includes the informational database guardrail block");
     });
 
     await t.test("an entity with no finished runs has no health score", async () => {
       await db.exec("reset role");
       await db.query("insert into public.entities(id,tenant_id,name) values($1,$2,'Empty')", [id(21), T]);
-      await asUser(3);
+      await asUser(3,id(21));
       const overview = await rpc<{ health: unknown; runs: { finished: number } }>("select public.agent_ops_overview($1,$2,24) as v", [T, id(21)]);
       assert.equal(overview.health, null); assert.equal(overview.runs.finished, 0);
     });
@@ -145,6 +155,7 @@ test("guardrail evaluation order, canonical hashing and block results", () => {
   assert.deepEqual(hits.map(hit => [hit.rule.kind, hit.action]), [["deny_tool", "observed"], ["max_amount", "blocked"], ["require_field", "warned"], ["max_identical_calls", "blocked"]]);
   assert.deepEqual(blockFor(hits), { blocked_by: "max_amount", rule_id: "max_amount", stage: "block", reason: "Amount AED 1000.01 exceeds the AED 1000.00 limit" });
   assert.deepEqual(evaluateGuardrails(rules, "propose_receipt", { amount: "1000.00", customer_id: "c" }, 1).map(hit => hit.action), ["observed"], "at the limit is allowed");
+  assert.equal(evaluateGuardrails([rules[1]], "propose_receipt", { customer_id: "  " }, 1)[0]?.reason, "propose_receipt requires customer_id", "whitespace-only required fields are missing");
   assert.equal(blockFor(evaluateGuardrails(rules, "propose_receipt", { amount: "not money" }, 1).filter(hit => hit.rule.kind === "max_amount"))?.reason, "propose_receipt amount missing or invalid", "an unparseable amount fails closed");
   assert.equal(canonicalJson({ b: 1, a: { d: [2, { y: 1, x: 0 }], c: null } }), '{"a":{"c":null,"d":[2,{"x":0,"y":1}]},"b":1}');
   assert.equal(inputHash("t", { a: 1, b: 2 }), inputHash("t", { b: 2, a: 1 }));
@@ -166,7 +177,7 @@ test("tool loop records guardrail hits and never runs a blocked tool", async () 
       usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } as never;
   };
   const events: string[] = [];
-  const result = await runLoop({ call: call as never, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 3,
+  const result = await runLoop({ call: call as never, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 3, spend: testSpend,
     guardrails: [{ id: "g1", name: "No repeats", kind: "max_identical_calls", params: { limit: "2" }, stage: "block", version: 2 }],
     onEvent: async event => { events.push(event.type === "guardrail" ? `guardrail:${event.hit.action}` : event.type); } });
   assert.equal(result.status, "succeeded");
@@ -174,6 +185,18 @@ test("tool loop records guardrail hits and never runs a blocked tool", async () 
   assert.deepEqual(events, ["tool_call", "tool_result", "tool_call", "tool_result", "tool_call", "guardrail:blocked", "tool_result", "message"]);
   assert.equal(lastResults[2].is_error, true);
   assert.deepEqual(JSON.parse(lastResults[2].content), { blocked_by: "No repeats", rule_id: "g1", stage: "block", reason: "Identical get_ar_overview call repeated 3 times in this run (limit 2)" });
+});
+
+test("tool loop fails closed on a malformed SQL authorization response", async () => {
+  const { runLoop } = await import("../src/lib/ai/loop");
+  const { tools } = await import("../src/lib/ai/tools");
+  let rpcCalls = 0;
+  const context = { client: { rpc: async () => { rpcCalls++; return { data: {}, error: null }; } }, tenant: "t", entity: "e", asOf: "2026-10-15", actor: "agent" as const, findings: [] };
+  const call = async () => ({ id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [{ type: "tool_use", id: "u1", name: "get_ar_overview", input: {} }], stop_reason: "tool_use", stop_sequence: null,
+    usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }) as never;
+  await assert.rejects(runLoop({ call, model: "claude-opus-5-5", effort: "low", system: "s", tools, context, messages: [{ role: "user", content: "q" }], maxTurns: 2, spend: testSpend,
+    authorizeTool: async () => ({ allowed: false, hits: [], block: undefined } as never), onEvent: async () => {} }), /invalid tool authorization/);
+  assert.equal(rpcCalls, 0, "a malformed denial never reaches the agent tool");
 });
 
 test("a max_amount guardrail fails closed on a missing or malformed amount", async () => {

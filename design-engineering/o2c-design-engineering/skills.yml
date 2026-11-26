@@ -1,0 +1,42 @@
+name: o2c-design-engineering
+entrypoint: SKILL.md
+quick_entry: skill.md
+purpose: >-
+  Apply source-grounded design and interaction rules to the O2C Finance Command Center
+  without inventing UI patterns, motion values, financial evidence, or integrations.
+source_roles:
+  VengeanceUI:
+    url: https://github.com/Ashutoshx7/VengeanceUI
+    role: component catalog, implementation examples, registry and reuse conventions
+    limitation: component-specific; not a finance design system or universal motion token set
+  emilkowalski_skills:
+    url: https://github.com/emilkowalski/skills
+    role: motion, interaction, performance, accessibility and review guidance
+    limitation: timings/curves/springs/thresholds are contextual examples, not universal constants
+  prompt_master:
+    url: https://github.com/nidhinjs/prompt-master
+    role: prompt and agent-instruction structure, grounding, scope and verification
+    limitation: not a UI or visual design source
+  product_contract:
+    files: [../../DESIGN.md, ../../STYLEGUIDE.md, ../../docs/ARCHITECTURE.md, ../../docs/SECURITY.md]
+    role: finance truth, current visual tokens, responsive behavior, authorization and approval boundaries
+files:
+  - {path: design.md, use: design hierarchy and source attribution}
+  - {path: reference.md, use: evidence ledger, source links, limitations}
+  - {path: motion.md, use: motion decision gates and mapping}
+  - {path: animations.md, use: contextual durations, curves, springs and no-go cases}
+  - {path: components.md, use: catalog-first selection and component guidance}
+  - {path: interactions.md, use: verified interaction and state patterns}
+  - {path: layout.md, use: responsive finance dashboard composition}
+  - {path: accessibility.md, use: tested keyboard, touch, focus and reduced-motion rules}
+  - {path: polish.md, use: source-grounded visual and implementation finish}
+  - {path: review.md, use: implementation acceptance checklist}
+  - {path: patterns.md, use: finance-specific adaptations and prohibited substitutions}
+  - {path: tokens.md, use: existing O2C tokens versus VengeanceUI-specific values}
+  - {path: best-practices.md, use: Prompt Master-based reusable agent prompts}
+  - {path: skill.md, use: lowercase quick entry and file navigation}
+policy:
+  source_attribution_required: true
+  invent_tokens_or_motion: false
+  fabricate_financial_data_or_integrations: false
+  require_tests_and_evidence: true

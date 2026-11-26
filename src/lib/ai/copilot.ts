@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AiConfig } from "./config";
+import type { AiSpendController } from "./budget";
 import { copilotSystemPrompt } from "./agents";
 import { runLoop, type LoopEvent, type ModelCaller } from "./loop";
 import { toolsFor, type FinanceRpc, type ToolContext } from "./tools";
@@ -10,9 +11,9 @@ export interface CopilotFileRef { id: string; name: string }
 
 /** One copilot turn as the signed-in user. History is text-only so every turn starts append-only. */
 export async function runCopilot(input: {
-  client: FinanceRpc; config: AiConfig; call: ModelCaller; tenant: string; entity: string; asOf: string; role: string;
+  client: FinanceRpc; config: AiConfig; call: ModelCaller; spend: AiSpendController; tenant: string; entity: string; asOf: string; role: string;
   thread: string; message: string; files: CopilotFileRef[]; history: CopilotTurn[];
-  readFile: ToolContext["readFile"]; emit: (event: CopilotEvent) => void;
+  allowProposals: boolean; signal?: AbortSignal; readFile: ToolContext["readFile"]; emit: (event: CopilotEvent) => void;
 }) {
   const trace: { tool: string; ok: boolean; input: unknown }[] = [];
   const messages: Anthropic.Beta.BetaMessageParam[] = [];
@@ -24,16 +25,19 @@ export async function runCopilot(input: {
   if (messages[0]?.role === "assistant") messages.shift();
   const attachments = input.files.length ? `\n\n[Attached files: ${input.files.map(file => `${file.name} (file_id ${file.id})`).join("; ")}]` : "";
   const scopeNote = `[Scope: legal entity ${input.entity}, as of ${input.asOf} Asia/Dubai, user role ${input.role}]`;
-  const userContent = `${scopeNote}\n${input.message}${attachments}`;
+  const allowWrites = input.allowProposals && ["maker", "admin"].includes(input.role);
+  const permissionNote = allowWrites
+    ? "[This turn has explicit user permission to create pending proposals; an independent human must still approve.]"
+    : "[Read-only turn: proposal tools are unavailable.]";
+  const userContent = `${scopeNote}\n${permissionNote}\n${input.message}${attachments}`;
   if (messages.at(-1)?.role === "user") messages.push({ role: "assistant", content: "Noted." });
   messages.push({ role: "user", content: userContent });
-  const canWrite = ["maker", "admin"].includes(input.role);
   const context: ToolContext = { client: input.client, tenant: input.tenant, entity: input.entity, asOf: input.asOf, actor: "copilot", findings: [], readFile: input.readFile };
   const result = await runLoop({
-    call: input.call, model: input.config.model, effort: input.config.copilotEffort, maxTurns: 10,
+    call: input.call, model: input.config.model, effort: input.config.copilotEffort, maxTurns: 10, spend: input.spend,
     // The route's maxDuration is 300 s; stop well before it so the answer and its trace are saved.
-    deadline: Date.now() + 240_000,
-    system: copilotSystemPrompt, tools: toolsFor("copilot", canWrite), context, messages,
+    deadline: Date.now() + 240_000, signal: input.signal,
+    system: copilotSystemPrompt, tools: toolsFor("copilot", allowWrites), context, messages,
     onText: delta => input.emit({ type: "text", delta }),
     onEvent: async (event: LoopEvent) => {
       if (event.type === "tool_call") { trace.push({ tool: event.tool, ok: true, input: event.input }); input.emit({ type: "tool", tool: event.tool, status: "running" }); }

@@ -15,6 +15,7 @@ Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each
                                    ├─ approvals       maker/checker inbox
                                    ├─ reports         AR pack + Excel
                                    ├─ cashflow · ecl · imports (/imports/[id]) · audit
+                                   └─ guide           setup, source limits, automation and approvals
 /signup (invitation activation) · /auth/security (authenticator) · /privacy · 404
 ```
 
@@ -38,3 +39,6 @@ Screen map and the main journeys. `DESIGN.md` holds the acceptance rule for each
 9. **Credit holds and limits.** A maker, approver or admin places a hold. The credit risk agent only proposes one, which a human approver or admin approves or rejects. Only a different human approver or admin releases an active hold. Limit changes need maker/checker approval.
 10. **Statement of account.** On the customer page, generate the PDF statement and download it or attach it to an email.
 11. **Agent operations.** Incidents are detected automatically, then investigated through the trace and the handoff comparison. A guardrail is drafted, simulated on past runs, and promoted from Monitor to Warn to Block with approval.
+12. **Find analytics and help.** Dashboard / Overview shows native KPI, chart, matrix and exact-figure views directly below the KPI tiles. It is not an embedded Power BI report. The Guide explains supported sources and what runs automatically versus what requires a human checker.
+13. **Explore cash timing.** On an approved 13-week source run, a user can shift supplied receipts and payments by 0–4 weeks to compare a non-persistent what-if. It does not alter the approved run or create cash movements.
+14. **Review customer provisions.** ECL runs display their source-provided customer rows only when a versioned detail payload is present. A CSV/XLSX may also be checked in the browser using EAD × PD × LGD arithmetic; it is not stored and is not an IFRS 9 model.

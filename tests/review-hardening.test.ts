@@ -7,6 +7,7 @@ const T = id(10), E = id(20), E2 = id(21), C = id(30), C2 = id(31);
 test("agent sessions are entity-bound, disabled agents cannot claim, stale runs expire, promises ignore later invoices", async () => {
   const db = await migratedDatabase();
   try {
+    await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
     await db.query("insert into auth.users(id,email_confirmed_at) values($1,now())", [id(4)]);
     await db.query("insert into public.tenants(id,name) values($1,'Tenant')", [T]);
     await db.query("insert into public.memberships values($1,$2,'maker')", [T, id(4)]);
@@ -20,10 +21,13 @@ test("agent sessions are entity-bound, disabled agents cannot claim, stale runs 
     assert.ok(await claim(100, "a".repeat(64)));
     await db.query("select set_config('o2c.session_hash',$1,false)", ["a".repeat(64)]);
     await db.exec("set role authenticated");
+    await db.query("select public.agent_authorize_tool($1,$2,$3,'place_credit_hold',$4::jsonb)", [T,E,id(100),JSON.stringify({customer_id:C,reason:"In the run entity"})]);
     await db.query("select public.place_customer_hold($1,$2,$3,$4,'In the run entity')", [T, E, id(80), C]);
+    await db.query("select set_config('o2c.entity_id',$1,false)", [E2]);
     await assert.rejects(db.query("select public.place_customer_hold($1,$2,$3,$4,'Other entity')", [T, E2, id(81), C2]), /Forbidden/, "require_scope binds the agent to its run's entity");
     await assert.rejects(db.query("select public.propose_action($1,$2,$3,'receipt','100.00','evidence',null,null,$4,$5)", [T, E2, id(82), id(50), C2]), /Forbidden/, "propose_action binds the agent too");
 
+    await db.query("select set_config('o2c.entity_id',$1,false)", [E]);
     await db.exec("reset role");
     await db.query("update auth.users set disabled=true where kind='agent'");
     await run(101);
@@ -49,6 +53,7 @@ test("agent sessions are entity-bound, disabled agents cannot claim, stale runs 
 test("a policy auto-post refuses an inexact match while the daily cap still has headroom", async () => {
   const db = await migratedDatabase();
   try {
+    await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
     await db.query("insert into auth.users(id,email_confirmed_at) values($1,now()),($2,now())", [id(1), id(2)]);
     await db.query("insert into public.tenants(id,name) values($1,'Tenant')", [T]);
     await db.query("insert into public.memberships values($1,$2,'admin'),($1,$3,'approver')", [T, id(1), id(2)]);
@@ -61,7 +66,9 @@ test("a policy auto-post refuses an inexact match while the daily cap still has 
     await db.query("select o2c_private.claim_agent_run($1,$2)", [id(100), "c".repeat(64)]);
     await db.query("select set_config('o2c.session_hash',$1,false)", ["c".repeat(64)]);
     await db.exec("set role authenticated");
-    await db.query("select public.propose_action($1,$2,$3,'receipt','100.00','AI agent: amount-only match',null,null,$4,$5)", [T, E, id(200), id(50), C]);
+    await db.query("select public.agent_authorize_tool($1,$2,$3,'propose_receipt',$4::jsonb)", [T,E,id(100),JSON.stringify({bank_line_id:id(50),customer_id:C,amount:"100.00",evidence:"amount-only match"})]);
+    await db.query("select public.propose_action($1,$2,$3,'receipt','100.00',$6,null,null,$4,$5)", [T, E, id(200), id(50), C, `AI agent run ${id(100)}: amount-only match`]);
+    await db.query("select public.agent_authorize_tool($1,$2,$3,'auto_post_if_policy_allows',$4::jsonb)", [T,E,id(100),JSON.stringify({approval_id:id(200)})]);
     const result = (await db.query<{ v: { status: string; reason: string } }>("select public.agent_auto_post($1,$2,$3) as v", [T, E, id(200)])).rows[0].v;
     assert.deepEqual([result.status, result.reason], ["awaiting_approval", "Not an exact reference and amount match"]);
   } finally { await db.close(); }
@@ -70,6 +77,7 @@ test("a policy auto-post refuses an inexact match while the daily cap still has 
 test("guardrails need a tool and replays must match the whole payload", async () => {
   const db = await migratedDatabase();
   try {
+    await db.query("select set_config('o2c.tenant_id',$1,false),set_config('o2c.entity_id',$2,false)", [T,E]);
     for (const [kind, params] of [["deny_tool", {}], ["max_amount", { limit: "10.00" }], ["require_field", { field: "amount" }]] as const)
       await assert.rejects(db.query("select o2c_private.check_guardrail($1,$2)", [kind, params]), /Invalid guardrail/, `${kind} without a tool`);
     await db.query("insert into auth.users(id,email_confirmed_at) values($1,now())", [id(4)]);

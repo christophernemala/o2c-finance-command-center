@@ -4,6 +4,11 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": null,
+  "git": {
+    "deploymentEnabled": {
+      "codex/ai-budget-copilot-hardening": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/agents",

@@ -4,7 +4,7 @@ import { parseCsv } from "./imports";
 export const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_ROWS = 5000, MAX_COLUMNS = 60, MAX_PART_BYTES = 12 * 1024 * 1024, MAX_TOTAL_BYTES = 24 * 1024 * 1024;
 /** truncated: rows beyond the 5,000-row cap (rows_cut) or non-empty cells beyond the 60-column cap (columns_cut) were not read, so totals over the sheet are incomplete. */
-export interface Sheet { name: string; rows: string[][]; truncated?: boolean; rows_cut?: boolean; columns_cut?: boolean }
+export interface Sheet { name: string; rows: string[][]; truncated?: boolean; rows_cut?: boolean; columns_cut?: boolean; contains_formulas?: boolean }
 
 const decode = (value: string) => value.replace(/&(lt|gt|quot|apos|amp|#x[0-9a-f]+|#\d+);/gi, (_, entity: string) => {
   const named: Record<string, string> = { lt: "<", gt: ">", quot: "\"", apos: "'", amp: "&" };
@@ -38,11 +38,12 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
     const name = decode(/\bname="([^"]*)"/.exec(match[0])?.[1] ?? "Sheet");
     const relation = /\br:id="([^"]+)"/.exec(match[0])?.[1];
     const xml = part(targets[relation ?? ""] ?? "");
-    const rows: string[][] = []; let truncated = false; let wide = false;
+    const rows: string[][] = []; let truncated = false; let wide = false; let containsFormulas = false;
     for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
       const values: string[] = [];
       for (const cell of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const attributes = cell[1]; const body = cell[2] ?? "";
+        if (/<f(?:\s[^>]*)?(?:\/>|>[\s\S]*?<\/f\s*>)/.test(body)) containsFormulas = true;
         const index = columnIndex(/\br="([A-Z]+\d+)"/.exec(attributes)?.[1] ?? ""); const column = index < 0 ? values.length : index;
         if (column >= MAX_COLUMNS) { if (decode(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? "") || text(body)) wide = true; continue; }
         const type = /\bt="([^"]+)"/.exec(attributes)?.[1];
@@ -55,7 +56,7 @@ export function readXlsx(bytes: Uint8Array): Sheet[] {
       if (rows.length >= MAX_ROWS) { truncated = true; break; }
       rows.push(values);
     }
-    return truncated || wide ? { name, rows, truncated: true, ...(truncated ? { rows_cut: true } : {}), ...(wide ? { columns_cut: true } : {}) } : { name, rows };
+    return truncated || wide || containsFormulas ? { name, rows, ...(truncated || wide ? { truncated: true } : {}), ...(truncated ? { rows_cut: true } : {}), ...(wide ? { columns_cut: true } : {}), ...(containsFormulas ? { contains_formulas: true } : {}) } : { name, rows };
   });
 }
 

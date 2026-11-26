@@ -2,7 +2,7 @@ import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { Bot, CalendarClock, FileBarChart, HandCoins, Landmark, ShieldAlert } from "lucide-react";
 import type { Snapshot } from "@/types/workspace";
-import { agentKinds, type AgentConsoleData, type AgentKind } from "@/types/agents";
+import { agentKinds, type AgentConsoleData, type AiSpendStatus, type AgentKind } from "@/types/agents";
 import { Panel, Badge, Empty, Money } from "./ui";
 import { MutationForm } from "./mutation-form";
 import { RunStream } from "./run-stream";
@@ -15,8 +15,9 @@ const catalogue: Record<AgentKind, { name: string; icon: typeof Bot; does: strin
 };
 const when = (value: string | null) => value ? new Date(value).toLocaleString("en-AE", { timeZone: "Asia/Dubai", dateStyle: "medium", timeStyle: "short" }) : "—";
 
-export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }: { data: Snapshot; consoleData: AgentConsoleData; aiReady: boolean; selectedRun?: string; userId: string }) {
-  const canRun = ["maker", "approver", "admin"].includes(data.role); const admin = data.role === "admin"; const checker = ["approver", "admin"].includes(data.role);
+export function AgentConsole({ data, consoleData, aiReady, aiBudget, selectedRun, userId }: { data: Snapshot; consoleData: AgentConsoleData; aiReady: boolean; aiBudget: AiSpendStatus | null; selectedRun?: string; userId: string }) {
+  const authorizedToRun = ["maker", "approver", "admin"].includes(data.role); const admin = data.role === "admin"; const checker = ["approver", "admin"].includes(data.role);
+  const budgetAvailable = !!aiBudget?.configured && !aiBudget.paused && aiBudget.remaining_usd !== null && !/^0(?:\.0+)?$/.test(aiBudget.remaining_usd);
   const scope = <><input type="hidden" name="tenant" value={data.tenant_id}/><input type="hidden" name="entity" value={data.entity_id}/></>;
   const active = consoleData.policies.find(policy => policy.status === "active");
   const pending = consoleData.policies.filter(policy => policy.status === "pending");
@@ -24,6 +25,24 @@ export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }
   const selected = consoleData.runs.find(run => run.id === selectedRun);
   return <div className="space-y-6">
     {!aiReady && <div role="status" className="rounded-xl border border-line bg-warning-soft p-5 text-sm text-warning"><p className="font-semibold">AI provider not configured</p><p className="mt-1">Set <code>ANTHROPIC_API_KEY</code> on the server to enable agents and the copilot. Runs requested now are recorded and fail with this reason; no results are simulated.</p></div>}
+    <Panel title="Daily AI spend cap" subtitle="A tenant-wide USD limit shared by Copilot and every agent. It resets at 00:00 Asia/Dubai. Each model call reserves its maximum listed cost before it is sent; set a provider-side spend limit as well.">
+      <div className="grid gap-5 p-6 md:grid-cols-2">
+        <div className="space-y-3 text-sm">
+          {!aiBudget ? <p role="status" className="rounded-xl bg-warning-soft p-4 text-warning">Budget status is unavailable. AI model calls fail closed until the budget can be checked.</p>
+            : <><p>{!aiBudget.configured ? "No daily cap is set; AI is disabled." : aiBudget.paused ? "AI is paused because the cap is USD 0." : `Budget status for ${aiBudget.date} (Asia/Dubai).`}</p>
+              <dl className="grid grid-cols-2 gap-2 rounded-xl bg-surface-muted p-4"><dt className="text-muted">Daily limit</dt><dd className="text-right">USD {aiBudget.daily_limit_usd ?? "not set"}</dd>
+                <dt className="text-muted">Settled estimate</dt><dd className="text-right">USD {aiBudget.spent_usd}</dd><dt className="text-muted">Held reservations</dt><dd className="text-right">USD {aiBudget.reserved_usd}</dd>
+                <dt className="text-muted">Available</dt><dd className="text-right">USD {aiBudget.remaining_usd ?? "—"}</dd></dl>
+              {aiBudget.open_reservations > 0 && <p className="text-xs text-muted">{aiBudget.open_reservations} provider call(s) have an unresolved outcome; their full reservation is held for today.</p>}</>}
+          {!budgetAvailable && <p className="text-xs text-warning">AI model calls are blocked until a positive budget is available. Existing daily schedules can still start, but their runs fail closed before any model call.</p>}
+        </div>
+        {admin ? <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="ai_spend_cap"/>
+          <label>Daily AI limit (USD)<input name="daily_cap_usd" required inputMode="decimal" pattern="(0|[1-9][0-9]{0,5})(\.[0-9]{1,6})?" defaultValue={aiBudget?.daily_limit_usd ?? ""} placeholder="For example, 1.00"/></label>
+          <p className="text-xs text-muted">Enter 0 to pause Copilot and all agents. Choose the amount that fits your own provider budget; no default limit is selected here.</p>
+          <button className="button secondary">Save daily cap</button></MutationForm>
+          : <p className="text-sm text-muted">Only a workspace admin can set or change the AI spend cap.</p>}
+      </div>
+    </Panel>
     <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">{agentKinds.map(kind => {
       const info = catalogue[kind]; const latest = consoleData.runs.find(run => run.kind === kind); const cadence = consoleData.schedules[kind] ?? "manual";
       return <article id={`agent-${kind}`} key={kind} className="flex flex-col rounded-[22px] border border-line bg-surface p-5 shadow-xs">
@@ -32,8 +51,8 @@ export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }
         <p className="mt-3 text-xs leading-5 text-muted"><strong className="text-ink">Autonomy:</strong> {info.autonomy}</p>
         <p className="mt-3 flex items-center gap-2 text-xs text-muted"><CalendarClock size={14} aria-hidden="true"/>{cadence === "daily" ? "Runs daily at 08:00 GST" : "Manual runs only"}{latest && <> · last {when(latest.created_at)}</>}</p>
         <div className="mt-auto space-y-2 pt-5">
-          {canRun && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="run"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={randomUUID()}/><button className="button w-full"><Bot size={16} aria-hidden="true"/>Run {info.name.toLowerCase()} agent</button></MutationForm>}
-          {admin && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="schedule"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="cadence" value={cadence === "daily" ? "manual" : "daily"}/><button className="button secondary w-full">{cadence === "daily" ? "Switch to manual" : "Schedule daily"}</button></MutationForm>}
+          {authorizedToRun && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="run"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="id" value={randomUUID()}/><button className="button w-full" disabled={!aiReady || !budgetAvailable}><Bot size={16} aria-hidden="true"/>Run {info.name.toLowerCase()} agent</button></MutationForm>}
+          {admin && <MutationForm action="/api/agents">{scope}<input type="hidden" name="intent" value="schedule"/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="cadence" value={cadence === "daily" ? "manual" : "daily"}/><button className="button secondary w-full" disabled={cadence !== "daily" && (!aiReady || !budgetAvailable)}>{cadence === "daily" ? "Switch to manual" : "Schedule daily"}</button></MutationForm>}
         </div>
       </article>;
     })}</div>
@@ -43,11 +62,14 @@ export function AgentConsole({ data, consoleData, aiReady, selectedRun, userId }
 
     <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
       <Panel title="Run history" subtitle="Latest 30 runs in this legal entity. Select a run to replay its steps.">
-        {consoleData.runs.length ? <div className="overflow-auto"><table><caption className="sr-only">Agent runs</caption><thead><tr><th scope="col">Agent / started</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Model cost</th></tr></thead><tbody>
-          {consoleData.runs.map(run => <tr key={run.id}><td><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p className="mt-1 text-xs text-muted">{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></td>
-            <td><Badge value={run.status}/></td><td className="text-sm">{run.proposals} proposals · {run.auto_posted} auto-posted<p className="mt-1 text-xs text-muted">{run.step_count} steps</p></td>
-            <td className="money text-sm">{run.cost_usd ? `USD ${run.cost_usd}` : "—"}<p className="mt-1 text-xs text-muted">{run.input_tokens + run.output_tokens} tokens</p></td></tr>)}
-        </tbody></table></div> : <Empty title="No agent runs yet">Run an agent above. It reads your imported records, records each step, and leaves every proposal for an independent approver unless the auto-execution policy below allows posting.</Empty>}
+        {consoleData.runs.length ? <div>
+          <ul className="record-cards" aria-label="Agent runs">{consoleData.runs.map(run => <li className="record-card" key={run.id}><div className="record-card-header"><div><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p>{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></div><Badge value={run.status}/></div><dl><div><dt>Outcome</dt><dd>{run.proposals} proposals · {run.auto_posted} auto-posted · {run.step_count} steps</dd></div><div><dt>Model cost / tokens</dt><dd>{run.cost_usd ? `USD ${run.cost_usd}` : "—"} · {run.input_tokens + run.output_tokens} tokens</dd></div></dl></li>)}</ul>
+          <div className="desktop-record-table overflow-auto" role="region" aria-label="Agent run history" tabIndex={0}><table><caption className="sr-only">Agent runs</caption><thead><tr><th scope="col">Agent / started</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Model cost</th></tr></thead><tbody>
+            {consoleData.runs.map(run => <tr key={run.id}><td><Link className="font-medium text-link underline-offset-2 hover:underline" href={runHref(run.id)}>{catalogue[run.kind]?.name ?? run.name}</Link><p className="mt-1 text-xs text-muted">{when(run.created_at)} · {run.trigger === "schedule" ? "scheduled" : run.requested_by === userId ? "requested by you" : "manual"}</p></td>
+              <td><Badge value={run.status}/></td><td className="text-sm">{run.proposals} proposals · {run.auto_posted} auto-posted<p className="mt-1 text-xs text-muted">{run.step_count} steps</p></td>
+              <td className="money text-sm">{run.cost_usd ? `USD ${run.cost_usd}` : "—"}<p className="mt-1 text-xs text-muted">{run.input_tokens + run.output_tokens} tokens</p></td></tr>)}
+          </tbody></table></div>
+        </div> : <Empty title="No agent runs yet">Run an agent above. It reads your imported records, records each step, and leaves every proposal for an independent approver unless the auto-execution policy below allows posting.</Empty>}
       </Panel>
 
       <Panel title="Auto-execution policy" subtitle="Lets the cash application agent post exact matches without a human checker, within AED limits. Off by default; an admin proposes and a different approver activates.">

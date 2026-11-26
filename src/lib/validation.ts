@@ -21,5 +21,8 @@ export const commandSchema = z.discriminatedUnion("intent", [
   z.object({ ...scope, intent: z.literal("execute"), id: uuid, version, acknowledge: z.literal("yes") }),
   z.object({ ...scope, intent: z.literal("commit"), id: uuid, acknowledge: z.literal("yes") }),
   z.object({ ...scope, intent: z.literal("stage"), kind: z.enum(["invoices", "bank_lines"]),
-    file: z.instanceof(File).refine(file => file.size <= 1024 * 1024 && file.name.toLowerCase().endsWith(".csv")) }),
+    file: z.instanceof(File).refine(file => {
+      const name = file.name.toLowerCase();
+      return name.endsWith(".csv") ? file.size <= 1024 * 1024 : name.endsWith(".xlsx") && file.size <= 8 * 1024 * 1024;
+    }) }),
 ]);

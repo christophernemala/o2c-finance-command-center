@@ -63,14 +63,20 @@ test("standalone PostgreSQL sessions, identity isolation and MFA", async t => {
       }, tokenHash(newToken()));
       assert.equal(rows.rows[0].id, null);
     });
-    await t.test("original CSV bytes and staged rows commit atomically with RLS", async () => {
+    await t.test("original CSV/XLSX bytes and staged rows commit atomically with RLS", async () => {
       const bytes = Buffer.from('number,account,customer,issued_at,due_date,amount,currency\nTEST-ONLY-IMPORT,test-only,test-only customer,2026-10-01,2026-10-31,0.10,AED');
       const digest = tokenHash(bytes.toString());
       const rows = [{ number: 'TEST-ONLY-IMPORT', account: 'test-only', customer: 'test-only customer', issued_at: '2026-10-01', due_date: '2026-10-31', amount: '0.10', currency: 'AED' }];
-      const input = { tenant, entity, userId: user, digest, name: 'test-only.csv', bytes, kind: 'invoices', rows };
+      const input = { tenant, entity, userId: user, digest, name: 'test-only.csv', contentType: 'text/csv' as const, bytes, kind: 'invoices', rows };
       const id = await first.finance.stageSource(input); assert.equal(await first.finance.stageSource(input), id);
-      const source = (await admin.query("select content from public.source_files where digest=$1", [digest])).rows[0].content;
-      assert.deepEqual(source, bytes);
+      const source = (await admin.query("select content,content_type from public.source_files where digest=$1", [digest])).rows[0];
+      assert.deepEqual(source.content, bytes); assert.equal(source.content_type, 'text/csv');
+      const workbookBytes = Buffer.alloc(1024 * 1024 + 1, 0x78); const workbookDigest = tokenHash(workbookBytes.toString());
+      const workbookRows = [{ ...rows[0], number: 'TEST-ONLY-XLSX', account: 'test-xlsx' }];
+      const workbookInput = { ...input, digest: workbookDigest, name: 'test-only.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' as const, bytes: workbookBytes, rows: workbookRows };
+      await first.finance.stageSource(workbookInput);
+      const archivedWorkbook = (await admin.query("select content,content_type from public.source_files where digest=$1", [workbookDigest])).rows[0];
+      assert.deepEqual(archivedWorkbook.content, workbookBytes); assert.equal(archivedWorkbook.content_type, workbookInput.contentType);
       await assert.rejects(second.finance.stageSource({ ...input, userId: other }), /row-level security/);
       const invalid = Buffer.from('test-only-invalid-original'); const invalidDigest = tokenHash(invalid.toString());
       await assert.rejects(first.finance.stageSource({ ...input, bytes: invalid, digest: invalidDigest, rows: [{ ...rows[0], amount: 'invalid' }] }));

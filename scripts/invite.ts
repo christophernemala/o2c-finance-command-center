@@ -13,8 +13,7 @@ try {
   await client.connect(); await client.query("begin");
   const user = (await client.query(`insert into auth.users(email,invited_at) values($1,now())
     on conflict(email) do update set invited_at=now() returning id`, [email])).rows[0];
-  await client.query(`insert into public.memberships(tenant_id,user_id,role) values($1,$2,$3)
-    on conflict(tenant_id,user_id) do update set role=excluded.role`, [tenant, user.id, role]);
+  await client.query("select o2c_private.provision_membership($1,$2,$3)", [tenant, user.id, role]);
   await client.query("delete from auth.invitations where user_id=$1", [user.id]);
   await client.query("insert into auth.invitations(token_hash,user_id,expires_at) values($1,$2,now()+interval '24 hours')", [tokenHash(token), user.id]);
   await client.query("commit");

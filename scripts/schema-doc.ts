@@ -5,11 +5,12 @@ import { PGlite } from "@electric-sql/pglite";
 export async function schemaMarkdown(): Promise<string> {
   const db = new PGlite();
   try {
+    await db.exec("create role o2c_worker nologin nosuperuser bypassrls nocreatedb nocreaterole; grant o2c_worker to postgres");
     const dir = new URL("../postgres/migrations/", import.meta.url);
     const files = (await readdir(dir)).filter(name => name.endsWith(".sql")).sort();
     for (const file of files) await db.exec(await readFile(new URL(file, dir), "utf8"));
-    const tables = (await db.query<{ name: string; rls: boolean; comment: string | null }>(`
-      select c.relname as name, c.relrowsecurity as rls, obj_description(c.oid) as comment from pg_class c join pg_namespace n on n.oid=c.relnamespace
+    const tables = (await db.query<{ name: string; rls: boolean; forced: boolean; comment: string | null }>(`
+      select c.relname as name, c.relrowsecurity as rls, c.relforcerowsecurity as forced, obj_description(c.oid) as comment from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname='public' and c.relkind='r' order by c.relname`)).rows;
     const columns = (await db.query<{ table: string; column: string; type: string; nullable: string }>(`
       select table_name as table, column_name as column, case when data_type='numeric' then 'numeric('||numeric_precision||','||numeric_scale||')' when data_type='USER-DEFINED' then udt_name else data_type end as type, is_nullable as nullable
@@ -24,11 +25,11 @@ export async function schemaMarkdown(): Promise<string> {
     const out: string[] = [
       "# Database schema", "",
       "Generated from `postgres/migrations` by `npm run docs:schema`. Do not edit by hand; `tests/schema-doc.test.ts` fails when this file is stale.", "",
-      `Migrations: ${files.length} · public tables: ${tables.length} · tables with RLS: ${tables.filter(t => t.rls).length}`, "",
-      "Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting archived source CSVs into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.", "",
+      `Migrations: ${files.length} · public tables: ${tables.length} · tables with forced RLS: ${tables.filter(t => t.rls && t.forced).length}`, "",
+      "Writes go through the SECURITY DEFINER routines listed at the end. The `authenticated` role can only SELECT, with two exceptions: inserting supported archived source CSV/XLSX files into `source_files` under its RLS insert policy, and updating its own `profiles.full_name` and `profiles.avatar_url` under `profiles_update_self`.", "",
     ];
     for (const table of tables) {
-      out.push(`## ${table.name}`, "", `RLS: ${table.rls ? "enabled" : "**disabled**"} · policies: ${policies.filter(p => p.table === table.name).map(p => `${p.name} (${p.cmd})`).join(", ") || "none"}`);
+      out.push(`## ${table.name}`, "", `RLS: ${table.rls ? "enabled" : "**disabled**"} · ${table.forced ? "forced" : "not forced"} · policies: ${policies.filter(p => p.table === table.name).map(p => `${p.name} (${p.cmd})`).join(", ") || "none"}`);
       const refs = fks.filter(fk => fk.table === table.name).map(fk => fk.target);
       if (refs.length) out.push(`References: ${refs.join(", ")}`);
       out.push("", "| Column | Type | Null |", "|---|---|---|");

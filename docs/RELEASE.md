@@ -1,3 +1,21 @@
+## AI spend cap and replay-safe Copilot — 2026-11-15
+
+- Added a tenant-wide daily USD AI cap, configured by an admin in the Agent Console. Every model call reserves its worst-case listed cost before transmission; usage is settled afterward and unused headroom released. Missing, zero, unknown-price and over-cap requests fail closed. Provider retries and model fallbacks are disabled; ambiguous calls keep their reserve. The cap is an estimate, not a provider invoice guarantee.
+- Copilot stores each request's stable id and exact payload before model work. On reload, the owner can check the same request without duplicating provider work. Conflicting replays are refused.
+- Verified with `npm run verify`: 208 tests pass, production build succeeds, lint has five warnings and no errors. A disposable loopback PostgreSQL 16 database applied migrations as a non-superuser owner and a second migration run was a checksum-verified no-op. The real PostgreSQL suite passed 8 tests; the built HTTP invite/login/MFA/logout suite passed 6 tests (Redis transport stubbed only for that test).
+
+Not tested against hosted PostgreSQL, live AI/email providers, a public deployment or production finance data. Those connections/actions remain unconfigured.
+
+## Copilot intent and runtime hardening — 2026-11-15
+
+- Copilot is read-only by default. Makers/admins must opt into pending-proposal tools per message; the server independently checks the authenticated role. Copilot still cannot approve or post.
+- Copilot requests now abort on client disconnect and do not start subsequent tool calls after cancellation. A database action already in flight may complete.
+- Statement validation/PDF failures return a generic no-store 503 instead of an unhandled route error.
+- Added the missing Resend sender variable to `.env.example` and corrected signup, provider-login and email-code provisioning documentation.
+- Verified locally with `npm run verify`: 204 tests pass, production build succeeds, lint reports five existing warnings and no errors. `git diff --check` is clean.
+
+Not verified against a hosted PostgreSQL database, live email/AI providers, a public deployment or production customer data; those are not configured in this workspace.
+
 ## Review hardening — 2026-11-04
 
 Migration `202610160012_review_hardening.sql` (apply after `202610160011`, before deploying this source):

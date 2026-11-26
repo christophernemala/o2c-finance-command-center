@@ -2,11 +2,12 @@ import { agentControl, financeClient, type ClaimedRun } from "../postgres/client
 import type { SqlPool } from "../postgres/transaction";
 import { newToken, tokenHash } from "../auth/crypto";
 import type { AiConfig } from "./config";
+import { aiSpendController } from "./budget";
 import { agentDefinitions, agentKickoff, agentSystemPrompt } from "./agents";
 import { PersistenceError, runLoop, serializeResult, type ModelCaller } from "./loop";
 import { usageCost } from "./pricing";
 import { tools, type ToolContext } from "./tools";
-import { parseGuardrails } from "./guardrails";
+import type { GuardrailBlock, GuardrailHit } from "./guardrails";
 
 const preview = (value: unknown, limit = 6000) => { const json = serializeResult(value); return json.length > limit ? `${json.slice(0, limit)}…` : json; };
 
@@ -39,22 +40,25 @@ export async function executeRun(runId: string, deps: { pool: SqlPool; config: A
   const context: ToolContext = { client, tenant: run.tenant_id, entity: run.entity_id, asOf: run.as_of, actor: "agent", runId: run.id, findings: [],
     record: (type, detail) => step(type, null, detail).catch(error => { throw new PersistenceError(error instanceof Error ? error.message : "Step not recorded"); }) };
   try {
-    // Fail closed: a run never proceeds without the entity's guardrails loaded.
-    const active = await client.rpc("agent_guardrails_active", { p_tenant: run.tenant_id, p_entity: run.entity_id, p_agent_kind: run.kind });
-    if (active.error) throw new Error("Guardrails unavailable");
-    const guardrails = parseGuardrails(active.data);
     const result = await runLoop({
-      guardrails, deadline: options.deadline,
+      deadline: options.deadline, spend: aiSpendController(client, run.tenant_id, run.entity_id, run.id),
       call: deps.call, model: deps.config.model, effort: deps.config.agentEffort, maxTurns: definition.maxTurns,
       system: agentSystemPrompt(definition), tools: tools.filter(entry => definition.tools.includes(entry.name)), context,
       messages: [{ role: "user", content: agentKickoff({ asOf: run.as_of, entity: run.entity_id, trigger: run.trigger }) }],
+      authorizeTool: async (tool, input) => {
+        const gate = await client.rpc("agent_authorize_tool", { ...scope, p_tool: tool, p_input: input });
+        if (gate.error) throw new PersistenceError(`PostgreSQL tool authorization failed: ${gate.error.message}`);
+        const decision = gate.data as { allowed?: unknown; hits?: unknown; block?: unknown } | null;
+        if (!decision || typeof decision.allowed !== "boolean" || !Array.isArray(decision.hits)
+          || !(decision.block === null || (typeof decision.block === "object" && decision.block !== null))) {
+          throw new PersistenceError("PostgreSQL returned an invalid tool authorization decision.");
+        }
+        return { allowed: decision.allowed, hits: decision.hits as GuardrailHit[], block: decision.block as GuardrailBlock | null };
+      },
       onEvent: async event => {
         if (event.type === "thinking") await step("thinking", null, { text: event.text.slice(0, 8000) });
         else if (event.type === "message") await step("message", null, { text: event.text.slice(0, 20000) });
-        else if (event.type === "tool_call") await step("tool_call", event.tool, { input: event.input, input_hash: event.input_hash });
-        else if (event.type === "guardrail") await step("guardrail", event.tool, { rule_id: event.hit.rule.id, rule: event.hit.rule.name, kind: event.hit.rule.kind,
-          stage: event.hit.rule.stage, version: event.hit.rule.version, action: event.hit.action, reason: event.hit.reason });
-        else await step("tool_result", event.tool, { ok: event.ok, output: preview(event.output) }, event.duration_ms);
+        else if (event.type === "tool_result") await step("tool_result", event.tool, { ok: event.ok, output: preview(event.output) }, event.duration_ms);
       },
     });
     const cost = usageCost(result.model, result.usage);

@@ -21,6 +21,13 @@ export interface ForecastWeek {
   outgoing: string; operating_net: string; investing_net: string;
   financing_net: string; net: string; closing: string;
 }
+export interface CashflowScenarioAssumptions { receiptDelayWeeks: number; paymentDelayWeeks: number }
+export interface CashflowScenarioWeek extends ForecastWeek { closing_delta: string }
+export interface CashflowScenarioResult {
+  base: ForecastWeek[]; weeks: CashflowScenarioWeek[];
+  outside_horizon_receipts: string; outside_horizon_payments: string;
+  assumptions: CashflowScenarioAssumptions;
+}
 function date(value: unknown): number {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Invalid forecast date");
   const parsed = Date.parse(`${value}T00:00:00Z`);
@@ -73,6 +80,43 @@ export function forecastWeeks(input: CashflowRun): ForecastWeek[] {
       opening, incoming: bucket.incoming.toFixed(2), outgoing: bucket.outgoing.toFixed(2), operating_net: bucket.operating.toFixed(2),
       investing_net: bucket.investing.toFixed(2), financing_net: bucket.financing.toFixed(2), net: net.toFixed(2), closing: cash.toFixed(2) };
   });
+}
+/**
+ * A non-persistent what-if that shifts source movements later by whole weeks.
+ * It preserves amounts, opening cash and source references; movements moved
+ * beyond week 13 are disclosed separately rather than silently discarded.
+ */
+export function simulateCashflowScenario(input: CashflowRun, assumptions: CashflowScenarioAssumptions): CashflowScenarioResult {
+  const run = validateCashflowRun(input, input.tenant_id, input.entity_id);
+  for (const value of [assumptions.receiptDelayWeeks, assumptions.paymentDelayWeeks]) {
+    if (!Number.isInteger(value) || value < 0 || value > 4) throw new Error("Cash timing shifts must be whole weeks from 0 to 4.");
+  }
+  const base = forecastWeeks(run);
+  const start = date(run.starts_on);
+  const horizonEnd = start + 91 * day;
+  let outsideReceipts = new Exact(0);
+  let outsidePayments = new Exact(0);
+  const entries = run.entries.flatMap(entry => {
+    const shift = (entry.direction === "in" ? assumptions.receiptDelayWeeks : assumptions.paymentDelayWeeks) * 7 * day;
+    const shifted = date(entry.date) + shift;
+    if (shifted >= horizonEnd) {
+      if (entry.direction === "in") outsideReceipts = outsideReceipts.plus(entry.amount);
+      else outsidePayments = outsidePayments.plus(entry.amount);
+      return [];
+    }
+    return [{ ...entry, date: new Date(shifted).toISOString().slice(0, 10) }];
+  });
+  const weeks = forecastWeeks({ ...run, entries }).map((week, index) => ({
+    ...week,
+    closing_delta: new Exact(week.closing).minus(base[index].closing).toFixed(2),
+  }));
+  return {
+    base,
+    weeks,
+    outside_horizon_receipts: outsideReceipts.toFixed(2),
+    outside_horizon_payments: outsidePayments.toFixed(2),
+    assumptions: { ...assumptions },
+  };
 }
 /** Only the dimensionless drawing ratio becomes a JS number; amounts stay decimal. */
 export function chartRatio(value: string, maximum: string): number {
