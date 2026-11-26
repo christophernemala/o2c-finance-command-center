@@ -43,7 +43,7 @@ Use locally bundled Geist for interface text, controls and metric labels; Space 
 
 ## Responsive behavior
 
-On phones, show the O2C mark, entity context and full-width global search in the header. Replace the desktop rail with the safe-area-aware bottom dock for primary destinations and a labelled More menu for all other workspaces. Cards stack vertically; summaries remain readable; tables use labelled record cards or a contained horizontal scroll. Buttons and touch targets are at least 44px high. Respect safe-area insets and reduced-motion preferences.
+On phones, show the O2C mark, entity context and full-width global search in the header. Replace the desktop rail with a safe-area-aware bottom dock for Overview, Receivables, Collections, and Cash application, plus a labelled More menu for all other workspaces. Cards stack vertically; summaries remain readable; tables use labelled record cards or a contained horizontal scroll. Buttons and touch targets are at least 44px high. Respect safe-area insets and reduced-motion preferences.
 
 ## Real-work behavior and honest boundaries
 

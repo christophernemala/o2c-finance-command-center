@@ -341,3 +341,7 @@ allocation. The test checks open AR, unapplied cash, debit-versus-credit handlin
 idempotent import commits, and journal counts. The database is closed at test
 completion; this path does not connect to Supabase, Vercel, or production customer
 data.
+
+## Candidate third-party models (not connected)
+
+The Hugging Face models considered for this product and the gated OCRia-nano-1 document-extraction boundary are documented in [AI_MODEL_DECISIONS.md](AI_MODEL_DECISIONS.md). No Hugging Face model, inference endpoint, or document-OCR upload path is implemented. Any future model output is untrusted evidence; authentication, tenant/entity RLS, exact-decimal validation, audit records, and maker/checker posting remain application/database responsibilities.

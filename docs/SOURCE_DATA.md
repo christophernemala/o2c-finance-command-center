@@ -29,7 +29,7 @@ separate prerequisite; the application does not fall back to demo records.
 
 Provide original invoice PDFs separately if document presentation is required.
 The invoice register does not create a tax invoice and must not be represented as one.
-Original invoice attachment storage is not implemented by this reporting change.
+Original invoice attachment storage and document OCR are not implemented. Any future OCR/model adapter is subject to the legal and security gates in [AI_MODEL_DECISIONS.md](AI_MODEL_DECISIONS.md); it must not bypass the current import review or maker/checker flow.
 
 ## Implemented file paths and ECL detail
 

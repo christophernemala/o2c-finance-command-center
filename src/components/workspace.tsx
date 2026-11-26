@@ -84,7 +84,7 @@ export function FinanceWorkspace({ memberships, entityOptions, data, view, userI
     { name: "Evidence & controls", ids: ["guide", "ecl", "imports", "audit"] },
   ];
   const menu = <nav aria-label="Financial workspaces" className="space-y-1">{groups.map(group => <div key={group.name}><p className="nav-group-label">{group.name}</p>{group.ids.map(id => navigation.find(item => item.id === id)!).map(item => <Link href={href(item.id)} key={item.id} aria-current={item.id === view ? "page" : undefined}><item.icon size={17}/>{item.name}</Link>)}</div>)}</nav>;
-  const mobileTabs: Workspace[] = ["overview", "collections", "reconciliation", "approvals"];
+  const mobileTabs: Workspace[] = ["overview", "receivables", "collections", "reconciliation"];
   return <div className="min-h-screen lg:grid lg:grid-cols-[216px_minmax(0,1fr)]">
     <aside className="rail workspace-rail hidden flex-col px-3 py-6 lg:flex"><div className="mb-5 px-2"><ProductBrand/></div>{menu}<div className="mt-auto border-t border-line px-3 pt-6"><ShieldCheck size={20} className="mb-3 text-link"/><p className="text-sm font-medium text-ink">Every decision, accountable.</p><p className="mt-2 text-xs leading-5 text-muted">Independent approval protects financial posting.</p></div></aside>
     <div className="min-w-0">

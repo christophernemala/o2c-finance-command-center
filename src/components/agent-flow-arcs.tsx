@@ -18,10 +18,10 @@ export function AgentFlowArcs() {
     </defs>
     <motion.path d="M 120 46 C 190 4, 290 88, 360 46 S 530 4, 600 46 S 770 88, 840 46"
       fill="none" stroke="url(#o2c-agent-flow)" strokeWidth="2" strokeLinecap="round"
-      initial={reduced ? false : { pathLength: 0 }} animate={{ pathLength: 1 }}
+      initial={false} animate={{ pathLength: 1 }}
       transition={{ duration: reduced ? 0 : 1.1, ease: "easeOut" }}/>
     {points.map((x, index) => <motion.circle key={x} cx={x} cy="46" r="5" fill="#fff" stroke="#1769d2" strokeWidth="2"
-      initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }}
+      initial={false} animate={{ opacity: 1 }}
       transition={{ duration: reduced ? 0 : 0.25, delay: reduced ? 0 : 0.2 + index * 0.16 }}/>) }
   </svg>;
 }

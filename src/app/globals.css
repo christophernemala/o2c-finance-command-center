@@ -475,7 +475,7 @@ body { background: var(--canvas); font-size: 14px; }
 .analytics-board .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .analytics-board .chart-tile .workspace-panel { border-radius: 16px; }
 @media (min-width: 640px) { .dashboard-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1440px) { .dashboard-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1440px) { .dashboard-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .analytics-board .chart-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 639px) {
   .dashboard-kpis .metric-tile { padding: 13px 12px; }
